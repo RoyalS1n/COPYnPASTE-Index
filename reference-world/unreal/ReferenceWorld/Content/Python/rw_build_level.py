@@ -337,7 +337,7 @@ def add_hism(actor, mesh, rows):
                                           new_class=unreal.HierarchicalInstancedStaticMeshComponent,
                                           blueprint_context=None)
     handle, fail = sds.add_new_subobject(params)
-    if not fail.is_empty():
+    if str(fail).strip():
         raise RuntimeError(str(fail))
     sds.rename_subobject(handle, unreal.Text(mesh.get_name()))
     data = unreal.SubobjectDataBlueprintFunctionLibrary.get_data(handle)
