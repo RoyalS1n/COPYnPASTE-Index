@@ -966,6 +966,52 @@ def build(cfg, terrain, mats, coll):
     B.logs(Pc(-2.0, 36.0, math.pi / 2), 0, 0, floor0)                                   # firewood by the hall
     B.logs(Pc(1.0, 36.0, math.pi / 2), 0, 0, floor0)
 
+    # ---------------------------------------------------------- the approach road
+    road = np.asarray(site["road"], dtype=float)
+    half_w = c["road_width_m"] * 0.5
+    seg_len = np.hypot(np.diff(road[:, 0]), np.diff(road[:, 1]))
+    dist_along = np.concatenate([[0.0], np.cumsum(seg_len)])
+    n_spiral = 61                                   # gate point + 60 spiral samples (terrain.py)
+
+    def road_at(d):
+        """Point, unit tangent (2D) and index at distance d along the road."""
+        i = int(np.clip(np.searchsorted(dist_along, d) - 1, 0, len(road) - 2))
+        t = (d - dist_along[i]) / max(seg_len[i], 1e-6)
+        p = road[i] + (road[i + 1] - road[i]) * t
+        tan = Vector((road[i + 1][0] - road[i][0], road[i + 1][1] - road[i][1])).normalized()
+        return p, tan, i
+
+    def ground(x, y):
+        return float(terrain.height_at(np.array(x), np.array(y)))
+
+    # timber fence on the drop side of the switchback
+    posts = []
+    for d in np.arange(6.0, dist_along[n_spiral - 1], 2.6):
+        p, tan, i = road_at(d)
+        out = Vector((p[0] - cx, p[1] - cy)).normalized()
+        q = Vector((p[0], p[1])) + out * (half_w + 0.5)
+        z = ground(q.x, q.y)
+        posts.append((q, z))
+        B.box(Frame(q.x, q.y, math.atan2(tan.y, tan.x)), -0.08, 0.08, -0.08, 0.08, z - 0.4, z + 1.15, WOOD)
+    for (q0, z0), (q1, z1) in zip(posts[:-1], posts[1:]):
+        for h in (0.5, 0.98):
+            B.beam((q0.x, q0.y, z0 + h), (q1.x, q1.y, z1 + h), 0.07, 0.1, WOOD)
+
+    # lantern posts along the whole road, on the uphill / inner side
+    for d in np.arange(10.0, dist_along[-1] - 4.0, 28.0):
+        p, tan, i = road_at(d)
+        inward = Vector((cx - p[0], cy - p[1])).normalized() if i < n_spiral else Vector((-tan.y, tan.x))
+        q = Vector((p[0], p[1])) + inward * (half_w + 0.6)
+        z = ground(q.x, q.y)
+        Fq = Frame(q.x, q.y, math.atan2(-inward.y, -inward.x))       # local +x points over the road
+        B.box(Fq, -0.09, 0.09, -0.09, 0.09, z - 0.5, z + 3.0, WOOD)
+        B.box(Fq, -0.05, 0.7, -0.05, 0.05, z + 2.75, z + 2.85, WOOD)
+        lp = Fq.P(0.62, 0, z + 2.45)
+        B.frustum((lp.x, lp.y), 0.13, 0.13, z + 2.25, z + 2.6, 6, IRON)
+        B.frustum((lp.x, lp.y), 0.17, 0.02, z + 2.6, z + 2.8, 6, IRON)
+        B.frustum((lp.x, lp.y), 0.06, 0.0, z + 2.3, z + 2.5, 6, FIRE)
+        B.light((lp.x, lp.y, z + 2.42), TORCH, 55.0, 0.08, "lantern")
+
     # ---------------------------------------------------------- player start
     road = site["road"]
     ps = Vector(road[-1])
