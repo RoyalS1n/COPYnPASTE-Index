@@ -1,0 +1,39 @@
+{
+  "name": "alpine_dusk",
+  "extends": "golden_valley",
+  "seed": 3,
+  "terrain": {
+    "mountain_height_m": 480.0,
+    "backdrop_height_m": 420.0,
+    "skirt_height_m": 1900.0
+  },
+  "biome": {
+    "treeline_m": 210.0,
+    "snowline_m": 300.0,
+    "conifer_ratio": 0.92
+  },
+  "lighting": {
+    "sun_elevation_deg": 3.0,
+    "sun_azimuth_deg": -95.0,
+    "sun_strength": 4.0,
+    "sun_color": [
+      1.0,
+      0.5,
+      0.3
+    ],
+    "sky_strength": 0.08,
+    "haze_color": [
+      0.5,
+      0.38,
+      0.45
+    ],
+    "haze_amount": 0.65,
+    "cloud_color": [
+      1.0,
+      0.5,
+      0.4
+    ],
+    "exposure": 1.2,
+    "look": "AgX - Punchy"
+  }
+}
