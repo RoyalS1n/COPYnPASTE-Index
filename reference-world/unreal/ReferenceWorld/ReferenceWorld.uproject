@@ -2,11 +2,30 @@
 	"FileVersion": 3,
 	"EngineAssociation": "5.5",
 	"Category": "",
-	"Description": "Procedural river-valley world generated from the Blender pipeline in ../../blender.",
+	"Description": "Playable procedural castle valley generated from the Blender pipeline in ../../blender.",
 	"Plugins": [
-		{ "Name": "PythonScriptPlugin", "Enabled": true },
-		{ "Name": "EditorScriptingUtilities", "Enabled": true },
-		{ "Name": "SequencerScripting", "Enabled": true },
-		{ "Name": "MovieRenderPipeline", "Enabled": true }
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true
+		},
+		{
+			"Name": "EditorScriptingUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "SequencerScripting",
+			"Enabled": true
+		},
+		{
+			"Name": "MovieRenderPipeline",
+			"Enabled": true
+		}
+	],
+	"Modules": [
+		{
+			"Name": "ReferenceWorld",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
 	]
 }

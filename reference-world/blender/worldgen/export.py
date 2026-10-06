@@ -81,8 +81,48 @@ def direction_to_ue_rotator(v):
             "yaw": math.degrees(math.atan2(y, x)), "roll": 0.0}
 
 
+# categories that get convex UCX_ collision proxies (Unreal picks them up on import)
+COLLISION_PROXY = {"trees": "trunk", "rocks": "hull", "outcrops": "hull"}
+
+
+def _ucx_proxy(ob, kind):
+    """Convex collision proxy named UCX_<mesh>_00 for Unreal's FBX importer:
+    a trunk cylinder for trees (foliage stays passable) or a convex hull of a
+    vertex subsample for rocks."""
+    import bmesh
+    me = ob.data
+    co = np.zeros(len(me.vertices) * 3, dtype=np.float32)
+    me.vertices.foreach_get("co", co)
+    co = co.reshape(-1, 3)
+    bm = bmesh.new()
+    if kind == "trunk":
+        bark = set()
+        for poly in me.polygons:
+            if poly.material_index == 0:
+                bark.update(poly.vertices)
+        idx = np.array(sorted(bark), dtype=int)
+        low = co[idx][co[idx][:, 2] < 2.5] if len(idx) else co[co[:, 2] < 1.0]
+        r = float(np.max(np.hypot(low[:, 0], low[:, 1]))) * 1.1 if len(low) else 0.4
+        for a in np.linspace(0, 2 * np.pi, 8, endpoint=False):
+            for z in (0.0, 4.0):
+                bm.verts.new((r * np.cos(a), r * np.sin(a), z))
+    else:
+        rng = np.random.default_rng(len(co))
+        pick = co[rng.choice(len(co), min(64, len(co)), replace=False)]
+        for p in pick:
+            bm.verts.new(p.tolist())
+    bmesh.ops.convex_hull(bm, input=bm.verts)
+    pm = bpy.data.meshes.new("UCX_" + ob.name + "_00")
+    bm.to_mesh(pm)
+    bm.free()
+    proxy = bpy.data.objects.new("UCX_" + ob.name + "_00", pm)
+    for c in ob.users_collection:
+        c.objects.link(proxy)
+    return proxy
+
+
 def export_all(cfg, terrain, lib, scatter, cam_keys, out_dir, terrain_obj_lowres, terrain_obj_far=None,
-               castle_obj=None, crag_obj=None):
+               castle_obj=None, crag_obj=None, castle_info=None):
     os.makedirs(os.path.join(out_dir, "meshes"), exist_ok=True)
     h = terrain.height
     hmin, hmax = float(h.min()), float(h.max())
@@ -119,7 +159,10 @@ def export_all(cfg, terrain, lib, scatter, cam_keys, out_dir, terrain_obj_lowres
         names = []
         for ob in objs:
             clean = ob.name.split("_", 1)[1]  # drop the ordering prefix
-            _fbx(os.path.join(out_dir, "meshes", f"SM_{clean}.fbx"), [ob])
+            proxy = _ucx_proxy(ob, COLLISION_PROXY[cat]) if cat in COLLISION_PROXY else None
+            _fbx(os.path.join(out_dir, "meshes", f"SM_{clean}.fbx"), [ob] + ([proxy] if proxy else []))
+            if proxy:
+                bpy.data.objects.remove(proxy)
             names.append({"mesh": f"SM_{clean}", "materials": [m.name for m in ob.data.materials]})
         assets[cat] = names
 
@@ -144,6 +187,18 @@ def export_all(cfg, terrain, lib, scatter, cam_keys, out_dir, terrain_obj_lowres
         k["ue_location_cm"] = [x * 100.0, -y * 100.0, z * 100.0]
         k["ue_rotation"] = direction_to_ue_rotator(k["forward"])
 
+    castle_ue = None
+    if castle_info:
+        ps = castle_info["player_start"]
+        castle_ue = {
+            "lights": [{"location_cm": [L["pos"][0] * 100.0, -L["pos"][1] * 100.0, L["pos"][2] * 100.0],
+                        "color": list(L["color"]), "power_w": L["power"], "kind": L["kind"]}
+                       for L in castle_info.get("lights", [])],
+            "player_start": {"location_cm": [ps["pos"][0] * 100.0, -ps["pos"][1] * 100.0, ps["pos"][2] * 100.0],
+                             "yaw_deg": -ps["yaw_deg"]},
+            "world_half_size_cm": terrain.half * 100.0,
+        }
+
     lt = cfg["lighting"]
     el = math.radians(lt["sun_elevation_deg"])
     az = math.radians(lt["sun_azimuth_deg"])
@@ -163,6 +218,7 @@ def export_all(cfg, terrain, lib, scatter, cam_keys, out_dir, terrain_obj_lowres
                      "ue_sun_rotation": direction_to_ue_rotator(
                          [-math.sin(az) * math.cos(el), -math.cos(az) * math.cos(el), -math.sin(el)])},
         "camera": {**{k: v for k, v in cfg["camera"].items() if k not in ("path", "stills")}, "keys": cam_keys},
+        "castle": castle_ue,
     }
     with open(os.path.join(out_dir, "manifest.json"), "w") as fh:
         json.dump(manifest, fh, indent=2)

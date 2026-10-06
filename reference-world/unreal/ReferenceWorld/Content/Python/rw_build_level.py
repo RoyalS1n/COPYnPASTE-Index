@@ -17,6 +17,11 @@ What it does
      (one HISM component per mesh variant).
   5. Creates a CineCamera and LS_Flythrough level sequence matching the
      Blender camera move.
+  6. Makes it playable: collision (complex on terrain/cliff/castle so stairs,
+     floors and wall-walks are walkable; simple proxies on trees and rocks;
+     none on grass, ferns, pebbles, bushes), castle lights, a PlayerStart at
+     the foot of the castle road, invisible world bounds and the
+     RWGameMode (first-person explorer, compiled from Source/).
 """
 import json
 import math
@@ -80,7 +85,7 @@ def import_meshes(mesh_dir):
         sm = ui.static_mesh_import_data
         sm.combine_meshes = True
         sm.generate_lightmap_u_vs = False
-        sm.auto_generate_collision = name.startswith("SM_Terrain")
+        sm.auto_generate_collision = False  # UCX_ proxies come with trees/rocks; big meshes use complex
         sm.normal_import_method = unreal.FBXNormalImportMethod.FBXNIM_IMPORT_NORMALS
         sm.vertex_color_import_option = unreal.VertexColorImportOption.REPLACE
         try:
@@ -244,6 +249,9 @@ def build_materials(pal):
             "RW_WindowLit": instance(lit, "MI_RW_WindowLit", {"Color": [0.05, 0.03, 0.01], "EmissiveColor": pal["window_glow"]},
                                      {"Roughness": 0.3, "EmissiveStrength": 20.0}),
             "RW_Cloth": instance(fol, "MI_RW_Cloth", {"ColorA": pal["cloth"], "ColorB": pal["cloth"]}, {"Variation": 0.0}),
+            "RW_Iron": instance(lit, "MI_RW_Iron", {"Color": pal.get("iron", [0.03, 0.03, 0.032])}, {"Roughness": 0.45, "Specular": 0.6}),
+            "RW_Fire": instance(lit, "MI_RW_Fire", {"Color": [0, 0, 0], "EmissiveColor": [1.0, 0.42, 0.1]},
+                                {"EmissiveStrength": 60.0}),
         })
     log("materials built")
     return mats
@@ -372,7 +380,7 @@ def add_hism(actor, mesh, rows):
                            unreal.Rotator(roll=r[5], pitch=r[3], yaw=r[4]),
                            unreal.Vector(r[6], r[6], r[6])) for r in rows]
     c.add_instances(xf, False, True)
-    return len(xf)
+    return c, len(xf)
 
 
 def place_instances(meshes):
@@ -391,11 +399,16 @@ def place_instances(meshes):
             if cap:
                 rows = rows[:cap]
             try:
-                total += add_hism(holder, mesh, rows)
+                hism, k = add_hism(holder, mesh, rows)
+                total += k
+                if cat in NO_COLLISION_CATEGORIES:
+                    hism.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
             except Exception as e:
                 # fallback: individual actors for the big stuff, skip grass
                 unreal.log_warning(f"[ReferenceWorld] HISM failed ({e}); falling back to actors for {mesh_name}")
                 if cat == "grass":
+                    continue
+                if cat in NO_COLLISION_CATEGORIES:
                     continue
                 for r in rows[:3000]:
                     a = place_static(mesh, mesh_name, (r[0], r[1], r[2]), (r[6],) * 3)
@@ -472,6 +485,72 @@ def build_camera_and_sequence(man):
 
 
 # --------------------------------------------------------------------------
+# playability
+COMPLEX_COLLISION = ("SM_Terrain", "SM_TerrainFar", "SM_Castle", "SM_Crag")
+NO_COLLISION_CATEGORIES = ("grass", "ferns", "pebbles", "bushes")
+
+
+def setup_collision(meshes):
+    """Walkable architecture and terrain use their render triangles as
+    collision; everything else relies on imported UCX_ proxies."""
+    for name, mesh in meshes.items():
+        if name in COMPLEX_COLLISION:
+            body = mesh.get_editor_property("body_setup")
+            if body is None:
+                unreal.log_warning(f"[ReferenceWorld] {name}: no body setup")
+                continue
+            body.set_editor_property("collision_trace_flag", unreal.CollisionTraceFlag.CTF_USE_COMPLEX_AS_SIMPLE)
+            eal.save_loaded_asset(mesh)
+    log("collision configured")
+
+
+def place_lights(man):
+    castle = man.get("castle") or {}
+    n = 0
+    for L in castle.get("lights", []):
+        a = spawn(unreal.PointLight, L["location_cm"], None, f"Light_{L['kind']}_{n:03d}")
+        lc_ = comp(a, unreal.PointLightComponent)
+        lc_.set_mobility(unreal.ComponentMobility.MOVABLE)
+        try:
+            lc_.set_editor_property("intensity_units", unreal.LightUnits.LUMENS)
+        except Exception:
+            pass
+        # Blender watts -> lumens, roughly (warm incandescent ~ 12 lm/W)
+        lc_.set_editor_property("intensity", float(L["power_w"]) * 12.0)
+        lc_.set_light_color(lc(L["color"]))
+        lc_.set_editor_property("attenuation_radius", 1600.0 if L["kind"] in ("fire", "chandelier") else 900.0)
+        lc_.set_editor_property("source_radius", 8.0)
+        lc_.set_editor_property("cast_shadows", L["kind"] in ("fire", "chandelier"))
+        n += 1
+    log(f"{n} castle lights")
+
+
+def place_player_and_bounds(man):
+    castle = man.get("castle") or {}
+    ps = castle.get("player_start")
+    if ps:
+        spawn(unreal.PlayerStart, ps["location_cm"], {"pitch": 0.0, "yaw": ps["yaw_deg"], "roll": 0.0}, "PlayerStart")
+    # invisible walls just inside the main terrain edge
+    half = castle.get("world_half_size_cm", man["terrain"]["size_m"] * 50.0) - 2000.0
+    cube = unreal.load_asset("/Engine/BasicShapes/Cube")   # 100 cm cube
+    if cube:
+        for i, (x, y, sx, sy) in enumerate(((half, 0, 1, 2 * half / 100), (-half, 0, 1, 2 * half / 100),
+                                            (0, half, 2 * half / 100, 1), (0, -half, 2 * half / 100, 1))):
+            a = place_static(cube, f"WorldBound_{i}", (x, y, 50000.0), (sx, sy, 1000.0))
+            a.set_actor_hidden_in_game(True)
+            a.get_editor_property("static_mesh_component").set_editor_property("cast_shadow", False)
+    # game mode on this level (works once the C++ module is compiled)
+    gm = unreal.load_class(None, "/Script/ReferenceWorld.RWGameMode")
+    if gm:
+        world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+        world.get_world_settings().set_editor_property("default_game_mode", gm)
+        log("game mode: RWGameMode")
+    else:
+        unreal.log_warning("[ReferenceWorld] RWGameMode not found - build the C++ module (see README), "
+                           "then rerun; Play will use the default spectator until then")
+
+
+# --------------------------------------------------------------------------
 def main():
     wd = data_dir()
     man_path = os.path.join(wd, "manifest.json")
@@ -484,6 +563,7 @@ def main():
     meshes = import_meshes(os.path.join(wd, "meshes"))
     mats = build_materials(man["palette"])
     assign_materials(meshes, mats)
+    setup_collision(meshes)
 
     les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
     if eal.does_asset_exist(MAP_PATH):
@@ -503,6 +583,8 @@ def main():
     size = t["size_m"]  # the engine plane is 1 m square
     place_static(plane, "Water", (0, 0, t["water_level_m"] * 100.0), (size, size, 1), mats["RW_Water"])
     place_instances(meshes)
+    place_lights(man)
+    place_player_and_bounds(man)
     build_camera_and_sequence(man)
 
     les.save_current_level()

@@ -405,18 +405,21 @@ def castle_stone(pal):
     uv = tc.outputs["UV"]
     brick = nb.n("ShaderNodeTexBrick", offset=0.5, offset_frequency=2, squash=1.0, squash_frequency=2)
     brick.inputs["Scale"].default_value = 1.0
-    brick.inputs["Mortar Size"].default_value = 0.018
-    brick.inputs["Mortar Smooth"].default_value = 0.2
-    brick.inputs["Bias"].default_value = 0.0
-    brick.inputs["Brick Width"].default_value = 0.68
-    brick.inputs["Row Height"].default_value = 0.34
+    brick.inputs["Mortar Size"].default_value = 0.014
+    brick.inputs["Mortar Smooth"].default_value = 0.35
+    brick.inputs["Bias"].default_value = -0.2
+    brick.inputs["Brick Width"].default_value = 0.95
+    brick.inputs["Row Height"].default_value = 0.44
     brick.inputs["Color1"].default_value = _lin(pal["stone"])
-    brick.inputs["Color2"].default_value = _lin([c * 0.72 for c in pal["stone"]])
+    brick.inputs["Color2"].default_value = _lin([pal["stone"][0] * 0.62, pal["stone"][1] * 0.6, pal["stone"][2] * 0.55])
     brick.inputs["Mortar"].default_value = _lin([c * 0.55 for c in pal["stone"]])
     nb.link(uv, brick.inputs["Vector"])
     pos = tc.outputs["Object"]
+    blockvar = _noise(nb, 1.1, 2, 0.4, uv)
+    col = _mix(nb, _maprange(nb, blockvar.outputs["Fac"], 0.3, 0.7, 0.0, 0.5), brick.outputs["Color"],
+               [pal["stone"][0] * 1.15, pal["stone"][1] * 1.08, pal["stone"][2] * 0.95])
     big = _noise(nb, 0.06, 5, 0.6, pos)
-    col = _mix(nb, _maprange(nb, big.outputs["Fac"], 0.35, 0.7, 0.0, 0.6), brick.outputs["Color"],
+    col = _mix(nb, _maprange(nb, big.outputs["Fac"], 0.35, 0.7, 0.0, 0.6), col,
                [c * 0.6 for c in pal["stone"]])
     # vertical rain streaks: noise squashed along u, stretched along v
     sm = nb.n("ShaderNodeMapping")
@@ -464,6 +467,31 @@ def roof_tiles(name, base, alt_tint):
     return m
 
 
+def planks(base):
+    """Timber planks on real-scale UVs: boards, gaps and grain."""
+    m = _new("RW_Wood")
+    nb = NB(m)
+    tc = nb.n("ShaderNodeTexCoord")
+    brick = nb.n("ShaderNodeTexBrick", offset=0.37, offset_frequency=1, squash=1.0, squash_frequency=1)
+    brick.inputs["Scale"].default_value = 1.0
+    brick.inputs["Mortar Size"].default_value = 0.008
+    brick.inputs["Brick Width"].default_value = 2.4
+    brick.inputs["Row Height"].default_value = 0.22
+    brick.inputs["Color1"].default_value = _lin(base)
+    brick.inputs["Color2"].default_value = _lin([c * 0.7 for c in base])
+    brick.inputs["Mortar"].default_value = _lin([c * 0.25 for c in base])
+    nb.link(tc.outputs["UV"], brick.inputs["Vector"])
+    gm = nb.n("ShaderNodeMapping")
+    gm.inputs["Scale"].default_value = (0.4, 12.0, 1.0)
+    nb.link(tc.outputs["UV"], gm.inputs["Vector"])
+    grain = _noise(nb, 3.0, 6, 0.6, gm.outputs[0])
+    col = _mix(nb, _maprange(nb, grain.outputs["Fac"], 0.35, 0.7, 0.0, 0.5), brick.outputs["Color"], [c * 0.6 for c in base])
+    normal = _bump(nb, _math(nb, "SUBTRACT", grain.outputs["Fac"], _math(nb, "MULTIPLY", brick.outputs["Fac"], 2.0)), 0.4, 0.01)
+    p = _principled(nb, col, 0.75, normal, spec=0.3)
+    _out(nb, p.outputs[0])
+    return m
+
+
 def simple(name, color, rough=0.8, emission=None, strength=0.0, translucent=0.0):
     m = _new(name)
     nb = NB(m)
@@ -501,7 +529,9 @@ def build_all(cfg):
         "stone": castle_stone(pal),
         "roof": roof_tiles("RW_Roof", pal["roof"], [0.16, 0.15, 0.08]),
         "roof_alt": roof_tiles("RW_RoofAlt", pal["roof_alt"], [0.12, 0.11, 0.06]),
-        "wood": simple("RW_Wood", pal["wood"], 0.8),
+        "wood": planks(pal["wood"]),
+        "iron": simple("RW_Iron", pal.get("iron", [0.03, 0.03, 0.032]), 0.45),
+        "fire": simple("RW_Fire", [0.0, 0.0, 0.0], 1.0, [1.0, 0.42, 0.1], 12.0),
         "window_dark": simple("RW_WindowDark", [0.01, 0.01, 0.012], 0.2),
         "window_lit": simple("RW_WindowLit", [0.05, 0.03, 0.01], 0.3, pal["window_glow"], 6.0),
         "cloth": simple("RW_Cloth", pal["cloth"], 0.7, translucent=0.35),

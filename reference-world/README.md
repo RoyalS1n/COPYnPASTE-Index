@@ -1,24 +1,32 @@
 # Reference World: a procedural Blender → Unreal Engine 5 environment
 
-A cinematic castle-and-river-valley world built entirely from code. Blender
-generates the terrain, the castle on its cliff, vegetation, rocks,
-materials, lighting and camera move, renders stills and a flythrough, and
-exports everything Unreal Engine 5 needs. A
+A playable castle-and-river-valley world built entirely from code. Blender
+generates the terrain, a large walk-through castle on its cliff,
+vegetation, rocks, materials, lighting and camera moves, renders stills
+and a flythrough, and exports everything Unreal Engine 5 needs. Unreal then
+builds the level and you can walk it in first person: up the road, through
+the gatehouse, along the walls, up the towers and through every floor of
+the keep. A
 Python editor script then rebuilds the same world in Unreal with Lumen,
 Nanite, a physical sky, volumetric clouds and a matching Sequencer shot.
 
 > **About the reference video.** This was built to match a castle scene in
 > a reference clip on X (`x.com/rewind02/status/2107086047985258639`). The
 > build environment's network policy blocks x.com, so the clip could not be
-> viewed. The scene is therefore an interpretation: an original stone castle
-> on a cliff above a river at golden hour. The castle is a new design,
-> assembled procedurally from generic medieval parts. See
+> viewed, and no frames could be captured from it. The scene is therefore an
+> interpretation: an original stone castle on a cliff above a river at
+> golden hour. The castle and its interiors are a new design, assembled
+> procedurally from generic medieval parts. See
 > [Matching the reference](#matching-the-reference) for retargeting it from
 > screenshots.
 
 ![hero](previews/hero.jpg)
 
 ![castle](previews/castle_tele.jpg)
+
+| | |
+|---|---|
+| ![great hall](previews/hall_interior.jpg) | ![courtyard](previews/courtyard.jpg) |
 
 | | |
 |---|---|
@@ -29,7 +37,8 @@ Nanite, a physical sky, volumetric clouds and a matching Sequencer shot.
 | Element | How |
 |---|---|
 | Terrain | 2.4 km heightfield, 2017² samples (about 1.2 m apart): domain-warped ridged multifractal mountains, a meandering valley, thermal erosion, multi-scale gully detail, hummocky micro-relief and a carved river channel |
-| Castle | Original procedural design: curtain walls that follow the cliff edge with foundations running down the rock, six round towers with slate cones or battlements, a gatehouse facing the approach, a keep with corner turrets, a spire with a pennant, a great hall and houses, with arrow slits and windows, some lit. Real-scale UVs drive coursed-stone and slate-tile shaders |
+| Castle | Original, walkable design about 165 m across. A paved courtyard sits inside curtain walls whose foundations run down the cliff, with wall-walks reached by courtyard stairs. Seven hollow round towers each have a ground room, a wall-walk room and a curved stair to a roofed top room or an open battlemented platform. The gatehouse has a walk-through passage, raised portcullis and open gates. There is a four-storey keep, a 64 m spire, a great hall, houses and a well. Real-scale UVs drive ashlar-stone, slate, clay-tile and timber-plank shaders |
+| Interiors | Keep: stores, then a pillared throne hall with dais and banners, then bedchambers, then an armoury, connected by stair flights through stairwells up to a roof deck with a pavilion and turrets. Great hall: timber trusses, long tables, a high table on a dais, a fireplace with chimney, banners and chandeliers. 48 torch, chandelier and fire lights, exported to Unreal as point lights |
 | Crag | The castle's hill is raised and carved after erosion so its cliffs stay sharp. A dedicated polar-grid cliff mesh, at about 0.5 m resolution, wraps it with vertical jointing, ledges and overhangs that a heightfield cannot hold. A switchback road is cut into the hillside from the gate down to the valley |
 | Distant ranges | 16 km low-resolution skirt of snow-capped ranges for layered depth; it continues the main terrain's edge seamlessly |
 | Biomes | Slope, height and noise masks for grass, dry grass, rock, snow and wet ground. They drive the shader, the scatter and the Unreal weightmaps |
@@ -38,7 +47,7 @@ Nanite, a physical sky, volumetric clouds and a matching Sequencer shot.
 | Scatter | About 9k trees, 4k bushes, 1.6k rocks, 700 outcrops plus a talus ring at the crag foot, 9k ferns, 26k pebbles and 420k grass clumps. Placement is deterministic from the masks and keeps clear of the road and the castle. Geometry Nodes instances them in Blender and the same transforms go to Unreal |
 | Lighting | Physical multiple-scattering sky, low golden sun at a calibrated sun-to-sky ratio, a cirrus cloud layer, and AgX colour management |
 | Grade | Compositor: aerial perspective from the mist pass, sky re-inserted behind geometry, bloom, slight chromatic dispersion and a vignette |
-| Camera | 32 mm cine camera on a 10 s rising flight up the river, aimed at the castle, with depth of field. A second, static 70 mm shot frames the castle from the river bank |
+| Camera | 32 mm cine camera on a 10 s rising flight up the river, aimed at the castle, with depth of field. Static shots: a 60 mm castle portrait from the river bank, the great hall interior, and the courtyard from the gate |
 
 ## Quick start (Blender)
 
@@ -65,14 +74,33 @@ Open the `.blend` to explore or art-direct the scene by hand. Rendering uses
 Cycles on the CPU by default; switch the device to GPU in the `.blend` or in
 `worldgen/lighting.py` for much faster renders.
 
-## Unreal Engine 5
+## Unreal Engine 5: build and play the map
+
+You need UE 5.3 or later and a C++ toolchain, because the project has a
+small C++ module (the first-person character and game mode). On Windows
+that is Visual Studio 2022 with the *Game development with C++* workload;
+on macOS it is Xcode.
 
 1. Run the Blender build with `--export`. It copies the data into
    `unreal/ReferenceWorld/WorldData/`.
-2. Open `unreal/ReferenceWorld/ReferenceWorld.uproject`. If the engine
-   version prompt appears, pick your installed UE 5.3 or later.
+2. Open `unreal/ReferenceWorld/ReferenceWorld.uproject`. Pick your engine
+   version if prompted, and answer **Yes** when asked to rebuild the
+   `ReferenceWorld` module.
 3. Run **Tools › Execute Python Script…** and choose
    `Content/Python/rw_build_level.py`.
+4. Press **Play**. You start at the foot of the castle road.
+
+| Control | Keyboard and mouse | Gamepad |
+|---|---|---|
+| Move | W A S D or the arrow keys | Left stick |
+| Look | Mouse | Right stick |
+| Jump | Space | A / Cross |
+| Sprint | Left Shift (hold) | Left stick click (hold) |
+
+Things to find: the switchback road and gatehouse, the courtyard stairs up
+to the wall-walks, the doors from the wall-walks into the towers and their
+curved stairs to the top, the keep's four floors and roof deck, and the
+great hall.
 
 The script imports every mesh as Nanite and builds the master materials and
 instances from the preset palette. It then creates
@@ -85,6 +113,12 @@ instances from the preset palette. It then creates
   rock variant.
 - **Camera.** A `RW_Camera` cine camera and an `LS_Flythrough` sequence that
   replays the Blender camera move. Render it with Movie Render Queue.
+- **Playability.**
+  - Terrain, cliff and castle use their own triangles as collision, so every stair, floor and wall-walk is walkable.
+  - Trees collide only at the trunk and rocks with a convex hull, through exported `UCX_` proxies.
+  - Grass, ferns, pebbles and bushes have no collision.
+  - Torches, chandeliers and fires become point lights.
+  - A PlayerStart, invisible world-boundary walls and `RWGameMode` complete the map.
 
 **Optional landscape.** For a sculptable, paintable landscape instead of the
 terrain mesh, open Landscape mode, choose *Import from File* with
@@ -92,8 +126,9 @@ terrain mesh, open Landscape mode, choose *Import from File* with
 values from `WorldData/manifest.json`. The `weight_*.png` files are the
 matching layer weightmaps.
 
-> The Unreal script was written against the UE 5.3–5.5 Python API, but it
-> could not be executed in the build environment, which has no Unreal Engine.
+> The Unreal script and C++ module were written against the UE 5.3–5.5 APIs,
+> but neither could be compiled or executed in the build environment, which
+> has no Unreal Engine.
 > The Blender → Unreal transform conversion was verified numerically against
 > Unreal's rotator maths. If an API call differs in your engine version, the
 > Output Log names the line. Most calls already have fallbacks.
@@ -142,7 +177,8 @@ python blender/build_world.py --preset misty_morning --preview
    | Camera move | `camera.path` keys (`y` along the valley, `height`, `x` offset, `yaw`, `pitch`) |
    | Castle position | `castle.y`, `castle.river_offset_m` |
    | Castle hill | `castle.crag_height_m`, `castle.plateau_radius_m`, `castle.crag_radius_m` |
-   | Castle massing | `castle.tower_count`, `castle.tower_height_m`, `castle.wall_height_m`, `castle.keep_height_m`, `castle.spire_height_m` |
+   | Castle footprint | `castle.plateau_radius_m` (the courtyard and walls scale with it) |
+   | Castle massing | `castle.tower_count`, `castle.tower_radius_m`, `castle.tower_height_m`, `castle.wall_height_m`, `castle.keep_size_m`, `castle.spire_height_m` |
    | Castle colours | `palette.stone`, `palette.roof`, `palette.roof_alt`, `palette.cloth` |
 
 For the castle itself, frames from the reference show the massing to aim
@@ -164,7 +200,7 @@ reference-world/
 │       ├── terrain.py        heightfield, erosion, masks, skirt, mesh build
 │       ├── materials.py      procedural Cycles shaders
 │       ├── assets.py         trees, bushes, ferns, grasses, rocks (bmesh)
-│       ├── castle.py         procedural castle + polar cliff mesh
+│       ├── castle.py         walkable castle kit + layout, interiors, lights, cliff mesh
 │       ├── scatter.py        placement + Geometry Nodes instancers
 │       ├── lighting.py       sky, sun, clouds, render + compositor
 │       ├── camera.py         cine camera + flythrough keys
@@ -172,6 +208,6 @@ reference-world/
 │       └── png.py            dependency-free PNG writer
 ├── presets/                  look presets (JSON)
 ├── tools/match_reference.py  derive a preset from reference frames
-├── unreal/ReferenceWorld/    UE5 project (config + editor Python script)
+├── unreal/ReferenceWorld/    UE5 project: config, C++ player module, editor Python script
 └── previews/                 committed preview renders
 ```

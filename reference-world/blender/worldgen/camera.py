@@ -42,15 +42,19 @@ def aim(k, pos, target):
     k["pitch"] = math.degrees(math.atan2(dz, math.hypot(dx, dy))) + k.get("pitch_offset", k.get("pitch", 0.0))
 
 
-def static_shot(cfg, terrain, shot, coll):
-    """A fixed camera for an extra still, e.g. a long-lens castle portrait."""
-    f = shot["from"]
-    wl = cfg["biome"]["water_level_m"]
-    x = float(terrain.river_center(np.array(f["y"]))) + f.get("x", 0.0)
-    ground = max(float(terrain.height_at(np.array(x), np.array(f["y"]))), wl)
-    pos = (x, f["y"], ground + f.get("height", 2.0))
+def static_shot(cfg, terrain, shot, coll, placed=None):
+    """A fixed camera for an extra still: either 'from' a river-relative
+    position, or a camera the castle generator 'placed' (pos + target)."""
     k = {"yaw": shot.get("yaw", 0.0), "pitch": shot.get("pitch", 0.0)}
-    tgt = look_target(cfg, terrain, shot.get("look_at"))
+    if placed is not None:
+        pos, tgt = tuple(placed["pos"]), tuple(placed["target"])
+    else:
+        f = shot["from"]
+        wl = cfg["biome"]["water_level_m"]
+        x = float(terrain.river_center(np.array(f["y"]))) + f.get("x", 0.0)
+        ground = max(float(terrain.height_at(np.array(x), np.array(f["y"]))), wl)
+        pos = (x, f["y"], ground + f.get("height", 2.0))
+        tgt = look_target(cfg, terrain, shot.get("look_at"))
     if tgt is not None:
         aim(k, pos, tgt)
     else:

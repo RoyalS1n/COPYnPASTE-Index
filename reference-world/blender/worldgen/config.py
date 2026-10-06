@@ -45,21 +45,21 @@ DEFAULTS = {
     "castle": {
         "enabled": True,
         "seed": 5,
-        "y": -720.0,                # position along the valley
-        "river_offset_m": 92.0,     # sideways from the river centre (+ = east / right)
-        "crag_height_m": 36.0,
-        "plateau_radius_m": 50.0,
-        "crag_radius_m": 120.0,
-        "wall_height_m": 11.0,
-        "wall_thickness_m": 2.6,
-        "tower_count": 6,
-        "tower_radius_m": 4.3,
-        "tower_height_m": 19.0,
-        "keep_size_m": 15.0,
-        "keep_height_m": 30.0,
-        "spire_height_m": 50.0,
+        "y": -560.0,                # position along the valley
+        "river_offset_m": 150.0,    # sideways from the river centre (+ = east / right)
+        "crag_height_m": 40.0,
+        "plateau_radius_m": 82.0,   # courtyard + walls: the castle is ~165 m across
+        "crag_radius_m": 175.0,
+        "wall_height_m": 14.0,
+        "wall_thickness_m": 4.0,
+        "tower_count": 7,
+        "tower_radius_m": 6.0,
+        "tower_height_m": 24.0,
+        "keep_size_m": 26.0,
+        "keep_height_m": 32.0,      # four 8 m storeys to the roof deck
+        "spire_height_m": 64.0,
         "lit_windows": 0.3,
-        "road_width_m": 4.5,
+        "road_width_m": 5.5,
     },
     # linear albedos, kept in physically plausible ranges (grass ~0.1, rock ~0.15)
     "palette": {
@@ -77,13 +77,14 @@ DEFAULTS = {
         "flowers": [[0.85, 0.82, 0.75], [0.85, 0.55, 0.05], [0.35, 0.18, 0.65]],
         "water": [0.02, 0.05, 0.05],
         # castle
-        "stone": [0.30, 0.27, 0.22],
+        "stone": [0.25, 0.215, 0.17],
         "stone_dark": [0.11, 0.10, 0.085],
         "roof": [0.045, 0.055, 0.07],
         "roof_alt": [0.22, 0.085, 0.045],
         "wood": [0.08, 0.05, 0.03],
         "cloth": [0.42, 0.03, 0.03],
         "window_glow": [1.0, 0.55, 0.22],
+        "iron": [0.03, 0.03, 0.032],
     },
     "lighting": {
         "sun_elevation_deg": 14.0,
@@ -130,7 +131,10 @@ DEFAULTS = {
             {"name": "end",      "frame": 240},
             # static extra shot: a long lens from the river bank
             {"name": "castle_tele", "from": {"y": -1010.0, "x": -12.0, "height": 1.8},
-             "lens_mm": 70.0, "look_at": "castle", "pitch": 2.0, "yaw": 0.0},
+             "lens_mm": 60.0, "look_at": "castle", "pitch": 2.0, "yaw": 0.0},
+            # interiors, placed by the castle generator
+            {"name": "hall_interior", "camera": "hall_camera", "lens_mm": 22.0, "exposure": 2.6},
+            {"name": "courtyard", "camera": "courtyard_camera", "lens_mm": 24.0, "exposure": 0.8},
         ],
     },
     "render": {

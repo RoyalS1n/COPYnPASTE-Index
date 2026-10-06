@@ -63,6 +63,33 @@ def compute(cfg, terrain, cam_keys):
     wl = b["water_level_m"]
     clear = b["camera_clearance_m"]
 
+    # static still positions (e.g. the long-lens castle shot) stay unobstructed
+    # (a clear radius round the camera, plus its line of sight to the castle)
+    shot_xy = []
+    for st in cfg["camera"].get("stills", []):
+        if "from" in st:
+            fy = st["from"]["y"]
+            shot_xy.append((float(terrain.river_center(np.array(fy))) + st["from"].get("x", 0.0), fy))
+    sight = []
+    if getattr(terrain, "castle", None):
+        cxy = np.array(terrain.castle["center"])
+        for sx, sy in shot_xy:
+            d = cxy - (sx, sy)
+            end = np.array((sx, sy)) + d * max(0.0, 1.0 - (terrain.castle["crag_r"] * 0.9) / np.linalg.norm(d))
+            sight.append((np.array((sx, sy)), end))
+
+    def shots_clear(x, y, r=45.0, lane=22.0):
+        x, y = np.asarray(x), np.asarray(y)
+        out = np.ones(np.shape(x))
+        for sx, sy in shot_xy:
+            out = out * smoothstep(r * 0.6, r, np.hypot(x - sx, y - sy))
+        for a, b in sight:
+            ab = b - a
+            t = np.clip(((x - a[0]) * ab[0] + (y - a[1]) * ab[1]) / max(ab @ ab, 1e-9), 0, 1)
+            dist = np.hypot(x - (a[0] + t * ab[0]), y - (a[1] + t * ab[1]))
+            out = out * smoothstep(lane * 0.6, lane, dist)
+        return out
+
     def keep_clear(x, y, margin=8.0):
         """0 on the road, the courtyard and the castle footprint."""
         path = terrain.sample(terrain.masks["path"], x, y) if "path" in terrain.masks else 0.0
@@ -82,7 +109,8 @@ def compute(cfg, terrain, cam_keys):
         near_cam = smoothstep(clear, clear * 2.5, _dist_to_path(x, y, path))
         river = smoothstep(terrain.cfg["terrain"]["river_width_m"] * 1.5, 40.0,
                            terrain.sample(terrain.dist_river, x, y))
-        return patches * line * flat * dry_land * near_cam * (0.35 + 0.65 * river) * keep_clear(x, y, 14.0)
+        return patches * line * flat * dry_land * near_cam * (0.35 + 0.65 * river) * keep_clear(x, y, 14.0) \
+            * shots_clear(x, y)
 
     out = {}
 

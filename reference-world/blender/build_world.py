@@ -49,7 +49,8 @@ def main():
     cfg = load_preset(args.preset)
     if args.preview:
         args.quick = True
-        cfg["camera"]["stills"] = [st for st in cfg["camera"]["stills"] if st["name"] in ("hero", "castle_tele")]
+        cfg["camera"]["stills"] = [st for st in cfg["camera"]["stills"]
+                                   if st["name"] in ("hero", "castle_tele", "hall_interior", "courtyard")]
     if args.quick:
         cfg["terrain"]["resolution"] = 1009
         for k in ("tree_count", "bush_count", "rock_count", "grass_count"):
@@ -95,9 +96,20 @@ def main():
     c_world.objects.link(w_ob)
 
     castle_ob = crag_ob = None
+    castle_info = {}
     if cfg.get("castle", {}).get("enabled"):
         log("castle")
-        castle_ob = castle.build(cfg, terrain, mats, c_world)
+        castle_ob, castle_info = castle.build(cfg, terrain, mats, c_world)
+        c_lights = coll("CastleLights")
+        for i, L in enumerate(castle_info.get("lights", [])):
+            ld = bpy.data.lights.new(f"RW_{L['kind']}_{i:03d}", "POINT")
+            ld.energy = L["power"]
+            ld.color = L["color"]
+            ld.shadow_soft_size = L["radius"]
+            lo = bpy.data.objects.new(ld.name, ld)
+            lo.location = L["pos"]
+            c_lights.objects.link(lo)
+        log(f"  {len(castle_info.get('lights', []))} castle lights")
         crag_ob = castle.build_cliff(cfg, terrain, mats, c_world)
         log(f"  castle {len(castle_ob.data.polygons)} faces, cliff {len(crag_ob.data.polygons)} faces")
 
@@ -138,7 +150,7 @@ def main():
         for ob in c_lib.all_objects:
             ob.location.x -= 10000
         export.export_all(cfg, terrain, lib, points, camera.keys_for_export(keys), exp_dir, lowres, far_exp,
-                          castle_ob, crag_ob)
+                          castle_ob, crag_ob, castle_info)
         for ob in c_lib.all_objects:
             ob.location = saved[ob.name]
         scene.view_layers[0].layer_collection.children["Library"].exclude = True
@@ -158,7 +170,13 @@ def main():
 
     if args.render in ("stills", "all"):
         for st in cfg["camera"]["stills"]:
-            if "from" in st:
+            scene.view_settings.exposure = cfg["lighting"]["exposure"] + st.get("exposure", 0.0)
+            if "camera" in st:
+                if st["camera"] not in castle_info:
+                    log(f"skip still {st['name']}: no {st['camera']} placed")
+                    continue
+                scene.camera = camera.static_shot(cfg, terrain, st, c_rig, castle_info[st["camera"]])
+            elif "from" in st:
                 scene.camera = camera.static_shot(cfg, terrain, st, c_rig)
             else:
                 scene.camera = cam
@@ -170,6 +188,7 @@ def main():
 
     if args.render in ("video", "all"):
         scene.camera = cam
+        scene.view_settings.exposure = cfg["lighting"]["exposure"]
         lighting.render_settings(cfg, scene, preview=True)
         if args.frames:
             a, b = (int(v) for v in args.frames.split("-"))
