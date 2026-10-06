@@ -59,6 +59,16 @@ def _obj(name, bm, mats, coll):
         me.normals_split_custom_set_from_vertices([tuple(v) for v in base])
         for key in _NORMAL_LAYERS:
             me.attributes.remove(me.attributes[key])
+    lvar = me.attributes.get("leafvar")
+    if lvar is not None:
+        # same per-vertex shading as vertex colour, for Unreal (FBX carries
+        # colour attributes, not generic floats); 0 = unset -> 1.0, /1.5 to fit 0..1
+        n = len(me.vertices)
+        lv = np.zeros(n, dtype=np.float32)
+        lvar.data.foreach_get("value", lv)
+        lv = np.where(lv == 0, 1.0, lv) / 1.5
+        col = me.color_attributes.new("LeafVar", "FLOAT_COLOR", "POINT")
+        col.data.foreach_set("color", np.stack([lv, lv, lv, np.ones(n, np.float32)], 1).astype(np.float32).ravel())
     ob = bpy.data.objects.new(name, me)
     coll.objects.link(ob)
     return ob
