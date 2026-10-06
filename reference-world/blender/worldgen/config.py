@@ -30,12 +30,12 @@ DEFAULTS = {
         "treeline_m": 260.0,
         "snowline_m": 380.0,
         "conifer_ratio": 0.72,
-        "tree_count": 9000,
+        "tree_count": 12000,
         "bush_count": 4000,
         "rock_count": 1600,
-        "grass_count": 420000,
+        "grass_count": 520000,
         "flower_ratio": 0.08,
-        "grass_radius_m": 120.0,   # grass clumps are only scattered near the camera path
+        "grass_radius_m": 150.0,   # grass clumps are only scattered near the camera path
         "camera_clearance_m": 14.0,
         "pebble_count": 26000,
         "outcrop_count": 700,

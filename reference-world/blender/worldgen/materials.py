@@ -177,7 +177,11 @@ def terrain(pal):
     nb.link(stretch.outputs[0], vor.inputs["Vector"])
     crack_mask = _maprange(nb, _noise(nb, 0.03, 3, 0.5, pos).outputs["Fac"], 0.55, 0.7)
     cracks = _math(nb, "MULTIPLY", _maprange(nb, vor.outputs["Distance"], 0.0, 0.015, 1.0, 0.0), crack_mask)
-    rock_col = _mix(nb, _math(nb, "MULTIPLY", cracks, 0.3), rock_col, pal["rock_dark"])
+    rock_col = _mix(nb, _math(nb, "MULTIPLY", cracks, 0.12), rock_col, pal["rock_dark"])
+    # warm / cool rock regions
+    region = _noise(nb, 0.0025, 3, 0.5, pos)
+    rock_col = _mix(nb, _maprange(nb, region.outputs["Fac"], 0.35, 0.65), _mix(nb, 1.0, rock_col, [1.12, 1.0, 0.82], "MULTIPLY"),
+                    _mix(nb, 1.0, rock_col, [0.85, 0.92, 1.08], "MULTIPLY"))
     # lichen and dark water staining break up the big faces
     stain = _noise(nb, 0.15, 6, 0.65, pos)
     rock_col = _mix(nb, _maprange(nb, stain.outputs["Fac"], 0.5, 0.72, 0.0, 0.55), rock_col, pal["rock_dark"])
@@ -190,7 +194,31 @@ def terrain(pal):
 
     rock_fac = _math(nb, "ADD", rock_a, _math(nb, "MULTIPLY", _math(nb, "SUBTRACT", mid.outputs["Fac"], 0.5), 0.8))
     rock_fac = _maprange(nb, rock_fac, 0.35, 0.6)
+    geo = nb.n("ShaderNodeNewGeometry")
+    gsep = nb.n("ShaderNodeSeparateXYZ")
+    nb.link(geo.outputs["Normal"], gsep.inputs[0])
+    # vegetation and soil caught on ledges inside rocky ground
+    ledge = _math(nb, "MULTIPLY", _maprange(nb, gsep.outputs["Z"], 0.74, 0.88),
+                  _maprange(nb, _noise(nb, 0.09, 4, 0.6, pos).outputs["Fac"], 0.42, 0.6), clamp=True)
+    rock_col = _mix(nb, ledge, rock_col, _mix(nb, dry_f, pal["moss"], pal["grass_dry"]))
+    # scree: pale gravel where rock gives way to slope
+    scree = _math(nb, "MULTIPLY", _math(nb, "MULTIPLY", rock_fac, _math(nb, "SUBTRACT", 1.0, rock_fac)), 3.0, clamp=True)
+    grav = nb.n("ShaderNodeTexVoronoi", feature="F1")
+    grav.inputs["Scale"].default_value = 3.0
+    nb.link(pos, grav.inputs["Vector"])
+    scree_col = _mix(nb, _maprange(nb, grav.outputs["Distance"], 0.1, 0.4), [c * 1.5 for c in pal["rock"]], [c * 0.9 for c in pal["rock"]])
+    # grass: fine tonal streaks so slopes beyond the instanced grass keep texture
+    gstreak = _noise(nb, 0.6, 5, 0.65, pos)
+    grass_col = _mix(nb, _maprange(nb, gstreak.outputs["Fac"], 0.3, 0.7, 0.0, 0.45), grass_col, [c * 0.55 for c in pal["grass"]])
     col = _mix(nb, rock_fac, grass_col, rock_col)
+    col = _mix(nb, _math(nb, "MULTIPLY", scree, 0.7), col, scree_col)
+    # crevices darker, crests lighter (mesh curvature)
+    cav = _maprange(nb, geo.outputs["Pointiness"], 0.475, 0.525, 0.55, 1.2)
+    cav_rgb = nb.n("ShaderNodeCombineXYZ")
+    for i in range(3):
+        nb.link(cav, cav_rgb.inputs[i])
+    col = _mix(nb, _math(nb, "ADD", 0.35, _math(nb, "MULTIPLY", rock_fac, 0.65)), col,
+               _mix(nb, 1.0, col, cav_rgb.outputs[0], "MULTIPLY"))
     snow_fac = _maprange(nb, _math(nb, "ADD", snow_a, _math(nb, "MULTIPLY", _math(nb, "SUBTRACT", fine.outputs["Fac"], 0.5), 0.6)), 0.4, 0.55)
     col = _mix(nb, snow_fac, col, snow_col)
     wet_col = _mix(nb, wet_a, col, [c * 0.45 for c in pal["soil"]])
@@ -257,12 +285,13 @@ def foliage(name, base, alt, translucency=0.35, variation=0.6):
     lv = _math(nb, "ADD", lv, _math(nb, "COMPARE", lv, 0.0))
     val = _math(nb, "MULTIPLY", _maprange(nb, oi.outputs["Random"], 0.0, 1.0, 0.85, 1.15), lv)
     nb.link(val, hsv.inputs["Value"])
+    tipped = _mix(nb, _maprange(nb, lv, 1.0, 1.45, 0.0, 0.55), hsv.outputs[0], [0.32, 0.36, 0.06])
     tc = nb.n("ShaderNodeTexCoord")
     n = _noise(nb, 25.0, 4, 0.6, tc.outputs["Object"])
     normal = _bump(nb, n.outputs["Fac"], 0.3, 0.02)
-    p = _principled(nb, hsv.outputs[0], 0.62, normal, spec=0.4)
+    p = _principled(nb, tipped, 0.62, normal, spec=0.4)
     tr = nb.n("ShaderNodeBsdfTranslucent")
-    nb.link(hsv.outputs[0], tr.inputs["Color"])
+    nb.link(tipped, tr.inputs["Color"])
     nb.link(normal, tr.inputs["Normal"])
     mix = nb.n("ShaderNodeMixShader")
     mix.inputs[0].default_value = translucency
@@ -359,37 +388,58 @@ def flowers(pal):
 
 
 def clouds(cfg):
-    """Cirrus/altocumulus layer on a single high plane: cheap compared to
-    volumetrics, catches the low sun through translucency."""
+    """Altocumulus / cirrus layer on one high plane. Puffy shapes from two
+    noise octaves with a hard-ish threshold, plus cheap self-shadowing:
+    density sampled again a few hundred metres toward the sun darkens the
+    sides facing away from it."""
+    import math as _m
     lt = cfg["lighting"]
+    az = _m.radians(lt["sun_azimuth_deg"])
+    sun_xy = (_m.sin(az) * 420.0, _m.cos(az) * 420.0, 0.0)
     m = _new("RW_Clouds")
     nb = NB(m)
     tc = nb.n("ShaderNodeTexCoord")
     mapping = nb.n("ShaderNodeMapping")
-    mapping.inputs["Scale"].default_value = (1.0, 2.6, 1.0)
+    mapping.inputs["Scale"].default_value = (1.0, 1.8, 1.0)
     nb.link(tc.outputs["Object"], mapping.inputs["Vector"])
-    warp = _noise(nb, 0.00018, 3, 0.5, mapping.outputs[0])
-    n = nb.n("ShaderNodeTexNoise", noise_dimensions="3D")
-    n.inputs["Scale"].default_value = 0.0004
-    n.inputs["Detail"].default_value = 12.0
-    n.inputs["Roughness"].default_value = 0.62
-    n.inputs["Distortion"].default_value = 1.2
-    nb.link(mapping.outputs[0], n.inputs["Vector"])
+    shifted = nb.n("ShaderNodeVectorMath", operation="ADD")
+    nb.link(mapping.outputs[0], shifted.inputs[0])
+    shifted.inputs[1].default_value = sun_xy
     cov = lt["cloud_coverage"]
-    dens = _maprange(nb, _math(nb, "ADD", n.outputs["Fac"], _math(nb, "MULTIPLY", warp.outputs["Fac"], 0.25)),
-                     0.68 - cov * 0.3, 0.80 - cov * 0.3)
-    dens = _math(nb, "POWER", dens, 1.6, clamp=True)
+
+    def density(vec):
+        a = nb.n("ShaderNodeTexNoise", noise_dimensions="3D")
+        a.inputs["Scale"].default_value = 0.00032
+        a.inputs["Detail"].default_value = 6.0
+        a.inputs["Roughness"].default_value = 0.55
+        a.inputs["Distortion"].default_value = 0.6
+        nb.link(vec, a.inputs["Vector"])
+        b = nb.n("ShaderNodeTexNoise", noise_dimensions="3D")
+        b.inputs["Scale"].default_value = 0.0016
+        b.inputs["Detail"].default_value = 8.0
+        b.inputs["Roughness"].default_value = 0.6
+        nb.link(vec, b.inputs["Vector"])
+        f = _math(nb, "ADD", a.outputs["Fac"], _math(nb, "MULTIPLY", _math(nb, "SUBTRACT", b.outputs["Fac"], 0.5), 0.45))
+        d = _maprange(nb, f, 0.66 - cov * 0.28, 0.74 - cov * 0.28)
+        return _math(nb, "POWER", d, 1.3, clamp=True)
+
+    d0 = density(mapping.outputs[0])
+    d1 = density(shifted.outputs[0])
+    lit = _math(nb, "SUBTRACT", 1.0, _math(nb, "MULTIPLY", _math(nb, "SUBTRACT", d1, d0), 2.4))
+    lit = _maprange(nb, lit, 0.0, 1.0, 0.2, 1.0)
+    shade = [0.42 * lt["cloud_color"][0], 0.46 * lt["cloud_color"][1], 0.6 * lt["cloud_color"][2]]
+    col = _mix(nb, lit, shade, lt["cloud_color"])
     tr = nb.n("ShaderNodeBsdfTranslucent")
-    tr.inputs["Color"].default_value = _lin(lt["cloud_color"])
+    nb.link(col, tr.inputs["Color"])
     em = nb.n("ShaderNodeEmission")
-    em.inputs["Color"].default_value = _lin(lt["cloud_color"])
-    em.inputs["Strength"].default_value = 0.35 * lt["sky_strength"]
+    nb.link(col, em.inputs["Color"])
+    em.inputs["Strength"].default_value = 0.45 * lt["sky_strength"]
     add = nb.n("ShaderNodeAddShader")
     nb.link(tr.outputs[0], add.inputs[0])
     nb.link(em.outputs[0], add.inputs[1])
     transp = nb.n("ShaderNodeBsdfTransparent")
     mix = nb.n("ShaderNodeMixShader")
-    nb.link(dens, mix.inputs[0])
+    nb.link(d0, mix.inputs[0])
     nb.link(transp.outputs[0], mix.inputs[1])
     nb.link(add.outputs[0], mix.inputs[2])
     _out(nb, mix.outputs[0])
@@ -421,12 +471,18 @@ def castle_stone(pal):
     big = _noise(nb, 0.06, 5, 0.6, pos)
     col = _mix(nb, _maprange(nb, big.outputs["Fac"], 0.35, 0.7, 0.0, 0.6), col,
                [c * 0.6 for c in pal["stone"]])
+    # broad patches of warmer / greyer stone, and darker weathered areas
+    region = _noise(nb, 0.012, 3, 0.5, pos)
+    col = _mix(nb, _maprange(nb, region.outputs["Fac"], 0.35, 0.65), _mix(nb, 1.0, col, [1.1, 1.0, 0.86], "MULTIPLY"),
+               _mix(nb, 1.0, col, [0.86, 0.9, 0.95], "MULTIPLY"))
+    weather = _noise(nb, 0.03, 4, 0.6, pos)
+    col = _mix(nb, _maprange(nb, weather.outputs["Fac"], 0.55, 0.75, 0.0, 0.5), col, pal["stone_dark"])
     # vertical rain streaks: noise squashed along u, stretched along v
     sm = nb.n("ShaderNodeMapping")
     sm.inputs["Scale"].default_value = (2.5, 0.08, 1.0)
     nb.link(uv, sm.inputs["Vector"])
     streak = _noise(nb, 1.0, 4, 0.5, sm.outputs[0])
-    col = _mix(nb, _maprange(nb, streak.outputs["Fac"], 0.5, 0.75, 0.0, 0.45), col, pal["stone_dark"])
+    col = _mix(nb, _maprange(nb, streak.outputs["Fac"], 0.45, 0.72, 0.0, 0.6), col, pal["stone_dark"])
     # grime + moss at the foot of every wall (UV v = height above its base)
     sep = nb.n("ShaderNodeSeparateXYZ")
     nb.link(uv, sep.inputs[0])

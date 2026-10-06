@@ -562,6 +562,10 @@ def build(cfg, terrain, mats, coll):
         B.box(F, 0, L, -wt / 2, wt / 2, z0, T_ww)
         B.box(F, 0, L, wt / 2 - 0.3, wt / 2 + 1.3, z0, min(top + 1.5, T_ww - 5))      # batter
         B.merlon_run(F, 0, L, wt / 2 - 0.6, wt / 2, T_ww)                             # parapet
+        B.box(F, 0, L, wt / 2, wt / 2 + 0.25, T_ww - 2.4, T_ww - 2.0)                    # string course
+        for x in np.arange(6.0, L - 4.0, 12.0):                                        # buttresses
+            B.box(F, x - 0.8, x + 0.8, wt / 2, wt / 2 + 1.1, z0, T_ww - 5.5)
+            B.box(F, x - 0.8, x + 0.8, wt / 2, wt / 2 + 0.55, T_ww - 5.5, T_ww - 3.6)
         for x in np.arange(9.0, L - 4.0, 18.0):                                        # wall-walk torches
             B.torch(F, x, wt / 2 - 0.6, T_ww + 0.75, facing_y=-1)
         for x in np.arange(5.0, L - 3.0, 7.0):                                         # arrow slits
@@ -594,6 +598,12 @@ def build(cfg, terrain, mats, coll):
         if roofed:
             openings += [(a, 1.0, T_top + 0.9, T_top + 2.5) for a in outs]
         B.round_shell(p, r_in, r_out, top, z_room_top, openings, seg=36)
+        B.frustum(p, r_out + 0.18, r_out + 0.18, T_ww - 0.45, T_ww - 0.05, 36)          # string course
+        top_band = z_room_top if roofed else T_top
+        n_corb = max(12, int(2 * math.pi * r_out / 1.1))
+        for k in range(n_corb):                                                       # machicolation corbels
+            a = 2 * math.pi * k / n_corb
+            B.wedge(p, r_out - 0.05, r_out + 0.42, a - 0.12 / r_out, a + 0.12 / r_out, top_band - 1.3, top_band, seg=1)
         B.disc_slab(p, r_in + 0.05, floor0, 0.32, mat=STONE)
         B.disc_slab(p, r_in + 0.05, T_ww, 0.5, mat=WOOD)
         # curved stair from the wall-walk room to the top level; start next to
@@ -621,9 +631,10 @@ def build(cfg, terrain, mats, coll):
             seg = max(10, int(2 * math.pi * r_out / 1.8))
             for k in range(seg):
                 a = 2 * math.pi * k / seg
-                B.wedge(p, r_out - 0.6, r_out, a, a + 2 * math.pi / seg, T_top, T_top + 1.0, seg=1)
+                # parapet overhangs the corbels (machicolations)
+                B.wedge(p, r_out - 0.2, r_out + 0.42, a, a + 2 * math.pi / seg, T_top, T_top + 1.0, seg=1)
                 if k % 2 == 0:
-                    B.wedge(p, r_out - 0.6, r_out, a, a + 2 * math.pi / seg, T_top + 1.0, T_top + 1.9, seg=1)
+                    B.wedge(p, r_out - 0.2, r_out + 0.42, a, a + 2 * math.pi / seg, T_top + 1.0, T_top + 1.9, seg=1)
         for k, a in enumerate(outs):                                                   # slits
             B.decal((p.x + r_out * math.cos(a), p.y + r_out * math.sin(a), floor0 + 2.0),
                     (math.cos(a), math.sin(a)), 0.3, 1.6, WIN_DARK, arch=False)
@@ -705,6 +716,18 @@ def build(cfg, terrain, mats, coll):
             for k in (1, 2, 3):
                 kop[side].append((u, 1.2, fl[k] + 1.0, fl[k] + 3.4))
     B.room(K, S, S, floor0 - 0.3, deck, kt, kop)
+    for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1)):                                 # corner pilasters
+        B.box(K, sx * (S / 2 - 0.9), sx * (S / 2 + 0.6), sy * (S / 2 - 1.6), sy * (S / 2 + 0.6), floor0 - 0.3, deck - 1.0)
+    for name, Fs in (("S", K.sub(0, -S / 2, math.pi)), ("N", K.sub(0, S / 2, 0)),
+                     ("E", K.sub(S / 2, 0, -math.pi / 2)), ("W", K.sub(-S / 2, 0, math.pi / 2))):
+        for u, w, zb, zt in kop[name]:
+            if w < 1.0 or zb < fl[1]:
+                continue
+            ux = -u if name in ("S", "E") else u                                         # frames: local +y faces outward
+            B.box(Fs, ux - w / 2 - 0.25, ux - w / 2, 0.0, 0.18, zb - 0.25, zt + 0.25)
+            B.box(Fs, ux + w / 2, ux + w / 2 + 0.25, 0.0, 0.18, zb - 0.25, zt + 0.25)
+            B.box(Fs, ux - w / 2 - 0.25, ux + w / 2 + 0.25, 0.0, 0.22, zt, zt + 0.35)      # lintel
+            B.box(Fs, ux - w / 2 - 0.3, ux + w / 2 + 0.3, 0.0, 0.3, zb - 0.2, zb)           # sill
     for z in (fl[1] - 0.2, fl[3] - 0.2):                                                # string courses
         B.box(K, -S / 2 - 0.25, S / 2 + 0.25, -S / 2 - 0.25, S / 2 + 0.25, z, z + 0.4, skip=("t", "b"))
     B.box(K, -S / 2 - 0.6, S / 2 + 0.6, -S / 2 - 0.6, S / 2 + 0.6, deck - 0.9, deck)       # corbel table

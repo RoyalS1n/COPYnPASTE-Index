@@ -104,7 +104,7 @@ def compute(cfg, terrain, cam_keys):
         slope = terrain.sample(terrain.slope_deg, x, y)
         patches = smoothstep(-0.15, 0.35, fbm(h_noise, x / 180.0, y / 180.0, 4))
         line = 1 - smoothstep(b["treeline_m"] - 70, b["treeline_m"], h + 30 * fbm(h_noise, x / 60, y / 60, 3))
-        flat = 1 - smoothstep(30, 40, slope)
+        flat = 1 - smoothstep(32, 44, slope)    # forests climb the valley walls
         dry_land = smoothstep(wl + 1.0, wl + 3.5, h)
         near_cam = smoothstep(clear, clear * 2.5, _dist_to_path(x, y, path))
         river = smoothstep(terrain.cfg["terrain"]["river_width_m"] * 1.5, 40.0,

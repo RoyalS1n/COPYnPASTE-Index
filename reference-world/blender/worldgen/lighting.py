@@ -152,7 +152,11 @@ def build_compositor(cfg, scene):
     # haze = image blended toward haze colour * coverage (premultiplied)
     haze_rgb = N.new("CompositorNodeRGB")
     haze_rgb.outputs[0].default_value = (*lt["haze_color"], 1.0)
-    haze_premul = mix(rl.outputs["Alpha"], (0, 0, 0), haze_rgb.outputs[0])  # haze * alpha
+    far = lt.get("haze_far_color", [lt["haze_color"][0] * 0.78, lt["haze_color"][1] * 0.9, lt["haze_color"][2] * 1.18])
+    haze_far = N.new("CompositorNodeRGB")
+    haze_far.outputs[0].default_value = (*far, 1.0)
+    haze_col = mix(math_node("POWER", rl.outputs["Mist"], 1.5), haze_rgb.outputs[0], haze_far.outputs[0])
+    haze_premul = mix(rl.outputs["Alpha"], (0, 0, 0), haze_col)  # haze * alpha
     fac = math_node("MULTIPLY", rl.outputs["Mist"], lt["haze_amount"])
     hazed = mix(fac, rl.outputs["Image"], haze_premul)
 
@@ -168,10 +172,15 @@ def build_compositor(cfg, scene):
     glare.inputs["Size"].default_value = 0.7
     L.new(comp, glare.inputs["Image"])
 
+    grade = N.new("CompositorNodeColorBalance")
+    grade.inputs[4].default_value = (*lt.get("grade_lift", [0.975, 0.99, 1.04]), 1.0)     # lift: cool shadows
+    grade.inputs[6].default_value = (1.0, 1.0, 1.0, 1.0)
+    grade.inputs[8].default_value = (*lt.get("grade_gain", [1.04, 1.0, 0.95]), 1.0)       # gain: warm highlights
+    L.new(glare.outputs["Image"], grade.inputs["Image"])
     lens = N.new("CompositorNodeLensdist")
     lens.inputs["Dispersion"].default_value = 0.012
     lens.inputs["Distortion"].default_value = -0.004
-    L.new(glare.outputs["Image"], lens.inputs["Image"])
+    L.new(grade.outputs["Image"], lens.inputs["Image"])
 
     ell = N.new("CompositorNodeEllipseMask")
     ell.inputs["Size"].default_value = (0.95, 0.8)

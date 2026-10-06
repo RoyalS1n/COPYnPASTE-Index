@@ -124,7 +124,10 @@ def conifer(name, mats, coll, seed, height=16.0):
         bm.faces.new(vs).material_index = 1
         out = Vector((c.x, c.y, 0)).normalized() + Vector((0, 0, 0.6))
         _set_normal(bm, vs, out.normalized())
-        _set_leafvar(bm, vs, float(rng.uniform(0.75, 1.25)))
+        # shaded base -> sunlit, slightly yellow new growth at the tip
+        k_ = float(rng.uniform(0.85, 1.15))
+        for v_, val in zip(vs, (0.5, 0.95, 1.4, 0.95)):
+            _set_leafvar(bm, [v_], val * k_)
 
     tiers = int(rng.integers(15, 20))
     base_z = height * rng.uniform(0.1, 0.18)
@@ -155,8 +158,10 @@ def conifer(name, mats, coll, seed, height=16.0):
                     bm.faces.new((centre[sgi], side[sgi], side[sgi + 1], centre[sgi + 1])).material_index = 1
             out = (rot @ Vector((1, 0, 0.6))).normalized()
             _set_normal(bm, centre + left + right, out)
+            for sgi in range(segs + 1):
+                _set_leafvar(bm, [centre[sgi], left[sgi], right[sgi]], 0.45 + 0.6 * sgi / segs)
             # fringe: tufts along both edges and at the tip
-            tufts = max(4, int(length / (0.36 * k)))
+            tufts = max(5, int(length / (0.28 * k)))
             for i in range(tufts):
                 u = (i + rng.uniform(0.2, 0.9)) / tufts
                 si = min(segs, int(round(u * segs)))
@@ -164,7 +169,7 @@ def conifer(name, mats, coll, seed, height=16.0):
                     base = side[si].co.copy()
                     ang = yaw + sign * rng.uniform(0.5, 1.2) * (1 - 0.5 * u)
                     d = Vector((math.cos(ang), math.sin(ang), -rng.uniform(0.1, 0.45))).normalized()
-                    L = (0.78 - 0.3 * u) * k * rng.uniform(0.8, 1.2)
+                    L = (0.64 - 0.25 * u) * k * rng.uniform(0.8, 1.2)
                     card(base, d, L, L * rng.uniform(0.4, 0.55))
             tip = centre[-1].co.copy()
             card(tip, (rot @ Vector((1, 0, -0.3))).normalized(), 0.8 * k, 0.45 * k)
@@ -203,7 +208,8 @@ def _leaf_cards(bm, center, radius, rng, count, leaf_len, mat):
         # orientation kept, so the canopy still shows leafy texture
         outward = (Vector(p) + Vector((0, 0, radius * 0.3))).normalized()
         _set_normal(bm, vs, (outward * 0.6 + n * 0.4).normalized())
-        _set_leafvar(bm, vs, float(rng.uniform(0.7, 1.3)))
+        depth = float(np.linalg.norm(p) / radius)
+        _set_leafvar(bm, vs, float(rng.uniform(0.85, 1.15) * (0.5 + 0.75 * depth)))
 
 
 def broadleaf(name, mats, coll, seed, height=12.0):
