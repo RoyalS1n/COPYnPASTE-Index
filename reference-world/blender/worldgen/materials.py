@@ -240,7 +240,11 @@ def terrain(pal):
     macro = _noise(nb, 0.08, 6, 0.65, pos)
     macro_h = _math(nb, "MULTIPLY", _math(nb, "ADD", macro.outputs["Fac"],
                                           _math(nb, "MULTIPLY", cracks, -0.4)), rock_fac)
-    normal = _bump(nb, macro_h, 0.8, 3.0)
+    # very large relief so distant, coarse meshes (the far ranges) still
+    # shade with ridges and gullies
+    relief = _noise(nb, 0.006, 6, 0.6, pos)
+    normal = _bump(nb, relief.outputs["Fac"], 0.35, 8.0)
+    normal = _bump(nb, macro_h, 0.8, 3.0, normal)
     normal = _bump(nb, height, 0.35, 0.25, normal)
     p = _principled(nb, wet_col, rough, normal, spec=0.25)
     _out(nb, p.outputs[0])
@@ -491,10 +495,23 @@ def castle_stone(pal):
     moss_f = _math(nb, "MULTIPLY", foot, _maprange(nb, patch.outputs["Fac"], 0.4, 0.65), clamp=True)
     col = _mix(nb, _math(nb, "MULTIPLY", foot, 0.5), col, pal["stone_dark"])
     col = _mix(nb, moss_f, col, pal["moss"])
+    # horizontal stone (paving, floors, wall-walks): trodden dirt, mud and
+    # straw patches so large floors don't read as one flat slab
+    geo = nb.n("ShaderNodeNewGeometry")
+    gz = nb.n("ShaderNodeSeparateXYZ")
+    nb.link(geo.outputs["Normal"], gz.inputs[0])
+    flat = _maprange(nb, gz.outputs["Z"], 0.85, 0.97)
+    dirt_n = _noise(nb, 0.18, 6, 0.6, pos)
+    dirt = _math(nb, "MULTIPLY", flat, _maprange(nb, dirt_n.outputs["Fac"], 0.42, 0.62, 0.0, 0.75), clamp=True)
+    col = _mix(nb, dirt, col, [0.075, 0.058, 0.04])
+    mud_n = _noise(nb, 0.05, 4, 0.5, pos)
+    mud = _math(nb, "MULTIPLY", flat, _maprange(nb, mud_n.outputs["Fac"], 0.62, 0.7, 0.0, 0.85), clamp=True)
+    col = _mix(nb, mud, col, [0.035, 0.03, 0.022])
     fine = _noise(nb, 6.0, 8, 0.6, pos)
     height = _math(nb, "SUBTRACT", fine.outputs["Fac"], _math(nb, "MULTIPLY", brick.outputs["Fac"], 1.5))
     normal = _bump(nb, height, 0.55, 0.03)
-    p = _principled(nb, col, 0.86, normal, spec=0.3)
+    rough = _math(nb, "SUBTRACT", 0.86, _math(nb, "MULTIPLY", mud, 0.55))   # damp mud is glossier
+    p = _principled(nb, col, rough, normal, spec=0.3)
     _out(nb, p.outputs[0])
     return m
 

@@ -172,10 +172,11 @@ def build_compositor(cfg, scene):
     glare.inputs["Size"].default_value = 0.7
     L.new(comp, glare.inputs["Image"])
 
+    # multiplicative warm gain only: an additive lift offset in scene-linear
+    # light turns dark interiors (later brightened by exposure) blue
     grade = N.new("CompositorNodeColorBalance")
-    grade.inputs[4].default_value = (*lt.get("grade_lift", [0.975, 0.99, 1.04]), 1.0)     # lift: cool shadows
     grade.inputs[6].default_value = (1.0, 1.0, 1.0, 1.0)
-    grade.inputs[8].default_value = (*lt.get("grade_gain", [1.04, 1.0, 0.95]), 1.0)       # gain: warm highlights
+    grade.inputs[8].default_value = (*lt.get("grade_gain", [1.035, 1.0, 0.955]), 1.0)
     L.new(glare.outputs["Image"], grade.inputs["Image"])
     lens = N.new("CompositorNodeLensdist")
     lens.inputs["Dispersion"].default_value = 0.012
