@@ -1,0 +1,50 @@
+#version 460
+#extension GL_GOOGLE_include_directive : require
+// GPU culling: one thread per instance. Frustum test against the camera and
+// every shadow cascade, distance cull, LOD pick by distance, then append the
+// instance to each of its LOD's batches (one batch per submesh).
+#include "common.glsl"
+layout(local_size_x = 64) in;
+layout(std430, set = 0, binding = 8) writeonly buffer Visible { uint visible[]; };
+layout(std430, set = 0, binding = 9) buffer Cmds { DrawCmd cmds[]; };
+
+bool sphereVisible(uint view, vec3 c, float r) {
+    for (uint i = 0u; i < 6u; ++i) {
+        vec4 pl = frame.viewPlanes[view * 6u + i];
+        if (dot(pl.xyz, c) + pl.w < -r) return false;
+    }
+    return true;
+}
+
+void emit(uint view, uint lodIndex, uint id) {
+    MeshLod l = lods[lodIndex];
+    uint nb = frame.counts.y;
+    for (uint k = 0u; k < l.refCount; ++k) {
+        uint b = batchRefs[l.firstRef + k];
+        if (view > 0u && batches[b].group >= GROUP_WATER) continue;   // transparent surfaces cast no shadows
+        uint slot = atomicAdd(cmds[view * nb + b].instanceCount, 1u);
+        uint base = view == 0u ? batches[b].mainOffset : shadowBase(view) + batches[b].shadowOffset;
+        visible[base + slot] = id;
+    }
+}
+
+void main() {
+    uint id = gl_GlobalInvocationID.x;
+    if (id >= frame.counts.x) return;
+    Instance inst = instances[id];
+    MeshInfo m = meshes[inst.mesh];
+    float s = inst.posScale.w;
+    vec3 c = inst.posScale.xyz + quatRotate(inst.rot, m.bounds.xyz * s);
+    float r = m.bounds.w * s;
+    float dist = max(distance(c, frame.cameraPos.xyz) - r, 0.0);
+    if (dist > inst.cullDistance * frame.lodBias.y) return;
+    uint lod = m.lodCount - 1u;
+    for (uint i = 0u; i < m.lodCount; ++i)
+        if (dist <= lods[m.firstLod + i].maxDistance * frame.lodBias.x) { lod = i; break; }
+    if (sphereVisible(0u, c, r)) emit(0u, m.firstLod + lod, id);
+    if ((inst.flags & INST_SHADOW) != 0u) {
+        uint slod = min(lod + 1u, m.lodCount - 1u);   // shadows use the next coarser LOD
+        for (uint v = 1u; v < frame.counts.z; ++v)
+            if (sphereVisible(v, c, r)) emit(v, m.firstLod + slod, id);
+    }
+}

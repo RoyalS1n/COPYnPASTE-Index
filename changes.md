@@ -13,6 +13,9 @@ AI_README's Change summaries exactly so the entries can be pasted in unchanged:
 Never edit or delete another agent's entry; add a new one that corrects it.
 
 ## Change summaries
+- 2026-10-06 [Claude] Added an MCP server inside the engine (stdio for Claude Code's .mcp.json, HTTP on localhost for a running editor) with 36 tools for reading, editing, capturing and walk-testing the live world; it enforces the workflow rules from the reference: verify every batch with a capture before batch_end, and never change terrain, lighting and character in one batch — User wants local agent sessions to edit and iterate on the game rapidly — `dayfall-engine/src/editor/`
+- 2026-10-06 [Claude] Added the DAYFALL engine core: Vulkan 1.3 GPU-driven renderer (compute culling into indirect draws, bindless textures, cascaded shadows, MSAA, physical sky, AgX), Jolt physics, an agent-editable world (heightfield terrain with presets, sculpting, painting, non-destructive paths, scatter rules, objects, entities, lights, environment presets) with undo and redo, a procedural mannequin, walk / run / jump play, collectibles and goals, and an automated walk test — User asked for a custom C++ engine to replace Unreal — `dayfall-engine/`
+- 2026-10-06 [Claude] Added 1080p meadow previews of the marsh, cottage, chapel and overview — To show the finished meadow — `reference-world/previews/meadow_*.jpg`
 - 2026-10-06 [Claude] Reformatted this log to match AI_README's Change summaries and added the instruction to merge it into AI_README.md and delete it once the work is complete — the user wants a single tracking file — `changes.md`
 - 2026-10-06 [Claude] Started this change log, backfilled from the git history — So every change is recorded in one place — `changes.md`
 - 2026-10-06 [Claude] Added 1080p meadow previews of the lane and the barn — To show the meadow at full quality — `reference-world/previews/meadow_hero.jpg`, `meadow_barn.jpg`
