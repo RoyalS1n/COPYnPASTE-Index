@@ -16,8 +16,16 @@ _NORMAL_LAYERS = ("cn_x", "cn_y", "cn_z", "cn_set")
 
 
 def _normal_layers(bm):
-    """Float layers carrying an optional per-vertex 'shading normal'."""
+    """Float layers carrying an optional per-vertex 'shading normal', plus a
+    'leafvar' brightness used by the foliage shader."""
+    bm.verts.layers.float.get("leafvar") or bm.verts.layers.float.new("leafvar")
     return [bm.verts.layers.float.get(n) or bm.verts.layers.float.new(n) for n in _NORMAL_LAYERS]
+
+
+def _set_leafvar(bm, verts, value):
+    lay = bm.verts.layers.float["leafvar"]
+    for v in verts:
+        v[lay] = value
 
 
 def _set_normal(bm, verts, n):
@@ -116,6 +124,7 @@ def conifer(name, mats, coll, seed, height=16.0):
         bm.faces.new(vs).material_index = 1
         out = Vector((c.x, c.y, 0)).normalized() + Vector((0, 0, 0.6))
         _set_normal(bm, vs, out.normalized())
+        _set_leafvar(bm, vs, float(rng.uniform(0.75, 1.25)))
 
     tiers = int(rng.integers(15, 20))
     base_z = height * rng.uniform(0.1, 0.18)
@@ -147,7 +156,7 @@ def conifer(name, mats, coll, seed, height=16.0):
             out = (rot @ Vector((1, 0, 0.6))).normalized()
             _set_normal(bm, centre + left + right, out)
             # fringe: tufts along both edges and at the tip
-            tufts = max(3, int(length / (0.5 * k)))
+            tufts = max(4, int(length / (0.36 * k)))
             for i in range(tufts):
                 u = (i + rng.uniform(0.2, 0.9)) / tufts
                 si = min(segs, int(round(u * segs)))
@@ -155,7 +164,7 @@ def conifer(name, mats, coll, seed, height=16.0):
                     base = side[si].co.copy()
                     ang = yaw + sign * rng.uniform(0.5, 1.2) * (1 - 0.5 * u)
                     d = Vector((math.cos(ang), math.sin(ang), -rng.uniform(0.1, 0.45))).normalized()
-                    L = (0.95 - 0.35 * u) * k * rng.uniform(0.8, 1.2)
+                    L = (0.78 - 0.3 * u) * k * rng.uniform(0.8, 1.2)
                     card(base, d, L, L * rng.uniform(0.4, 0.55))
             tip = centre[-1].co.copy()
             card(tip, (rot @ Vector((1, 0, -0.3))).normalized(), 0.8 * k, 0.45 * k)
@@ -190,7 +199,11 @@ def _leaf_cards(bm, center, radius, rng, count, leaf_len, mat):
               bm.verts.new(c - t * L * 0.5), bm.verts.new(c - b * L * 0.28)]
         f = bm.faces.new(vs)
         f.material_index = mat
-        _set_normal(bm, vs, (Vector(p) + Vector((0, 0, radius * 0.3))).normalized())
+        # mostly clump-outward (soft volume) with some of the card's own
+        # orientation kept, so the canopy still shows leafy texture
+        outward = (Vector(p) + Vector((0, 0, radius * 0.3))).normalized()
+        _set_normal(bm, vs, (outward * 0.6 + n * 0.4).normalized())
+        _set_leafvar(bm, vs, float(rng.uniform(0.7, 1.3)))
 
 
 def broadleaf(name, mats, coll, seed, height=12.0):
@@ -216,18 +229,18 @@ def broadleaf(name, mats, coll, seed, height=12.0):
         pts = [top + d * length * t + Vector((0, 0, -0.15 * length * t * t)) for t in np.linspace(0, 1, 5)]
         _tapered_tube(bm, pts, list(np.linspace(0.2, 0.05, 5) * k), 6, mat=0)
         clumps.append((pts[-1] + Vector((0, 0, height * 0.06)), height * rng.uniform(0.17, 0.24)))
-    crown_c = top + Vector((0, 0, height * 0.25))
-    crown_r = height * 0.33
-    for _ in range(int(rng.integers(4, 7))):
-        off = Vector(rng.normal(0, 1, 3)).normalized() * crown_r * rng.uniform(0.2, 0.7)
-        off.z = abs(off.z) * 0.7
-        clumps.append((crown_c + off, height * rng.uniform(0.16, 0.22)))
-    leaf_len = 0.24 * k
+    crown_c = top + Vector((0, 0, height * 0.22))
+    crown_r = height * 0.36
+    for _ in range(int(rng.integers(9, 15))):
+        off = Vector(rng.normal(0, 1, 3)).normalized() * crown_r * rng.uniform(0.25, 0.95)
+        off.z = abs(off.z) * 0.55
+        clumps.append((crown_c + off, height * rng.uniform(0.1, 0.16)))
+    leaf_len = 0.18 * k
     for c, r in clumps:
-        core = _blob(bm, c, r * 0.68, rng, 1, 2, 0.85, 0.3)   # dense core: no see-through holes
+        core = _blob(bm, c, r * 0.55, rng, 1, 2, 0.8, 0.5)    # dense core: no see-through holes
         for v in core:
             _set_normal(bm, [v], (v.co - c + Vector((0, 0, r * 0.3))).normalized())
-        _leaf_cards(bm, c, r, rng, int(1100 * (r / (2.4 * k)) ** 2), leaf_len, 1)
+        _leaf_cards(bm, c, r, rng, int(2300 * (r / (2.4 * k)) ** 2), leaf_len, 1)
     return _obj(name, bm, mats, coll)
 
 
@@ -241,15 +254,15 @@ def bush(name, mats, coll, seed, size=1.6):
     return _obj(name, bm, mats, coll)
 
 
-def boulder(name, mats, coll, seed, size=2.0):
+def boulder(name, mats, coll, seed, size=2.0, subdiv=5, fractures=7, flat=0.7):
     """Rock: displaced icosphere with planar fractures, flattened base."""
     rng = np.random.default_rng(seed)
     bm = bmesh.new()
-    res = bmesh.ops.create_icosphere(bm, subdivisions=5, radius=size * 0.5)
+    res = bmesh.ops.create_icosphere(bm, subdivisions=subdiv, radius=size * 0.5)
     stretch = Vector(rng.uniform(0.7, 1.35, 3))
-    stretch.z *= 0.7
+    stretch.z *= flat
     off = Vector(rng.uniform(-100, 100, 3))
-    planes = [(Vector(rng.normal(0, 1, 3)).normalized(), rng.uniform(0.32, 0.45) * size) for _ in range(7)]
+    planes = [(Vector(rng.normal(0, 1, 3)).normalized(), rng.uniform(0.32, 0.45) * size) for _ in range(fractures)]
     for v in res["verts"]:
         p = v.co.copy()
         p = Vector((p.x * stretch.x, p.y * stretch.y, p.z * stretch.z))
@@ -311,6 +324,93 @@ def grass_clump(name, mats, coll, seed, flowers=False):
     return _obj(name, bm, mats, coll)
 
 
+def grass_tall(name, mats, coll, seed):
+    """Tall, wispy grass with drooping seed heads (catches backlight)."""
+    rng = np.random.default_rng(seed)
+    bm = bmesh.new()
+    uv = bm.loops.layers.uv.new("UVMap")
+    for _ in range(int(rng.integers(26, 38))):
+        base = Vector((rng.normal(0, 0.12), rng.normal(0, 0.12), -0.02))
+        h = rng.uniform(0.55, 1.05)
+        w = rng.uniform(0.006, 0.012)
+        yaw = rng.uniform(0, 2 * math.pi)
+        lean = rng.uniform(0.1, 0.5)
+        rot = Matrix.Rotation(yaw, 3, "Z")
+        prev = None
+        segs = 6
+        for sgi in range(segs + 1):
+            u = sgi / segs
+            c = base + rot @ Vector((lean * h * u * u, 0, h * u - 0.2 * lean * h * u * u))
+            side = rot @ Vector((0, w * (1 - 0.7 * u) + 0.001, 0))
+            pair = (bm.verts.new(c - side), bm.verts.new(c + side), u)
+            if prev:
+                f = bm.faces.new((prev[0], prev[1], pair[1], pair[0]))
+                for loop, vv in zip(f.loops, (prev[2], prev[2], pair[2], pair[2])):
+                    loop[uv].uv = (0.5, vv)
+            prev = pair
+        if rng.uniform() < 0.6:  # seed head: a thin spindle at the tip
+            tip = (prev[0].co + prev[1].co) / 2
+            d = (rot @ Vector((lean, 0, 1))).normalized()
+            head = bmesh.ops.create_cone(bm, cap_ends=True, segments=4, radius1=0.012, radius2=0.002,
+                                         depth=0.09, matrix=Matrix.Translation(tip + d * 0.045) @ d.to_track_quat("Z", "Y").to_matrix().to_4x4())
+            for f in {f for v in head["verts"] for f in v.link_faces}:
+                for loop in f.loops:
+                    loop[uv].uv = (0.5, 1.0)
+    return _obj(name, bm, mats, coll)
+
+
+def grass_short(name, mats, coll, seed):
+    """Short, dense lawn grass for the near ground."""
+    rng = np.random.default_rng(seed)
+    bm = bmesh.new()
+    uv = bm.loops.layers.uv.new("UVMap")
+    for _ in range(int(rng.integers(70, 95))):
+        base = Vector((rng.normal(0, 0.16), rng.normal(0, 0.16), -0.01))
+        h = rng.uniform(0.07, 0.24)
+        w = rng.uniform(0.006, 0.011)
+        rot = Matrix.Rotation(rng.uniform(0, 2 * math.pi), 3, "Z")
+        lean = rng.uniform(0.1, 0.6)
+        pts = []
+        for u in (0.0, 0.5, 1.0):
+            c = base + rot @ Vector((lean * h * u * u, 0, h * u))
+            side = rot @ Vector((0, w * (1 - 0.8 * u) + 0.0008, 0))
+            pts.append((bm.verts.new(c - side), bm.verts.new(c + side), u))
+        for a0, a1 in zip(pts[:-1], pts[1:]):
+            f = bm.faces.new((a0[0], a0[1], a1[1], a1[0]))
+            for loop, vv in zip(f.loops, (a0[2], a0[2], a1[2], a1[2])):
+                loop[uv].uv = (0.5, vv)
+    return _obj(name, bm, mats, coll)
+
+
+def fern(name, mats, coll, seed, size=0.9):
+    """Fern: arching fronds with paired, tapering pinnae."""
+    rng = np.random.default_rng(seed)
+    bm = bmesh.new()
+    _normal_layers(bm)
+    for fi in range(int(rng.integers(7, 12))):
+        yaw = 2 * math.pi * fi / 10 + rng.uniform(-0.3, 0.3)
+        L = size * rng.uniform(0.7, 1.15)
+        rise = rng.uniform(0.5, 0.9)
+        rot = Matrix.Rotation(yaw, 3, "Z")
+        n_p = 14
+        for i in range(1, n_p):
+            u = i / n_p
+            # rachis arcs up then droops
+            c = rot @ Vector((L * u, 0, L * rise * math.sin(math.pi * u * 0.75) - 0.15 * L * u * u))
+            tangent = (rot @ Vector((1, 0, rise * math.cos(math.pi * u * 0.75) * 2.3 - 0.3 * u))).normalized()
+            plen = L * 0.22 * math.sin(math.pi * min(1.0, u * 1.05)) + 0.02
+            for side in (-1, 1):
+                perp = (rot @ Vector((0, side, 0)))
+                d = (perp * 0.85 + tangent * 0.35 - Vector((0, 0, 0.25))).normalized()
+                w = plen * 0.28
+                q = tangent * w
+                vs = [bm.verts.new(c - q * 0.5), bm.verts.new(c + d * plen * 0.5 + q * 0.3),
+                      bm.verts.new(c + d * plen), bm.verts.new(c + d * plen * 0.5 - q * 0.6)]
+                bm.faces.new(vs).material_index = 0
+                _set_normal(bm, vs, (Vector((c.x, c.y, 0)).normalized() + Vector((0, 0, 1.2))).normalized())
+    return _obj(name, bm, mats, coll)
+
+
 # --------------------------------------------------------------------------
 def build_library(mats, root_coll):
     """Creates one collection per scatter category. Returns
@@ -337,7 +437,22 @@ def build_library(mats, root_coll):
     lib["rocks"] = (c, [boulder(f"{i:02d}_Rock_{i}", [mats["rock"]], c, 400 + i, 1.5 + 0.8 * i) for i in range(5)])
 
     c = cat("grass")
-    objs = [grass_clump(f"{i:02d}_Grass_{i}", [mats["grass"], mats["flowers"]], c, 500 + i) for i in range(3)]
-    objs.append(grass_clump("03_Flowers_0", [mats["grass"], mats["flowers"]], c, 600, flowers=True))
+    gm = [mats["grass"], mats["flowers"]]
+    objs = [grass_clump(f"{i:02d}_Grass_{i}", gm, c, 500 + i) for i in range(3)]       # 0-2 meadow
+    objs.append(grass_clump("03_Flowers_0", gm, c, 600, flowers=True))                 # 3   flowers
+    objs += [grass_tall(f"{4 + i:02d}_GrassTall_{i}", gm, c, 700 + i) for i in range(2)]  # 4-5 tall
+    objs.append(grass_short("06_GrassShort_0", gm, c, 800))                             # 6   short
+    objs.append(grass_clump("07_Flowers_1", gm, c, 610, flowers=True))                 # 7   flowers
     lib["grass"] = (c, objs)
+
+    c = cat("ferns")
+    lib["ferns"] = (c, [fern(f"{i:02d}_Fern_{i}", [mats["fern"]], c, 900 + i, 0.8 + 0.3 * i) for i in range(3)])
+
+    c = cat("pebbles")
+    lib["pebbles"] = (c, [boulder(f"{i:02d}_Pebble_{i}", [mats["rock"]], c, 1000 + i, 0.35, subdiv=3, fractures=4, flat=0.55)
+                          for i in range(4)])
+
+    c = cat("outcrops")
+    lib["outcrops"] = (c, [boulder(f"{i:02d}_Outcrop_{i}", [mats["rock"]], c, 1100 + i, 9.0, subdiv=5, fractures=12, flat=0.6)
+                           for i in range(3)])
     return lib

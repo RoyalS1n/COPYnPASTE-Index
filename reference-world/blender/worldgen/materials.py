@@ -172,12 +172,17 @@ def terrain(pal):
     nb.link(wv.outputs[0], stretch.inputs[0])
     stretch.inputs[1].default_value = (1.0, 1.0, 0.45)
     vor = nb.n("ShaderNodeTexVoronoi", feature="DISTANCE_TO_EDGE")
-    vor.inputs["Scale"].default_value = 0.09
+    vor.inputs["Scale"].default_value = 0.22
     vor.inputs["Randomness"].default_value = 1.0
     nb.link(stretch.outputs[0], vor.inputs["Vector"])
-    crack_mask = _maprange(nb, _noise(nb, 0.02, 3, 0.5, pos).outputs["Fac"], 0.4, 0.6)
-    cracks = _math(nb, "MULTIPLY", _maprange(nb, vor.outputs["Distance"], 0.0, 0.035, 1.0, 0.0), crack_mask)
-    rock_col = _mix(nb, _math(nb, "MULTIPLY", cracks, 0.45), rock_col, pal["rock_dark"])
+    crack_mask = _maprange(nb, _noise(nb, 0.03, 3, 0.5, pos).outputs["Fac"], 0.55, 0.7)
+    cracks = _math(nb, "MULTIPLY", _maprange(nb, vor.outputs["Distance"], 0.0, 0.015, 1.0, 0.0), crack_mask)
+    rock_col = _mix(nb, _math(nb, "MULTIPLY", cracks, 0.3), rock_col, pal["rock_dark"])
+    # lichen and dark water staining break up the big faces
+    stain = _noise(nb, 0.15, 6, 0.65, pos)
+    rock_col = _mix(nb, _maprange(nb, stain.outputs["Fac"], 0.5, 0.72, 0.0, 0.55), rock_col, pal["rock_dark"])
+    lichen = _noise(nb, 0.9, 4, 0.6, pos)
+    rock_col = _mix(nb, _maprange(nb, lichen.outputs["Fac"], 0.62, 0.75, 0.0, 0.4), rock_col, [0.20, 0.19, 0.12])
     rock_col = _mix(nb, _maprange(nb, fine.outputs["Fac"], 0.3, 0.75, 0.0, 0.5), rock_col, [c * 1.4 for c in pal["rock"]])
 
     # snow, with a little blue in the shadows comes from the sky light
@@ -189,6 +194,15 @@ def terrain(pal):
     snow_fac = _maprange(nb, _math(nb, "ADD", snow_a, _math(nb, "MULTIPLY", _math(nb, "SUBTRACT", fine.outputs["Fac"], 0.5), 0.6)), 0.4, 0.55)
     col = _mix(nb, snow_fac, col, snow_col)
     wet_col = _mix(nb, wet_a, col, [c * 0.45 for c in pal["soil"]])
+    # road + courtyard: packed earth with embedded gravel and wheel ruts
+    path_a = _attr(nb, "path")
+    grav = nb.n("ShaderNodeTexVoronoi", feature="F1")
+    grav.inputs["Scale"].default_value = 9.0
+    nb.link(pos, grav.inputs["Vector"])
+    earth = _mix(nb, _maprange(nb, grav.outputs["Distance"], 0.05, 0.25),
+                 [c * 1.6 for c in pal["rock"]], [c * 1.35 for c in pal["soil"]])
+    earth = _mix(nb, _maprange(nb, mid.outputs["Fac"], 0.4, 0.65, 0.0, 0.5), earth, pal["soil"])
+    wet_col = _mix(nb, _maprange(nb, path_a, 0.2, 0.7), wet_col, earth)
 
     rough = _math(nb, "SUBTRACT", 0.92, _math(nb, "MULTIPLY", wet_a, 0.2))
     height = _math(nb, "ADD", _math(nb, "MULTIPLY", fine.outputs["Fac"], 1.0),
@@ -238,7 +252,11 @@ def foliage(name, base, alt, translucency=0.35, variation=0.6):
     col = _mix(nb, rnd, base, alt)
     hsv = nb.n("ShaderNodeHueSaturation")
     nb.link(col, hsv.inputs["Color"])
-    nb.link(_maprange(nb, oi.outputs["Random"], 0.0, 1.0, 0.85, 1.15), hsv.inputs["Value"])
+    # per-leaf brightness from the 'leafvar' attribute (0 = absent -> 1.0)
+    lv = _attr(nb, "leafvar")
+    lv = _math(nb, "ADD", lv, _math(nb, "COMPARE", lv, 0.0))
+    val = _math(nb, "MULTIPLY", _maprange(nb, oi.outputs["Random"], 0.0, 1.0, 0.85, 1.15), lv)
+    nb.link(val, hsv.inputs["Value"])
     tc = nb.n("ShaderNodeTexCoord")
     n = _noise(nb, 25.0, 4, 0.6, tc.outputs["Object"])
     normal = _bump(nb, n.outputs["Fac"], 0.3, 0.02)
@@ -378,6 +396,94 @@ def clouds(cfg):
     return m
 
 
+def castle_stone(pal):
+    """Coursed stone blocks on real-scale UVs (metres): per-block tone,
+    recessed mortar, rain streaks, grime and moss near the base."""
+    m = _new("RW_Stone")
+    nb = NB(m)
+    tc = nb.n("ShaderNodeTexCoord")
+    uv = tc.outputs["UV"]
+    brick = nb.n("ShaderNodeTexBrick", offset=0.5, offset_frequency=2, squash=1.0, squash_frequency=2)
+    brick.inputs["Scale"].default_value = 1.0
+    brick.inputs["Mortar Size"].default_value = 0.018
+    brick.inputs["Mortar Smooth"].default_value = 0.2
+    brick.inputs["Bias"].default_value = 0.0
+    brick.inputs["Brick Width"].default_value = 0.68
+    brick.inputs["Row Height"].default_value = 0.34
+    brick.inputs["Color1"].default_value = _lin(pal["stone"])
+    brick.inputs["Color2"].default_value = _lin([c * 0.72 for c in pal["stone"]])
+    brick.inputs["Mortar"].default_value = _lin([c * 0.55 for c in pal["stone"]])
+    nb.link(uv, brick.inputs["Vector"])
+    pos = tc.outputs["Object"]
+    big = _noise(nb, 0.06, 5, 0.6, pos)
+    col = _mix(nb, _maprange(nb, big.outputs["Fac"], 0.35, 0.7, 0.0, 0.6), brick.outputs["Color"],
+               [c * 0.6 for c in pal["stone"]])
+    # vertical rain streaks: noise squashed along u, stretched along v
+    sm = nb.n("ShaderNodeMapping")
+    sm.inputs["Scale"].default_value = (2.5, 0.08, 1.0)
+    nb.link(uv, sm.inputs["Vector"])
+    streak = _noise(nb, 1.0, 4, 0.5, sm.outputs[0])
+    col = _mix(nb, _maprange(nb, streak.outputs["Fac"], 0.5, 0.75, 0.0, 0.45), col, pal["stone_dark"])
+    # grime + moss at the foot of every wall (UV v = height above its base)
+    sep = nb.n("ShaderNodeSeparateXYZ")
+    nb.link(uv, sep.inputs[0])
+    foot = _maprange(nb, sep.outputs["Y"], 3.5, 0.0, 0.0, 1.0)
+    patch = _noise(nb, 0.5, 4, 0.6, pos)
+    moss_f = _math(nb, "MULTIPLY", foot, _maprange(nb, patch.outputs["Fac"], 0.4, 0.65), clamp=True)
+    col = _mix(nb, _math(nb, "MULTIPLY", foot, 0.5), col, pal["stone_dark"])
+    col = _mix(nb, moss_f, col, pal["moss"])
+    fine = _noise(nb, 6.0, 8, 0.6, pos)
+    height = _math(nb, "SUBTRACT", fine.outputs["Fac"], _math(nb, "MULTIPLY", brick.outputs["Fac"], 1.5))
+    normal = _bump(nb, height, 0.55, 0.03)
+    p = _principled(nb, col, 0.86, normal, spec=0.3)
+    _out(nb, p.outputs[0])
+    return m
+
+
+def roof_tiles(name, base, alt_tint):
+    """Slate / clay tiles: small staggered courses along the roof slope."""
+    m = _new(name)
+    nb = NB(m)
+    tc = nb.n("ShaderNodeTexCoord")
+    brick = nb.n("ShaderNodeTexBrick", offset=0.5, offset_frequency=2, squash=1.0, squash_frequency=2)
+    brick.inputs["Scale"].default_value = 1.0
+    brick.inputs["Mortar Size"].default_value = 0.012
+    brick.inputs["Brick Width"].default_value = 0.34
+    brick.inputs["Row Height"].default_value = 0.2
+    brick.inputs["Color1"].default_value = _lin(base)
+    brick.inputs["Color2"].default_value = _lin([c * 0.7 for c in base])
+    brick.inputs["Mortar"].default_value = _lin([c * 0.3 for c in base])
+    nb.link(tc.outputs["UV"], brick.inputs["Vector"])
+    pos = tc.outputs["Object"]
+    lich = _noise(nb, 0.35, 5, 0.6, pos)
+    col = _mix(nb, _maprange(nb, lich.outputs["Fac"], 0.55, 0.75, 0.0, 0.7), brick.outputs["Color"], alt_tint)
+    rough = _maprange(nb, _noise(nb, 2.0, 3, 0.5, pos).outputs["Fac"], 0.3, 0.7, 0.35, 0.7)
+    normal = _bump(nb, _math(nb, "MULTIPLY", brick.outputs["Fac"], -1.0), 0.6, 0.02)
+    p = _principled(nb, col, rough, normal, spec=0.5)
+    _out(nb, p.outputs[0])
+    return m
+
+
+def simple(name, color, rough=0.8, emission=None, strength=0.0, translucent=0.0):
+    m = _new(name)
+    nb = NB(m)
+    p = _principled(nb, color, rough)
+    if emission is not None:
+        p.inputs["Emission Color"].default_value = _lin(emission)
+        p.inputs["Emission Strength"].default_value = strength
+    shader = p.outputs[0]
+    if translucent > 0:
+        tr = nb.n("ShaderNodeBsdfTranslucent")
+        tr.inputs["Color"].default_value = _lin(color)
+        mix = nb.n("ShaderNodeMixShader")
+        mix.inputs[0].default_value = translucent
+        nb.link(shader, mix.inputs[1])
+        nb.link(tr.outputs[0], mix.inputs[2])
+        shader = mix.outputs[0]
+    _out(nb, shader)
+    return m
+
+
 def build_all(cfg):
     pal = cfg["palette"]
     return {
@@ -387,8 +493,16 @@ def build_all(cfg):
         "leaves": foliage("RW_Leaves", pal["leaves"], pal["leaves_alt"], 0.4, 0.45),
         "bush": foliage("RW_Bush", [c * 0.85 for c in pal["leaves"]], pal["needles"], 0.3, 0.7),
         "grass": grass_blades(pal),
+        "fern": foliage("RW_Fern", [c * 1.1 for c in pal["leaves"]], pal["needles"], 0.45, 0.5),
         "bark": bark(pal),
         "rock": rock(pal),
         "flowers": flowers(pal),
         "clouds": clouds(cfg),
+        "stone": castle_stone(pal),
+        "roof": roof_tiles("RW_Roof", pal["roof"], [0.16, 0.15, 0.08]),
+        "roof_alt": roof_tiles("RW_RoofAlt", pal["roof_alt"], [0.12, 0.11, 0.06]),
+        "wood": simple("RW_Wood", pal["wood"], 0.8),
+        "window_dark": simple("RW_WindowDark", [0.01, 0.01, 0.012], 0.2),
+        "window_lit": simple("RW_WindowLit", [0.05, 0.03, 0.01], 0.3, pal["window_glow"], 6.0),
+        "cloth": simple("RW_Cloth", pal["cloth"], 0.7, translucent=0.35),
     }

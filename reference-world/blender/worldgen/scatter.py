@@ -63,6 +63,15 @@ def compute(cfg, terrain, cam_keys):
     wl = b["water_level_m"]
     clear = b["camera_clearance_m"]
 
+    def keep_clear(x, y, margin=8.0):
+        """0 on the road, the courtyard and the castle footprint."""
+        path = terrain.sample(terrain.masks["path"], x, y) if "path" in terrain.masks else 0.0
+        ring = 1.0
+        if getattr(terrain, "castle", None):
+            ring = smoothstep(terrain.castle["plateau_r"] + margin * 0.5, terrain.castle["plateau_r"] + margin,
+                              terrain.dist_to_castle(x, y))
+        return (1 - smoothstep(0.05, 0.4, path)) * ring
+
     def forest_density(x, y):
         h = terrain.height_at(x, y)
         slope = terrain.sample(terrain.slope_deg, x, y)
@@ -73,7 +82,7 @@ def compute(cfg, terrain, cam_keys):
         near_cam = smoothstep(clear, clear * 2.5, _dist_to_path(x, y, path))
         river = smoothstep(terrain.cfg["terrain"]["river_width_m"] * 1.5, 40.0,
                            terrain.sample(terrain.dist_river, x, y))
-        return patches * line * flat * dry_land * near_cam * (0.35 + 0.65 * river)
+        return patches * line * flat * dry_land * near_cam * (0.35 + 0.65 * river) * keep_clear(x, y, 14.0)
 
     out = {}
 
@@ -92,7 +101,7 @@ def compute(cfg, terrain, cam_keys):
     def bush_density(x, y):
         return np.clip(forest_density(x, y) * 1.4, 0, 1) * 0.6 + 0.4 * (
             1 - smoothstep(10, 45, terrain.sample(terrain.dist_river, x, y))) * smoothstep(wl + 0.6, wl + 1.5, terrain.height_at(x, y)) \
-            * smoothstep(clear * 0.6, clear * 1.5, _dist_to_path(x, y, path))
+            * smoothstep(clear * 0.6, clear * 1.5, _dist_to_path(x, y, path)) * keep_clear(x, y)
 
     x, y = _rejection(rng, terrain, bush_density, b["bush_count"], full)
     out["bushes"] = dict(x=x, y=y, z=terrain.height_at(x, y) - 0.15, rx=np.zeros_like(x), ry=np.zeros_like(x),
@@ -105,7 +114,7 @@ def compute(cfg, terrain, cam_keys):
         r = terrain.sample(terrain.masks["rock"], x, y)
         bank = 1 - smoothstep(8, 30, terrain.sample(terrain.dist_river, x, y))
         return np.clip(0.15 + 0.6 * r + 0.25 * smoothstep(20, 35, slope) + 0.7 * bank, 0, 1) \
-            * smoothstep(clear * 0.5, clear, _dist_to_path(x, y, path))
+            * smoothstep(clear * 0.5, clear, _dist_to_path(x, y, path)) * keep_clear(x, y)
 
     x, y = _rejection(rng, terrain, rock_density, b["rock_count"], full)
     tx, ty = _align_to_normal(terrain, x, y, 0.8)
@@ -129,13 +138,101 @@ def compute(cfg, terrain, cam_keys):
         # shading carries the far field)
         reach = (1 - smoothstep(gr * 0.5, gr * 1.6, d)) * (0.18 + 0.82 / (1.0 + (d / 28.0) ** 2))
         patch = smoothstep(-0.3, 0.2, fbm(h_noise, x / 25.0, y / 25.0, 3))
-        return g * reach * (0.45 + 0.55 * patch) * smoothstep(wl + 0.15, wl + 0.5, terrain.height_at(x, y))
+        return g * reach * (0.45 + 0.55 * patch) * smoothstep(wl + 0.15, wl + 0.5, terrain.height_at(x, y)) \
+            * keep_clear(x, y, 3.0)
 
     x, y = _rejection(rng, terrain, grass_density, b["grass_count"], (xmin, xmax, ymin, ymax), batch=400000)
-    flower = rng.uniform(0, 1, len(x)) < b["flower_ratio"]
-    out["grass"] = dict(x=x, y=y, z=terrain.height_at(x, y), rx=rng.normal(0, 0.08, len(x)),
-                        ry=rng.normal(0, 0.08, len(x)), rz=rng.uniform(0, 2 * np.pi, len(x)),
-                        s=rng.uniform(0.7, 1.5, len(x)), v=np.where(flower, 3, rng.integers(0, 3, len(x))))
+    n = len(x)
+    # tall grass gathers in drifts and along the water; short grass fills between
+    drift = smoothstep(0.05, 0.35, fbm(h_noise, x / 18.0 + 40, y / 18.0, 3))
+    near_water = 1 - smoothstep(6, 35, terrain.sample(terrain.dist_river, x, y))
+    p_tall = np.clip(0.12 + 0.5 * drift + 0.4 * near_water, 0, 0.85)
+    roll = rng.uniform(0, 1, n)
+    v = rng.integers(0, 3, n)
+    v = np.where(roll < p_tall, rng.integers(4, 6, n), v)
+    v = np.where((roll >= p_tall) & (roll < p_tall + 0.22), 6, v)
+    fl = rng.uniform(0, 1, n) < b["flower_ratio"] * (0.4 + 1.2 * (1 - drift))
+    v = np.where(fl, np.where(rng.uniform(0, 1, n) < 0.5, 3, 7), v)
+    out["grass"] = dict(x=x, y=y, z=terrain.height_at(x, y), rx=rng.normal(0, 0.08, n),
+                        ry=rng.normal(0, 0.08, n), rz=rng.uniform(0, 2 * np.pi, n),
+                        s=rng.uniform(0.7, 1.4, n), v=v)
+
+    # ---- ferns: forest edges and shady ground near the camera
+    def fern_density(x, y):
+        d = _dist_to_path(x, y, path)
+        return np.clip(forest_density(x, y) * 3.0, 0, 1) * (1 - smoothstep(gr * 0.8, gr * 2.2, d)) \
+            * smoothstep(clear * 0.4, clear, d) * keep_clear(x, y)
+
+    x, y = _rejection(rng, terrain, fern_density, b["fern_count"], (xmin, xmax, ymin, ymax), batch=200000)
+    out["ferns"] = dict(x=x, y=y, z=terrain.height_at(x, y) - 0.05, rx=rng.normal(0, 0.06, len(x)),
+                        ry=rng.normal(0, 0.06, len(x)), rz=rng.uniform(0, 2 * np.pi, len(x)),
+                        s=rng.uniform(0.7, 1.4, len(x)), v=rng.integers(0, 3, len(x)))
+
+    # ---- pebbles: river banks, road edges and scattered over the near ground
+    def pebble_density(x, y):
+        d = _dist_to_path(x, y, path)
+        bank = 1 - smoothstep(rw_bank, rw_bank + 10, terrain.sample(terrain.dist_river, x, y))
+        road = terrain.sample(terrain.masks["path"], x, y) if "path" in terrain.masks else 0.0
+        road_edge = road * (1 - road) * 4.0
+        near = 1 - smoothstep(gr * 0.5, gr * 1.8, d)
+        return np.clip(0.55 * bank + 0.6 * road_edge + 0.03, 0, 1) * near * smoothstep(wl - 0.6, wl, terrain.height_at(x, y)) \
+            * smoothstep(2.0, 6.0, d)
+
+    rw_bank = terrain.cfg["terrain"]["river_width_m"] * 0.5
+    x, y = _rejection(rng, terrain, pebble_density, b["pebble_count"], (xmin, xmax, ymin, ymax), batch=300000)
+    tx, ty = _align_to_normal(terrain, x, y, 0.9)
+    s = 0.6 * rng.lognormal(0, 0.45, len(x))
+    out["pebbles"] = dict(x=x, y=y, z=terrain.height_at(x, y) - 0.04 * s, rx=tx + rng.normal(0, 0.3, len(x)),
+                          ry=ty + rng.normal(0, 0.3, len(x)), rz=rng.uniform(0, 2 * np.pi, len(x)),
+                          s=s, v=rng.integers(0, 4, len(x)))
+
+    # ---- outcrops: big rock formations on steep ground and around the crag foot
+    def outcrop_density(x, y):
+        slope = terrain.sample(terrain.slope_deg, x, y)
+        steep = smoothstep(22, 38, slope) * (1 - smoothstep(55, 70, slope))
+        crag_foot = 0.0
+        if getattr(terrain, "castle", None):
+            dc = terrain.dist_to_castle(x, y)
+            pr_, cr_ = terrain.castle["plateau_r"], terrain.castle["crag_r"]
+            crag_foot = 2.5 * smoothstep(pr_ + 2, pr_ + 7, dc) * (1 - smoothstep(cr_ * 0.75, cr_, dc))
+        return np.clip(steep * 0.7 + crag_foot, 0, 1) * smoothstep(clear * 1.5, clear * 3, _dist_to_path(x, y, path)) \
+            * keep_clear(x, y, 6.0)
+
+    x, y = _rejection(rng, terrain, outcrop_density, b["outcrop_count"], full)
+    tx, ty = _align_to_normal(terrain, x, y, 0.7)
+    s = rng.uniform(0.6, 1.6, len(x))
+    z = terrain.height_at(x, y) - 1.6 * s
+    rx_, ry_, rz_ = tx + rng.normal(0, 0.12, len(x)), ty + rng.normal(0, 0.12, len(x)), rng.uniform(0, 2 * np.pi, len(x))
+    v = rng.integers(0, 3, len(x))
+
+    # castle crag: rings of partly buried boulders build a broken cliff rim
+    # and face (the terrain grid alone is too coarse for that scale)
+    if getattr(terrain, "castle", None):
+        cx, cy = terrain.castle["center"]
+        pr_, cr_ = terrain.castle["plateau_r"], terrain.castle["crag_r"]
+        # the cliff face itself is a dedicated mesh (castle.build_cliff); this
+        # ring is the talus of fallen blocks at its foot
+        rings = [(pr_ + 22.0, 10.0, 60, 0.35, 0.9)]
+        cxs, cys, czs, css = [], [], [], []
+        for r0, spread, count, smin, smax in rings:
+            a = rng.uniform(0, 2 * np.pi, count)
+            rr = r0 + rng.uniform(-0.3, 1.0, count) * spread
+            px, py = cx + rr * np.cos(a), cy + rr * np.sin(a)
+            ok = keep_clear(px, py, 0.0) > 0.5
+            px, py = px[ok], py[ok]
+            sc = rng.uniform(smin, smax, len(px))
+            cxs.append(px)
+            cys.append(py)
+            css.append(sc)
+            czs.append(terrain.height_at(px, py) - 2.2 * sc)
+        px, py, pz, sc = (np.concatenate(a) for a in (cxs, cys, czs, css))
+        ctx, cty = _align_to_normal(terrain, px, py, 0.6)
+        x, y, z, s = (np.concatenate([a, b]) for a, b in ((x, px), (y, py), (z, pz), (s, sc)))
+        rx_ = np.concatenate([rx_, ctx + rng.normal(0, 0.2, len(px))])
+        ry_ = np.concatenate([ry_, cty + rng.normal(0, 0.2, len(px))])
+        rz_ = np.concatenate([rz_, rng.uniform(0, 2 * np.pi, len(px))])
+        v = np.concatenate([v, rng.integers(0, 3, len(px))])
+    out["outcrops"] = dict(x=x, y=y, z=z, rx=rx_, ry=ry_, rz=rz_, s=s, v=v)
     return out
 
 

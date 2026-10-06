@@ -82,5 +82,7 @@ def ridged(noise, x, y, octaves=7, lacunarity=2.03, gain=0.5, sharpness=2.0):
 
 
 def smoothstep(e0, e1, x):
+    if e1 == e0:  # zero-width edge: a hard step
+        return (np.asarray(x) >= e0).astype(np.float64)
     t = np.clip((x - e0) / (e1 - e0), 0.0, 1.0)
     return t * t * (3.0 - 2.0 * t)

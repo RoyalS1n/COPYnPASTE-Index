@@ -1,19 +1,24 @@
 # Reference World: a procedural Blender → Unreal Engine 5 environment
 
-A cinematic river-valley world built entirely from code. Blender generates
-the terrain, vegetation, rocks, materials, lighting and camera move, renders
-stills and a flythrough, and exports everything Unreal Engine 5 needs. A
+A cinematic castle-and-river-valley world built entirely from code. Blender
+generates the terrain, the castle on its cliff, vegetation, rocks,
+materials, lighting and camera move, renders stills and a flythrough, and
+exports everything Unreal Engine 5 needs. A
 Python editor script then rebuilds the same world in Unreal with Lumen,
 Nanite, a physical sky, volumetric clouds and a matching Sequencer shot.
 
-> **About the reference video.** This was built to match a reference clip
-> on X (`x.com/rewind02/status/2107086047985258639`), but the build
-> environment's network policy blocks x.com, so the clip could not be viewed.
-> The default preset is therefore an assumption: a golden-hour alpine river
-> valley. See [Matching the reference](#matching-the-reference) to retarget it
-> in a few minutes from screenshots.
+> **About the reference video.** This was built to match a castle scene in
+> a reference clip on X (`x.com/rewind02/status/2107086047985258639`). The
+> build environment's network policy blocks x.com, so the clip could not be
+> viewed. The scene is therefore an interpretation: an original stone castle
+> on a cliff above a river at golden hour. The castle is a new design,
+> assembled procedurally from generic medieval parts. See
+> [Matching the reference](#matching-the-reference) for retargeting it from
+> screenshots.
 
 ![hero](previews/hero.jpg)
+
+![castle](previews/castle_tele.jpg)
 
 | | |
 |---|---|
@@ -23,15 +28,17 @@ Nanite, a physical sky, volumetric clouds and a matching Sequencer shot.
 
 | Element | How |
 |---|---|
-| Terrain | 2.4 km heightfield, 1009² samples: domain-warped ridged multifractal mountains, a meandering valley, thermal erosion, multi-scale gully detail and a carved river channel |
+| Terrain | 2.4 km heightfield, 2017² samples (about 1.2 m apart): domain-warped ridged multifractal mountains, a meandering valley, thermal erosion, multi-scale gully detail, hummocky micro-relief and a carved river channel |
+| Castle | Original procedural design: curtain walls that follow the cliff edge with foundations running down the rock, six round towers with slate cones or battlements, a gatehouse facing the approach, a keep with corner turrets, a spire with a pennant, a great hall and houses, with arrow slits and windows, some lit. Real-scale UVs drive coursed-stone and slate-tile shaders |
+| Crag | The castle's hill is raised and carved after erosion so its cliffs stay sharp. A dedicated polar-grid cliff mesh, at about 0.5 m resolution, wraps it with vertical jointing, ledges and overhangs that a heightfield cannot hold. A switchback road is cut into the hillside from the gate down to the valley |
 | Distant ranges | 16 km low-resolution skirt of snow-capped ranges for layered depth; it continues the main terrain's edge seamlessly |
 | Biomes | Slope, height and noise masks for grass, dry grass, rock, snow and wet ground. They drive the shader, the scatter and the Unreal weightmaps |
-| Vegetation | 4 spruce variants (branch whorls plus needle-tuft cards), 3 broadleaf trees (about 5k leaf cards each), bushes, 3 grass-clump variants and wildflowers. All are original procedural meshes with outward custom normals, so canopies shade like soft volumes |
-| Rocks | Displaced, plane-fractured boulders with cavity darkening and moss on upward faces |
-| Scatter | About 9k trees, 4k bushes, 1.6k rocks and 420k grass clumps, placed deterministically from the masks. Geometry Nodes instances them in Blender and the same transforms go to Unreal |
+| Vegetation | 4 spruce variants (branch whorls fringed with needle-tuft cards), 3 broadleaf trees with loose crowns of leaf cards, bushes, ferns, meadow, tall seed-head and short lawn grasses, and two wildflower clumps. All are original procedural meshes. Outward custom normals make canopies shade like soft volumes, and a per-leaf brightness attribute adds texture |
+| Rocks | Plane-fractured boulders, small pebbles and 9 m outcrops, with cavity darkening, lichen and moss on upward faces |
+| Scatter | About 9k trees, 4k bushes, 1.6k rocks, 700 outcrops plus a talus ring at the crag foot, 9k ferns, 26k pebbles and 420k grass clumps. Placement is deterministic from the masks and keeps clear of the road and the castle. Geometry Nodes instances them in Blender and the same transforms go to Unreal |
 | Lighting | Physical multiple-scattering sky, low golden sun at a calibrated sun-to-sky ratio, a cirrus cloud layer, and AgX colour management |
 | Grade | Compositor: aerial perspective from the mist pass, sky re-inserted behind geometry, bloom, slight chromatic dispersion and a vignette |
-| Camera | 32 mm cine camera, 10 s rising flight up the river, with depth of field |
+| Camera | 32 mm cine camera on a 10 s rising flight up the river, aimed at the castle, with depth of field. A second, static 70 mm shot frames the castle from the river bank |
 
 ## Quick start (Blender)
 
@@ -39,7 +46,7 @@ Blender 4.2+ or the `bpy` module both work. The pipeline was developed and
 verified on **Blender 5.2.2** (`pip install bpy`, Python 3.13).
 
 ```bash
-# fast iteration: 640x360 hero still in about 45 s on 4 CPU cores
+# fast iteration: 640x360 hero + castle stills in about 2 minutes on 4 CPU cores
 python blender/build_world.py --preview
 
 # full quality: 1080p stills, plus exports for Unreal
@@ -73,7 +80,7 @@ instances from the preset palette. It then creates
 
 - **Lighting.** A sun in lux, sky atmosphere, a real-time sky light,
   volumetric clouds, volumetric height fog and an unbound post-process volume.
-- **World.** Terrain, distant ranges and water.
+- **World.** Terrain, distant ranges, the castle and its cliff face, and water.
 - **Scatter.** One hierarchical instanced mesh component per vegetation or
   rock variant.
 - **Camera.** A `RW_Camera` cine camera and an `LS_Flythrough` sequence that
@@ -133,10 +140,17 @@ python blender/build_world.py --preset misty_morning --preview
    | Forest density | `biome.tree_count`, `biome.conifer_ratio`, `biome.treeline_m` |
    | Snow | `biome.snowline_m` |
    | Camera move | `camera.path` keys (`y` along the valley, `height`, `x` offset, `yaw`, `pitch`) |
+   | Castle position | `castle.y`, `castle.river_offset_m` |
+   | Castle hill | `castle.crag_height_m`, `castle.plateau_radius_m`, `castle.crag_radius_m` |
+   | Castle massing | `castle.tower_count`, `castle.tower_height_m`, `castle.wall_height_m`, `castle.keep_height_m`, `castle.spire_height_m` |
+   | Castle colours | `palette.stone`, `palette.roof`, `palette.roof_alt`, `palette.cloth` |
 
-If the reference is a different kind of world, such as a city, a desert or a
-stylised toon look, the pipeline structure still applies. The terrain and
-asset generators are the parts to swap.
+For the castle itself, frames from the reference show the massing to aim
+for: how many towers, roof shapes, the keep's height, and where it sits.
+If the reference castle is a real place, `castle.py` can follow it closely
+from photos. If it comes from a game, film or another artist's work, the
+better route is to match its proportions, style and mood with an original
+design rather than copying it.
 
 ## Layout
 
@@ -149,7 +163,8 @@ reference-world/
 │       ├── noise.py          vectorised Perlin / fBm / ridged noise (numpy)
 │       ├── terrain.py        heightfield, erosion, masks, skirt, mesh build
 │       ├── materials.py      procedural Cycles shaders
-│       ├── assets.py         trees, bushes, rocks, grass (bmesh)
+│       ├── assets.py         trees, bushes, ferns, grasses, rocks (bmesh)
+│       ├── castle.py         procedural castle + polar cliff mesh
 │       ├── scatter.py        placement + Geometry Nodes instancers
 │       ├── lighting.py       sky, sun, clouds, render + compositor
 │       ├── camera.py         cine camera + flythrough keys

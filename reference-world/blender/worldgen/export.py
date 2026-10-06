@@ -81,7 +81,8 @@ def direction_to_ue_rotator(v):
             "yaw": math.degrees(math.atan2(y, x)), "roll": 0.0}
 
 
-def export_all(cfg, terrain, lib, scatter, cam_keys, out_dir, terrain_obj_lowres, terrain_obj_far=None):
+def export_all(cfg, terrain, lib, scatter, cam_keys, out_dir, terrain_obj_lowres, terrain_obj_far=None,
+               castle_obj=None, crag_obj=None):
     os.makedirs(os.path.join(out_dir, "meshes"), exist_ok=True)
     h = terrain.height
     hmin, hmax = float(h.min()), float(h.max())
@@ -109,6 +110,10 @@ def export_all(cfg, terrain, lib, scatter, cam_keys, out_dir, terrain_obj_lowres
     _fbx(os.path.join(out_dir, "meshes", "SM_Terrain.fbx"), [terrain_obj_lowres])
     if terrain_obj_far is not None:
         _fbx(os.path.join(out_dir, "meshes", "SM_TerrainFar.fbx"), [terrain_obj_far])
+    if castle_obj is not None:
+        _fbx(os.path.join(out_dir, "meshes", "SM_Castle.fbx"), [castle_obj])
+    if crag_obj is not None:
+        _fbx(os.path.join(out_dir, "meshes", "SM_Crag.fbx"), [crag_obj])
     assets = {}
     for cat, (_, objs) in lib.items():
         names = []
@@ -147,7 +152,9 @@ def export_all(cfg, terrain, lib, scatter, cam_keys, out_dir, terrain_obj_lowres
         "seed": cfg["seed"],
         "terrain": {"size_m": terrain.size, "water_level_m": cfg["biome"]["water_level_m"],
                     "landscape": landscape, "mesh": "SM_Terrain",
-                    "far_mesh": "SM_TerrainFar" if terrain_obj_far is not None else None},
+                    "far_mesh": "SM_TerrainFar" if terrain_obj_far is not None else None,
+                    "castle_mesh": "SM_Castle" if castle_obj is not None else None,
+                    "crag_mesh": "SM_Crag" if crag_obj is not None else None},
         "assets": assets,
         "palette": cfg["palette"],
         "lighting": {**lt,

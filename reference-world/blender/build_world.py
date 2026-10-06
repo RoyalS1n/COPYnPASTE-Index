@@ -20,7 +20,7 @@ sys.path.insert(0, HERE)
 
 import bpy  # noqa: E402
 
-from worldgen import assets, camera, export, lighting, materials, scatter  # noqa: E402
+from worldgen import assets, camera, castle, export, lighting, materials, scatter  # noqa: E402
 from worldgen.config import load_preset  # noqa: E402
 from worldgen.terrain import Terrain  # noqa: E402
 
@@ -49,9 +49,9 @@ def main():
     cfg = load_preset(args.preset)
     if args.preview:
         args.quick = True
-        cfg["camera"]["stills"] = cfg["camera"]["stills"][:1]
+        cfg["camera"]["stills"] = [st for st in cfg["camera"]["stills"] if st["name"] in ("hero", "castle_tele")]
     if args.quick:
-        cfg["terrain"]["resolution"] = 505
+        cfg["terrain"]["resolution"] = 1009
         for k in ("tree_count", "bush_count", "rock_count", "grass_count"):
             cfg["biome"][k] = cfg["biome"][k] // 3
         cfg["render"]["resolution"] = [960, 540]
@@ -94,6 +94,13 @@ def main():
     w_ob.location.z = cfg["biome"]["water_level_m"]
     c_world.objects.link(w_ob)
 
+    castle_ob = crag_ob = None
+    if cfg.get("castle", {}).get("enabled"):
+        log("castle")
+        castle_ob = castle.build(cfg, terrain, mats, c_world)
+        crag_ob = castle.build_cliff(cfg, terrain, mats, c_world)
+        log(f"  castle {len(castle_ob.data.polygons)} faces, cliff {len(crag_ob.data.polygons)} faces")
+
     log("asset library")
     lib = assets.build_library(mats, c_lib)
     for ob in c_lib.all_objects:
@@ -130,7 +137,8 @@ def main():
         saved = {ob.name: ob.location.copy() for ob in c_lib.all_objects}
         for ob in c_lib.all_objects:
             ob.location.x -= 10000
-        export.export_all(cfg, terrain, lib, points, camera.keys_for_export(keys), exp_dir, lowres, far_exp)
+        export.export_all(cfg, terrain, lib, points, camera.keys_for_export(keys), exp_dir, lowres, far_exp,
+                          castle_ob, crag_ob)
         for ob in c_lib.all_objects:
             ob.location = saved[ob.name]
         scene.view_layers[0].layer_collection.children["Library"].exclude = True
@@ -150,13 +158,18 @@ def main():
 
     if args.render in ("stills", "all"):
         for st in cfg["camera"]["stills"]:
-            scene.frame_set(st["frame"])
+            if "from" in st:
+                scene.camera = camera.static_shot(cfg, terrain, st, c_rig)
+            else:
+                scene.camera = cam
+                scene.frame_set(st["frame"])
             scene.render.filepath = os.path.join(out, "renders", f"{st['name']}.png")
             scene.render.image_settings.file_format = "PNG"
-            log(f"render still {st['name']} (frame {st['frame']})")
+            log(f"render still {st['name']} ({'frame ' + str(st['frame']) if 'frame' in st else 'static shot'})")
             bpy.ops.render.render(write_still=True)
 
     if args.render in ("video", "all"):
+        scene.camera = cam
         lighting.render_settings(cfg, scene, preview=True)
         if args.frames:
             a, b = (int(v) for v in args.frames.split("-"))

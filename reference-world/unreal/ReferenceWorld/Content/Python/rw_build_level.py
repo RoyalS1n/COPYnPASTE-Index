@@ -195,6 +195,11 @@ def master_lit():
     mel.connect_material_property(col, "", unreal.MaterialProperty.MP_BASE_COLOR)
     mel.connect_material_property(_sparam(m, "Roughness", 0.85, -600, 200), "", unreal.MaterialProperty.MP_ROUGHNESS)
     mel.connect_material_property(_sparam(m, "Specular", 0.4, -600, 300), "", unreal.MaterialProperty.MP_SPECULAR)
+    # emissive (lit castle windows); 0 strength for everything else
+    emi = _expr(m, unreal.MaterialExpressionMultiply, -300, 400)
+    mel.connect_material_expressions(_vparam(m, "EmissiveColor", [1.0, 0.55, 0.22], -600, 400), "", emi, "A")
+    mel.connect_material_expressions(_sparam(m, "EmissiveStrength", 0.0, -600, 550), "", emi, "B")
+    mel.connect_material_property(emi, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     mel.recompile_material(m)
     return m
 
@@ -227,7 +232,19 @@ def build_materials(pal):
         "RW_Bark": instance(lit, "MI_RW_Bark", {"Color": pal["bark"]}, {"Roughness": 0.9, "Specular": 0.3}),
         "RW_Rock": instance(lit, "MI_RW_Rock", {"Color": pal["rock"]}, {"Roughness": 0.82, "Specular": 0.35}),
         "RW_Water": instance(lit, "MI_RW_Water", {"Color": pal["water"]}, {"Roughness": 0.03, "Specular": 0.5}),
+        "RW_Fern": instance(fol, "MI_RW_Fern", {"ColorA": [c * 1.1 for c in pal["leaves"]], "ColorB": pal["needles"]}, {"Variation": 0.5}),
     }
+    if "stone" in pal:  # castle
+        mats.update({
+            "RW_Stone": instance(lit, "MI_RW_Stone", {"Color": pal["stone"]}, {"Roughness": 0.86, "Specular": 0.3}),
+            "RW_Roof": instance(lit, "MI_RW_Roof", {"Color": pal["roof"]}, {"Roughness": 0.5, "Specular": 0.5}),
+            "RW_RoofAlt": instance(lit, "MI_RW_RoofAlt", {"Color": pal["roof_alt"]}, {"Roughness": 0.55, "Specular": 0.5}),
+            "RW_Wood": instance(lit, "MI_RW_Wood", {"Color": pal["wood"]}, {"Roughness": 0.8}),
+            "RW_WindowDark": instance(lit, "MI_RW_WindowDark", {"Color": [0.01, 0.01, 0.012]}, {"Roughness": 0.2}),
+            "RW_WindowLit": instance(lit, "MI_RW_WindowLit", {"Color": [0.05, 0.03, 0.01], "EmissiveColor": pal["window_glow"]},
+                                     {"Roughness": 0.3, "EmissiveStrength": 20.0}),
+            "RW_Cloth": instance(fol, "MI_RW_Cloth", {"ColorA": pal["cloth"], "ColorB": pal["cloth"]}, {"Variation": 0.0}),
+        })
     log("materials built")
     return mats
 
@@ -237,12 +254,19 @@ def assign_materials(meshes, mats):
         slots = mesh.get_editor_property("static_materials")
         for i, slot in enumerate(slots):
             key = str(slot.get_editor_property("material_slot_name"))
-            # FBX slot names may carry suffixes like "RW_Bark.001" or "_skin"
+            # FBX slot names may carry suffixes like "RW_Bark.001" or "_skin";
+            # exact names first (RW_Roof must not catch RW_RoofAlt)
             base = key.split(".")[0]
-            for mk, mat in mats.items():
-                if base.startswith(mk):
-                    mesh.set_material(i, mat)
-                    break
+            mat = mats.get(base)
+            if mat is None:
+                for mk in sorted(mats, key=len, reverse=True):
+                    if base.startswith(mk):
+                        mat = mats[mk]
+                        break
+            if mat is not None:
+                mesh.set_material(i, mat)
+            else:
+                unreal.log_warning(f"[ReferenceWorld] no material for slot {key} on {name}")
         eal.save_loaded_asset(mesh)
 
 
@@ -471,6 +495,10 @@ def main():
     place_static(meshes[t["mesh"]], "Terrain", material=mats["RW_Terrain"])
     if t.get("far_mesh") and t["far_mesh"] in meshes:
         place_static(meshes[t["far_mesh"]], "TerrainFar", material=mats["RW_Terrain"])
+    # castle + its cliff face: authored in world space, so placed at the origin
+    for key, label in (("castle_mesh", "Castle"), ("crag_mesh", "CastleCliff")):
+        if t.get(key) and t[key] in meshes:
+            place_static(meshes[t[key]], label)
     plane = unreal.load_asset("/Engine/BasicShapes/Plane")
     size = t["size_m"]  # the engine plane is 1 m square
     place_static(plane, "Water", (0, 0, t["water_level_m"] * 100.0), (size, size, 1), mats["RW_Water"])
