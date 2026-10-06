@@ -1,0 +1,147 @@
+{
+  "name": "serene_meadow",
+  "extends": "golden_valley",
+  "seed": 31,
+  "terrain": {
+    "mode": "meadow",
+    "skirt_height_m": 1300.0,
+    "mountain_height_m": 260.0
+  },
+  "castle": {
+    "enabled": false
+  },
+  "meadow": {
+    "enabled": true
+  },
+  "biome": {
+    "tree_count": 9000,
+    "grass_count": 1600000,
+    "grass_radius_m": 260.0,
+    "flower_ratio": 0.2,
+    "fern_count": 5000,
+    "bush_count": 3000,
+    "rock_count": 700,
+    "outcrop_count": 250,
+    "pebble_count": 18000,
+    "conifer_ratio": 0.45,
+    "treeline_m": 420.0,
+    "snowline_m": 900.0,
+    "camera_clearance_m": 5.0
+  },
+  "palette": {
+    "grass": [
+      0.055,
+      0.105,
+      0.02
+    ],
+    "grass_dry": [
+      0.22,
+      0.17,
+      0.05
+    ],
+    "leaves": [
+      0.045,
+      0.095,
+      0.018
+    ],
+    "flowers": [
+      [
+        0.85,
+        0.82,
+        0.75
+      ],
+      [
+        0.85,
+        0.6,
+        0.06
+      ],
+      [
+        0.4,
+        0.2,
+        0.7
+      ],
+      [
+        0.75,
+        0.15,
+        0.12
+      ]
+    ]
+  },
+  "lighting": {
+    "sun_elevation_deg": 16.0,
+    "sun_azimuth_deg": -128.0,
+    "sun_strength": 5.0,
+    "sun_color": [
+      1.0,
+      0.76,
+      0.52
+    ],
+    "haze_amount": 0.6,
+    "cloud_coverage": 0.5,
+    "exposure": 0.85
+  },
+  "camera": {
+    "look_at": null,
+    "lens_mm": 32.0,
+    "fstop": 4.5,
+    "path": [
+      {
+        "frame": 1,
+        "y": -660.0,
+        "height": 1.6,
+        "x": 0.0,
+        "yaw": 0.0,
+        "pitch": 0.5
+      },
+      {
+        "frame": 120,
+        "y": -585.0,
+        "height": 1.65,
+        "x": 0.0,
+        "yaw": 0.0,
+        "pitch": 0.3
+      },
+      {
+        "frame": 240,
+        "y": -510.0,
+        "height": 1.7,
+        "x": 0.0,
+        "yaw": 0.0,
+        "pitch": 0.0
+      }
+    ],
+    "stills": [
+      {
+        "name": "hero",
+        "frame": 1
+      },
+      {
+        "name": "cottage",
+        "camera": "cottage_camera",
+        "lens_mm": 32.0
+      },
+      {
+        "name": "barn",
+        "camera": "barn_camera",
+        "lens_mm": 30.0
+      },
+      {
+        "name": "chapel",
+        "camera": "chapel_camera",
+        "lens_mm": 28.0
+      },
+      {
+        "name": "overview",
+        "camera": "overview_camera",
+        "lens_mm": 30.0
+      }
+    ],
+    "preview_stills": [
+      "hero",
+      "cottage",
+      "barn",
+      "chapel",
+      "overview"
+    ]
+  }
+}

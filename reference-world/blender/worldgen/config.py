@@ -10,6 +10,7 @@ DEFAULTS = {
     "name": "default",
     "seed": 7,
     "terrain": {
+        "mode": "valley",          # "valley" (river + castle crag) or "meadow" (rolling grassland)
         "size_m": 2400.0,          # square terrain edge length
         "resolution": 2017,        # ~1.2 m/sample; UE landscape friendly (16x16 comps of 126 quads)
         "mountain_height_m": 400.0,
@@ -40,6 +41,17 @@ DEFAULTS = {
         "pebble_count": 26000,
         "outcrop_count": 700,
         "fern_count": 9000,
+    },
+    # rolling meadow with a two-track lane, fences and abandoned buildings
+    "meadow": {
+        "enabled": False,
+        "seed": 11,
+        "radius_m": 700.0,          # open grassland; forested hills rise beyond it
+        "rim_height_m": 150.0,
+        "path_amp_m": 45.0,         # lane meander
+        "path_wavelength_m": 760.0,
+        "pond": [-120.0, 260.0, 28.0],   # x, y, radius
+        "field_fences": 9,
     },
     # an original, procedurally generated castle on a crag above the river
     "castle": {

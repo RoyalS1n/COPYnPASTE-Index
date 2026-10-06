@@ -89,7 +89,20 @@ class Terrain:
         self.masks = {}
 
     # ------------------------------------------------------------------ shape
+    @property
+    def meadow(self):
+        return self.cfg["terrain"].get("mode") == "meadow"
+
     def river_center(self, y):
+        """Centre line of the valley river or, in meadow mode, of the lane.
+        Cameras and scatter follow it in both modes."""
+        if self.meadow:
+            m = self.cfg["meadow"]
+            rng = np.random.default_rng(self.seed + 13)
+            ph1, ph2 = rng.uniform(0, 2 * np.pi, 2)
+            lam = m["path_wavelength_m"]
+            return (m["path_amp_m"] * np.sin(2 * np.pi * y / lam + ph1)
+                    + 0.3 * m["path_amp_m"] * np.sin(2 * np.pi * y / (0.37 * lam) + ph2))
         t = self.cfg["terrain"]
         lam = t["meander_wavelength_m"]
         amp = t["meander_amp_m"]
@@ -99,6 +112,8 @@ class Terrain:
                 + 0.32 * amp * np.sin(2 * np.pi * y / (0.41 * lam) + ph2))
 
     def build(self):
+        if self.meadow:
+            return self._build_meadow()
         t = self.cfg["terrain"]
         X, Y = self.X, self.Y
         n1, n2, n3, n4 = (Perlin2D(self.seed + i) for i in range(4))
@@ -254,6 +269,54 @@ class Terrain:
             return np.full(np.shape(x), 1e9)
         cx, cy = self.castle["center"]
         return np.hypot(np.asarray(x) - cx, np.asarray(y) - cy)
+
+    # ------------------------------------------------------------------ meadow
+    def _build_meadow(self):
+        """Rolling grassland ringed by forested hills, a shallow swale that
+        the lane follows, a small pond, and a two-track lane: bare wheel
+        ruts with a grass strip between them."""
+        t, m = self.cfg["terrain"], self.cfg["meadow"]
+        X, Y = self.X, self.Y
+        n1, n2, n3, n4 = (Perlin2D(self.seed + i) for i in range(4))
+        core = m["radius_m"]
+        r = np.hypot(X, Y / 1.15) + 70.0 * fbm(n3, X / 420.0, Y / 420.0, 3)
+        rise = smoothstep(core * 0.85, core * 1.6, r)
+        rolling = 5.0 * fbm(n1, X / 260.0, Y / 260.0, 4) + 2.2 * fbm(n2, X / 95.0, Y / 95.0, 4)
+        micro = 0.35 * fbm(n1, X / 7.0 + 11, Y / 7.0, 3) + 0.15 * np.abs(fbm(n2, X / 3.2, Y / 3.2, 2))
+        rim = m["rim_height_m"] * rise * (0.55 + 0.45 * ridged(n4, X / 600.0, Y / 600.0, 6))
+        h = 5.0 + rolling * (1 - 0.5 * rise) + micro + rim
+        dsigned = X - self.river_center(Y)
+        dpath = np.abs(dsigned)
+        h -= 1.4 * (1 - smoothstep(0.0, 70.0, dpath)) * (1 - rise)          # the lane follows low ground
+        h = self._thermal_erosion(h, 12, talus=1.0)
+
+        wl = self.cfg["biome"]["water_level_m"]
+        px, py, pr = m["pond"]
+        dp = np.hypot(X - px, Y - py) * (1.0 + 0.12 * fbm(n2, X / 30.0, Y / 30.0, 2))
+        bowl = (1 - smoothstep(pr * 0.5, pr * 1.25, dp))
+        pond_zone = dp < pr * 1.4
+        h = np.where(pond_zone, h * (1 - bowl) + (wl - 1.6) * bowl, h)
+        h = np.where(pond_zone, h, np.maximum(h, wl + 0.35))
+
+        # two-track lane across the whole meadow. The ruts are far finer than
+        # the mesh, so the mesh only carries a smooth lane band plus the exact
+        # signed distance to the centreline (lane_d); the shader draws the
+        # ruts per pixel from it and the grass scatter uses it analytically.
+        along = smoothstep(core * 1.45, core * 1.25, np.abs(Y))
+        band = (1 - smoothstep(1.2, 1.9, dpath)) * along
+        h -= 0.1 * band
+        self.height = h.astype(np.float64)
+        self.rise = rise
+        self.dist_river = np.abs(dp - pr)                  # "water's edge" is the pond shore
+        self.castle = None
+        self.slope_deg, self.masks = compute_masks(self.cfg, self.height, X, Y, self.spacing)
+        self.masks["path"] = band.astype(np.float32)
+        self.masks["lane_d"] = np.clip(dsigned, -40.0, 40.0).astype(np.float32)
+        self.masks["lane_rut"] = along.astype(np.float32)
+        self.lane_along = along
+        for k in ("rock", "dry"):
+            self.masks[k] = (self.masks[k] * (1 - band)).astype(np.float32)
+        return self
 
     def _thermal_erosion(self, h, passes, talus=0.9, rate=0.22):
         """Thermal erosion: material slides downhill where the slope exceeds

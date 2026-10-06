@@ -90,13 +90,20 @@ def compute(cfg, terrain, cam_keys):
             out = out * smoothstep(lane * 0.6, lane, dist)
         return out
 
-    def keep_clear(x, y, margin=8.0):
-        """0 on the road, the courtyard and the castle footprint."""
-        path = terrain.sample(terrain.masks["path"], x, y) if "path" in terrain.masks else 0.0
+    meadow = cfg["terrain"].get("mode") == "meadow"
+    feats = list(getattr(terrain, "features", []) or [])
+
+    def keep_clear(x, y, margin=8.0, buildings=True, lane=True):
+        """0 on the road / lane ruts, the courtyard and the castle footprint,
+        and (for trees and rocks) inside building footprints."""
+        path = terrain.sample(terrain.masks["path"], x, y) if ("path" in terrain.masks and lane) else 0.0
         ring = 1.0
         if getattr(terrain, "castle", None):
             ring = smoothstep(terrain.castle["plateau_r"] + margin * 0.5, terrain.castle["plateau_r"] + margin,
                               terrain.dist_to_castle(x, y))
+        if buildings:
+            for fx, fy, fr in feats:
+                ring = ring * smoothstep(fr, fr + 4.0, np.hypot(np.asarray(x) - fx, np.asarray(y) - fy))
         return (1 - smoothstep(0.05, 0.4, path)) * ring
 
     def forest_density(x, y):
@@ -109,8 +116,13 @@ def compute(cfg, terrain, cam_keys):
         near_cam = smoothstep(clear, clear * 2.5, _dist_to_path(x, y, path))
         river = smoothstep(terrain.cfg["terrain"]["river_width_m"] * 1.5, 40.0,
                            terrain.sample(terrain.dist_river, x, y))
-        return patches * line * flat * dry_land * near_cam * (0.35 + 0.65 * river) * keep_clear(x, y, 14.0) \
+        d = patches * line * flat * dry_land * near_cam * (0.35 + 0.65 * river) * keep_clear(x, y, 14.0) \
             * shots_clear(x, y)
+        if meadow:   # forests ring the meadow; the open grassland stays open
+            core = cfg["meadow"]["radius_m"]
+            rr = np.hypot(x, y / 1.15) + 60.0 * fbm(h_noise, x / 300.0, y / 300.0, 2)
+            d = d * smoothstep(core * 0.78, core * 1.0, rr)
+        return d
 
     out = {}
 
@@ -121,9 +133,30 @@ def compute(cfg, terrain, cam_keys):
     is_con = rng.uniform(0, 1, len(x)) < conifer_p
     variant = np.where(is_con, rng.integers(0, 4, len(x)), rng.integers(4, 7, len(x)))
     tilt_x, tilt_y = _align_to_normal(terrain, x, y, 0.15)
+    s_tree = rng.uniform(0.7, 1.35, len(x))
+    if meadow:   # a few big solitary broadleaf trees out in the grass
+        core = cfg["meadow"]["radius_m"]
+        sx, sy = [], []
+        while len(sx) < 16:
+            r_ = core * 0.8 * np.sqrt(rng.uniform())
+            a_ = rng.uniform(0, 2 * np.pi)
+            px_, py_ = r_ * np.cos(a_), r_ * np.sin(a_)
+            if abs(px_ - float(terrain.river_center(np.array(py_)))) < 18:
+                continue
+            if keep_clear(np.array([px_]), np.array([py_]), 0.0)[0] < 0.5:
+                continue
+            sx.append(px_)
+            sy.append(py_)
+        sx, sy = np.array(sx), np.array(sy)
+        x, y = np.concatenate([x, sx]), np.concatenate([y, sy])
+        h = np.concatenate([h, terrain.height_at(sx, sy)])
+        variant = np.concatenate([variant, rng.integers(4, 7, len(sx))])
+        tilt_x = np.concatenate([tilt_x, np.zeros(len(sx))])
+        tilt_y = np.concatenate([tilt_y, np.zeros(len(sx))])
+        s_tree = np.concatenate([s_tree, rng.uniform(1.3, 1.8, len(sx))])
     out["trees"] = dict(x=x, y=y, z=h - 0.25, rx=tilt_x + rng.normal(0, 0.03, len(x)),
                         ry=tilt_y + rng.normal(0, 0.03, len(x)), rz=rng.uniform(0, 2 * np.pi, len(x)),
-                        s=rng.uniform(0.7, 1.35, len(x)), v=variant)
+                        s=s_tree, v=variant)
 
     # ---- bushes: forest edges and river banks
     def bush_density(x, y):
@@ -167,9 +200,31 @@ def compute(cfg, terrain, cam_keys):
         reach = (1 - smoothstep(gr * 0.5, gr * 1.6, d)) * (0.18 + 0.82 / (1.0 + (d / 28.0) ** 2))
         patch = smoothstep(-0.3, 0.2, fbm(h_noise, x / 25.0, y / 25.0, 3))
         return g * reach * (0.45 + 0.55 * patch) * smoothstep(wl + 0.15, wl + 0.5, terrain.height_at(x, y)) \
-            * keep_clear(x, y, 3.0)
+            * keep_clear(x, y, 3.0, buildings=False)
 
-    x, y = _rejection(rng, terrain, grass_density, b["grass_count"], (xmin, xmax, ymin, ymax), batch=400000)
+    if meadow:
+        # grass covers the whole meadow: dense along the lane, around ruins
+        # and camera positions, thinner in between; never in the wheel ruts
+        core = cfg["meadow"]["radius_m"]
+        hot = list(getattr(terrain, "hotspots", []) or [])
+
+        def grass_density(x, y):
+            g = terrain.sample(terrain.masks["grass"], x, y)
+            rr = np.hypot(x, y / 1.15)
+            reach = 0.2 * smoothstep(core * 1.1, core * 0.9, rr)
+            d = _dist_to_path(x, y, path)
+            reach = np.maximum(reach, (1 - smoothstep(gr * 0.5, gr * 1.6, d)) * (0.18 + 0.82 / (1.0 + (d / 28.0) ** 2)))
+            for hx, hy, hr in hot:
+                reach = np.maximum(reach, 0.9 * (1 - smoothstep(hr * 0.5, hr, np.hypot(x - hx, y - hy))))
+            lane_dist = np.abs(x - terrain.river_center(y))
+            rut = (1 - smoothstep(0.12, 0.34, np.abs(lane_dist - 0.78))) * (np.abs(y) < core * 1.3)
+            patch = smoothstep(-0.3, 0.2, fbm(h_noise, x / 25.0, y / 25.0, 3))
+            return g * reach * (0.5 + 0.5 * patch) * (1 - 0.97 * rut) * keep_clear(x, y, 3.0, buildings=False, lane=False)
+
+        bounds = (-core * 1.15, core * 1.15, -core * 1.3, core * 1.3)
+    else:
+        bounds = (xmin, xmax, ymin, ymax)
+    x, y = _rejection(rng, terrain, grass_density, b["grass_count"], bounds, batch=400000)
     n = len(x)
     # tall grass gathers in drifts and along the water; short grass fills between
     drift = smoothstep(0.05, 0.35, fbm(h_noise, x / 18.0 + 40, y / 18.0, 3))

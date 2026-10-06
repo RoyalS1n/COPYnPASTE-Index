@@ -149,6 +149,35 @@ matching layer weightmaps.
 > Unreal's rotator maths. If an API call differs in your engine version, the
 > Output Log names the line. Most calls already have fallbacks.
 
+## The serene meadow (`serene_meadow`)
+
+A second map from the same pipeline: a large, quiet meadow about 1.4 km
+across, ringed by forested hills, with mountains on the horizon.
+
+- **Lane.** A two-track country lane runs through the middle: two earth wheel ruts with a grass strip between them. The ruts are drawn per pixel from each terrain vertex's exact distance to the lane centreline, so they stay crisp at any terrain resolution.
+- **Grass.** About 1.6 million grass and wildflower clumps cover the whole meadow. They are densest along the lane, around the ruins and at the camera positions, and wildflower drifts tint the meadow from afar. A few big solitary trees stand out in the grass, and a small pond lies west of the lane.
+- **Fences.** Weathered post-and-rail fences line stretches of the lane, enclose a paddock and cross the fields. Posts lean or are missing, and rails are gone or dropped at one end. Some field boundaries are dry-stone walls with collapsed gaps.
+- **Abandoned buildings.** All original designs, built with the same kit as the castle:
+  - a roofless stone cottage with jagged walls, fallen rafters, scattered slates and a hearth
+  - a timber barn skeleton with a sagging, holed roof and missing boards
+  - a lone chimney stack over the footings of a burnt-out house
+  - the arched gable wall of a ruined chapel
+  - an old well and a cart wreck
+
+  The masonry is rough, mossy rubble with ivy, rubble heaps lie around every ruin, and grass grows inside them.
+
+```bash
+python blender/build_world.py --preset serene_meadow --preview          # quick look
+python blender/build_world.py --preset serene_meadow --export --render stills
+```
+
+Its stills are `hero` (eye level on the lane), `cottage`, `barn`, `chapel`
+and `overview`. In Unreal, each preset gets its own folder and map:
+`/Game/ReferenceWorld/<preset>/Maps/L_<preset>`. Exports go to
+`WorldData/<preset>/`, so the castle valley and the meadow live side by
+side. The level script builds the most recent export by default; run
+`rw_build_level.main("serene_meadow")` to pick one explicitly.
+
 ## Presets
 
 Presets live in `presets/*.json`. Each one sets only what it changes and can
@@ -160,6 +189,7 @@ Presets live in `presets/*.json`. Each one sets only what it changes and can
 | `golden_valley` | Default. Low warm sun from behind-left, golden meadow, crisp distant snow ranges |
 | `misty_morning` | Soft, high-haze, cool morning light |
 | `alpine_dusk` | Sun on the horizon, valley in shadow, alpenglow on the peaks |
+| `serene_meadow` | The meadow map: late-afternoon light, wildflowers, lane, fences and ruins |
 
 ```bash
 python blender/build_world.py --preset misty_morning --preview
@@ -217,6 +247,7 @@ reference-world/
 │       ├── materials.py      procedural Cycles shaders
 │       ├── assets.py         trees, bushes, ferns, grasses, rocks (bmesh)
 │       ├── castle.py         walkable castle kit + layout, interiors, lights, cliff mesh
+│       ├── meadow.py         meadow lane fences, dry-stone walls, abandoned buildings
 │       ├── scatter.py        placement + Geometry Nodes instancers
 │       ├── lighting.py       sky, sun, clouds, render + compositor
 │       ├── camera.py         cine camera + flythrough keys

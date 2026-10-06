@@ -207,6 +207,9 @@ def terrain(pal):
     grav.inputs["Scale"].default_value = 3.0
     nb.link(pos, grav.inputs["Vector"])
     scree_col = _mix(nb, _maprange(nb, grav.outputs["Distance"], 0.1, 0.4), [c * 1.5 for c in pal["rock"]], [c * 0.9 for c in pal["rock"]])
+    # wildflower drifts, visible from afar
+    drift = _maprange(nb, _noise(nb, 0.015, 3, 0.5, pos).outputs["Fac"], 0.58, 0.72, 0.0, 0.32)
+    grass_col = _mix(nb, drift, grass_col, [0.30, 0.27, 0.11])
     # grass: fine tonal streaks so slopes beyond the instanced grass keep texture
     gstreak = _noise(nb, 0.6, 5, 0.65, pos)
     grass_col = _mix(nb, _maprange(nb, gstreak.outputs["Fac"], 0.3, 0.7, 0.0, 0.45), grass_col, [c * 0.55 for c in pal["grass"]])
@@ -222,20 +225,28 @@ def terrain(pal):
     snow_fac = _maprange(nb, _math(nb, "ADD", snow_a, _math(nb, "MULTIPLY", _math(nb, "SUBTRACT", fine.outputs["Fac"], 0.5), 0.6)), 0.4, 0.55)
     col = _mix(nb, snow_fac, col, snow_col)
     wet_col = _mix(nb, wet_a, col, [c * 0.45 for c in pal["soil"]])
-    # road + courtyard: packed earth with embedded gravel and wheel ruts
+    # road + courtyard: packed earth with embedded gravel and wheel ruts.
+    # On a meadow lane (lane_rut = 1) only the two ruts are bare: they are
+    # drawn per pixel from lane_d, the signed distance to the centreline.
     path_a = _attr(nb, "path")
+    lane_d = _math(nb, "ABSOLUTE", _attr(nb, "lane_d"))
+    lane_on = _attr(nb, "lane_rut")
+    rut = _maprange(nb, _math(nb, "ABSOLUTE", _math(nb, "SUBTRACT", lane_d, 0.78)), 0.34, 0.14)
+    earth_f = _math(nb, "MULTIPLY", path_a,
+                    _math(nb, "ADD", _math(nb, "SUBTRACT", 1.0, lane_on), _math(nb, "MULTIPLY", lane_on, rut)))
     grav = nb.n("ShaderNodeTexVoronoi", feature="F1")
     grav.inputs["Scale"].default_value = 9.0
     nb.link(pos, grav.inputs["Vector"])
     earth = _mix(nb, _maprange(nb, grav.outputs["Distance"], 0.05, 0.25),
                  [c * 1.6 for c in pal["rock"]], [c * 1.35 for c in pal["soil"]])
     earth = _mix(nb, _maprange(nb, mid.outputs["Fac"], 0.4, 0.65, 0.0, 0.5), earth, pal["soil"])
-    wet_col = _mix(nb, _maprange(nb, path_a, 0.2, 0.7), wet_col, earth)
+    wet_col = _mix(nb, _maprange(nb, earth_f, 0.2, 0.7), wet_col, earth)
 
     rough = _math(nb, "SUBTRACT", 0.92, _math(nb, "MULTIPLY", wet_a, 0.2))
     height = _math(nb, "ADD", _math(nb, "MULTIPLY", fine.outputs["Fac"], 1.0),
                    _math(nb, "MULTIPLY", mid.outputs["Fac"], 2.0))
     height = _math(nb, "SUBTRACT", height, _math(nb, "MULTIPLY", _math(nb, "MULTIPLY", cracks, rock_fac), 1.5))
+    height = _math(nb, "SUBTRACT", height, _math(nb, "MULTIPLY", _math(nb, "MULTIPLY", rut, lane_on), 2.0))
     # large-scale relief on rock (couloirs, ledges) then fine grain on top
     macro = _noise(nb, 0.08, 6, 0.65, pos)
     macro_h = _math(nb, "MULTIPLY", _math(nb, "ADD", macro.outputs["Fac"],
@@ -246,7 +257,7 @@ def terrain(pal):
     normal = _bump(nb, relief.outputs["Fac"], 0.35, 8.0)
     normal = _bump(nb, macro_h, 0.8, 3.0, normal)
     normal = _bump(nb, height, 0.35, 0.25, normal)
-    p = _principled(nb, wet_col, rough, normal, spec=0.25)
+    p = _principled(nb, wet_col, rough, normal, spec=0.12)   # low: no white sheen on backlit grass ground
     _out(nb, p.outputs[0])
     return m
 
@@ -450,20 +461,23 @@ def clouds(cfg):
     return m
 
 
-def castle_stone(pal):
+def castle_stone(pal, name="RW_Stone", width=0.95, height=0.44, mortar=0.014, moss=1.0, base=None):
     """Coursed stone blocks on real-scale UVs (metres): per-block tone,
-    recessed mortar, rain streaks, grime and moss near the base."""
-    m = _new("RW_Stone")
+    recessed mortar, rain streaks, grime and moss near the base. Smaller,
+    mossier settings give the rough rubble masonry of ruins."""
+    if base is not None:
+        pal = dict(pal, stone=base, stone_dark=[c * 0.4 for c in base])
+    m = _new(name)
     nb = NB(m)
     tc = nb.n("ShaderNodeTexCoord")
     uv = tc.outputs["UV"]
     brick = nb.n("ShaderNodeTexBrick", offset=0.5, offset_frequency=2, squash=1.0, squash_frequency=2)
     brick.inputs["Scale"].default_value = 1.0
-    brick.inputs["Mortar Size"].default_value = 0.014
+    brick.inputs["Mortar Size"].default_value = mortar
     brick.inputs["Mortar Smooth"].default_value = 0.35
     brick.inputs["Bias"].default_value = -0.2
-    brick.inputs["Brick Width"].default_value = 0.95
-    brick.inputs["Row Height"].default_value = 0.44
+    brick.inputs["Brick Width"].default_value = width
+    brick.inputs["Row Height"].default_value = height
     brick.inputs["Color1"].default_value = _lin(pal["stone"])
     brick.inputs["Color2"].default_value = _lin([pal["stone"][0] * 0.62, pal["stone"][1] * 0.6, pal["stone"][2] * 0.55])
     brick.inputs["Mortar"].default_value = _lin([c * 0.55 for c in pal["stone"]])
@@ -492,7 +506,8 @@ def castle_stone(pal):
     nb.link(uv, sep.inputs[0])
     foot = _maprange(nb, sep.outputs["Y"], 3.5, 0.0, 0.0, 1.0)
     patch = _noise(nb, 0.5, 4, 0.6, pos)
-    moss_f = _math(nb, "MULTIPLY", foot, _maprange(nb, patch.outputs["Fac"], 0.4, 0.65), clamp=True)
+    moss_f = _math(nb, "MULTIPLY", _math(nb, "MULTIPLY", foot, moss),
+                   _maprange(nb, patch.outputs["Fac"], 0.4, 0.65), clamp=True)
     col = _mix(nb, _math(nb, "MULTIPLY", foot, 0.5), col, pal["stone_dark"])
     col = _mix(nb, moss_f, col, pal["moss"])
     # horizontal stone (paving, floors, wall-walks): trodden dirt, mud and
@@ -600,6 +615,7 @@ def build_all(cfg):
         "flowers": flowers(pal),
         "clouds": clouds(cfg),
         "stone": castle_stone(pal),
+        "rubble": castle_stone(pal, "RW_Rubble", 0.46, 0.27, 0.02, 2.2, base=pal.get("rubble", [0.15, 0.14, 0.12])),
         "roof": roof_tiles("RW_Roof", pal["roof"], [0.16, 0.15, 0.08]),
         "roof_alt": roof_tiles("RW_RoofAlt", pal["roof_alt"], [0.12, 0.11, 0.06]),
         "wood": planks(pal["wood"]),

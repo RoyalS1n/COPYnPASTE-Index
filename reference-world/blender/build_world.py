@@ -20,7 +20,7 @@ sys.path.insert(0, HERE)
 
 import bpy  # noqa: E402
 
-from worldgen import assets, camera, castle, export, lighting, materials, scatter  # noqa: E402
+from worldgen import assets, camera, castle, export, lighting, materials, meadow, scatter  # noqa: E402
 from worldgen.config import load_preset  # noqa: E402
 from worldgen.terrain import Terrain  # noqa: E402
 
@@ -50,8 +50,8 @@ def main():
     cfg = load_preset(args.preset)
     if args.preview:
         args.quick = True
-        cfg["camera"]["stills"] = [st for st in cfg["camera"]["stills"]
-                                   if st["name"] in ("hero", "castle_tele", "hall_interior", "courtyard")]
+        keep = cfg["camera"].get("preview_stills", ["hero", "castle_tele", "hall_interior", "courtyard"])
+        cfg["camera"]["stills"] = [st for st in cfg["camera"]["stills"] if st["name"] in keep]
     if args.quick:
         cfg["terrain"]["resolution"] = 1009
         for k in ("tree_count", "bush_count", "rock_count", "grass_count"):
@@ -99,13 +99,20 @@ def main():
     w_ob.location.z = cfg["biome"]["water_level_m"]
     c_world.objects.link(w_ob)
 
-    castle_ob = crag_ob = None
-    castle_info = {}
-    if cfg.get("castle", {}).get("enabled"):
+    castle_ob = crag_ob = props_ob = None
+    castle_info = {}            # features info: lights, cameras, player start
+    if cfg.get("castle", {}).get("enabled") and cfg["terrain"].get("mode") != "meadow":
         log("castle")
         castle_ob, castle_info = castle.build(cfg, terrain, mats, c_world)
+        crag_ob = castle.build_cliff(cfg, terrain, mats, c_world)
+        log(f"  castle {len(castle_ob.data.polygons)} faces, cliff {len(crag_ob.data.polygons)} faces")
+    if cfg.get("meadow", {}).get("enabled"):
+        log("meadow: fences + abandoned buildings")
+        props_ob, castle_info = meadow.build(cfg, terrain, mats, c_world)
+        log(f"  props {len(props_ob.data.polygons)} faces")
+    if castle_info.get("lights"):
         c_lights = coll("CastleLights")
-        for i, L in enumerate(castle_info.get("lights", [])):
+        for i, L in enumerate(castle_info["lights"]):
             ld = bpy.data.lights.new(f"RW_{L['kind']}_{i:03d}", "POINT")
             ld.energy = L["power"]
             ld.color = L["color"]
@@ -113,9 +120,7 @@ def main():
             lo = bpy.data.objects.new(ld.name, ld)
             lo.location = L["pos"]
             c_lights.objects.link(lo)
-        log(f"  {len(castle_info.get('lights', []))} castle lights")
-        crag_ob = castle.build_cliff(cfg, terrain, mats, c_world)
-        log(f"  castle {len(castle_ob.data.polygons)} faces, cliff {len(crag_ob.data.polygons)} faces")
+        log(f"  {len(castle_info['lights'])} feature lights")
 
     log("asset library")
     lib = assets.build_library(mats, c_lib)
@@ -154,7 +159,7 @@ def main():
         for ob in c_lib.all_objects:
             ob.location.x -= 10000
         export.export_all(cfg, terrain, lib, points, camera.keys_for_export(keys), exp_dir, lowres, far_exp,
-                          castle_ob, crag_ob, castle_info)
+                          castle_ob, crag_ob, castle_info, props_ob)
         for ob in c_lib.all_objects:
             ob.location = saved[ob.name]
         scene.view_layers[0].layer_collection.children["Library"].exclude = True
@@ -163,7 +168,7 @@ def main():
         bpy.data.collections.remove(tmp)
         log(f"  wrote {exp_dir}")
         if args.ue_project:
-            dst = os.path.join(args.ue_project, "WorldData")
+            dst = os.path.join(args.ue_project, "WorldData", cfg["name"])
             shutil.rmtree(dst, ignore_errors=True)
             shutil.copytree(exp_dir, dst)
             log(f"  copied exports into {dst}")

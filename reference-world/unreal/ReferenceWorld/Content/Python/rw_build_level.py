@@ -6,7 +6,8 @@ scatter and manifest into <project>/WorldData/.
 Run in the editor: Tools > Execute Python Script... > this file, or in the
 Output Log (Python mode):
 
-    import rw_build_level; rw_build_level.main()
+    import rw_build_level; rw_build_level.main()                 # latest export
+    import rw_build_level; rw_build_level.main("serene_meadow")  # a specific preset
 
 What it does
   1. Imports every FBX in WorldData/meshes as Nanite static meshes.
@@ -29,11 +30,23 @@ import os
 
 import unreal
 
-ROOT = "/Game/ReferenceWorld"
+# set per preset by configure(): each Blender preset gets its own asset
+# folder and map, so the castle valley and the meadow don't overwrite each other
+ROOT = "/Game/ReferenceWorld/golden_valley"
 MESH_DIR = ROOT + "/Meshes"
 MAT_DIR = ROOT + "/Materials"
-MAP_PATH = ROOT + "/Maps/L_ReferenceWorld"
+MAP_PATH = ROOT + "/Maps/L_golden_valley"
 SEQ_DIR = ROOT + "/Cinematics"
+PRESET = "golden_valley"
+
+
+def configure(preset):
+    global ROOT, MESH_DIR, MAT_DIR, MAP_PATH, SEQ_DIR, PRESET
+    safe = "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in preset)
+    PRESET = preset
+    ROOT = f"/Game/ReferenceWorld/{safe}"
+    MESH_DIR, MAT_DIR, SEQ_DIR = ROOT + "/Meshes", ROOT + "/Materials", ROOT + "/Cinematics"
+    MAP_PATH = f"{ROOT}/Maps/L_{safe}"
 
 # Optional caps to keep the editor responsive on modest GPUs (None = all)
 INSTANCE_CAPS = {"grass": None, "trees": None, "bushes": None, "rocks": None}
@@ -47,8 +60,19 @@ def log(msg):
     unreal.log("[ReferenceWorld] " + str(msg))
 
 
-def data_dir():
-    return os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()), "WorldData")
+def data_dir(preset=None):
+    """WorldData/<preset>/ written by the Blender build. With no preset,
+    use the most recently exported one."""
+    root = os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()), "WorldData")
+    if preset:
+        return os.path.join(root, preset)
+    if os.path.isfile(os.path.join(root, "manifest.json")):      # older single-folder layout
+        return root
+    subs = [os.path.join(root, d) for d in os.listdir(root)
+            if os.path.isfile(os.path.join(root, d, "manifest.json"))] if os.path.isdir(root) else []
+    if not subs:
+        raise RuntimeError(f"no exports in {root} - run the Blender build with --export first")
+    return max(subs, key=lambda d: os.path.getmtime(os.path.join(d, "manifest.json")))
 
 
 def lc(rgb, a=1.0):
@@ -464,6 +488,13 @@ def build_materials(pal):
                                  {"Variation": 0.0, "WindStrength": 0.0}),
             "RW_Ivy": instance(fol, "MI_RW_Ivy", {"ColorA": [0.025, 0.06, 0.015], "ColorB": [0.05, 0.09, 0.02]},
                                {"Variation": 0.6, "WindStrength": 1.5, "WindHeight": 100000.0}),
+            "RW_Rubble": instance(crs, "MI_RW_Rubble",
+                                  {"ColorA": pal.get("rubble", [0.15, 0.14, 0.12]),
+                                   "ColorB": [c * 0.6 for c in pal.get("rubble", [0.15, 0.14, 0.12])],
+                                   "MortarColor": [c * 0.5 for c in pal.get("rubble", [0.15, 0.14, 0.12])],
+                                   "GrimeColor": pal["moss"]},
+                                  {"BlockWidth": 0.46, "BlockHeight": 0.27, "MortarWidth": 0.02, "RowOffset": 0.5,
+                                   "Grime": 0.8, "Roughness": 0.9, "Specular": 0.25, "NormalStrength": 0.04}),
             "RW_Hay": instance(lit, "MI_RW_Hay", {"Color": pal.get("hay", [0.42, 0.33, 0.12])}, {"Roughness": 0.9, "Specular": 0.2}),
             "RW_Iron": instance(lit, "MI_RW_Iron", {"Color": pal.get("iron", [0.03, 0.03, 0.032])}, {"Roughness": 0.45, "Specular": 0.6}),
             "RW_Fire": instance(lit, "MI_RW_Fire", {"Color": [0, 0, 0], "EmissiveColor": [1.0, 0.42, 0.1]},
@@ -731,7 +762,7 @@ def build_camera_and_sequence(man):
 
 # --------------------------------------------------------------------------
 # playability
-COMPLEX_COLLISION = ("SM_Terrain", "SM_TerrainFar", "SM_Castle", "SM_Crag")
+COMPLEX_COLLISION = ("SM_Terrain", "SM_TerrainFar", "SM_Castle", "SM_Crag", "SM_MeadowProps")
 NO_COLLISION_CATEGORIES = ("grass", "ferns", "pebbles", "bushes")
 # (start fade, fully culled) in cm; keeps the frame rate up in the meadow
 CULL_DISTANCES = {"grass": (5000, 8000), "pebbles": (3500, 6000), "ferns": (7000, 11000), "bushes": (15000, 25000)}
@@ -799,14 +830,15 @@ def place_player_and_bounds(man):
 
 
 # --------------------------------------------------------------------------
-def main():
-    wd = data_dir()
+def main(preset=None):
+    wd = data_dir(preset)
     man_path = os.path.join(wd, "manifest.json")
     if not os.path.isfile(man_path):
         raise RuntimeError(f"{man_path} not found - run the Blender build with --export first")
     with open(man_path) as fh:
         man = json.load(fh)
-    log(f"preset '{man['preset']}' from {wd}")
+    configure(man["preset"])
+    log(f"preset '{man['preset']}' from {wd} -> {MAP_PATH}")
 
     meshes = import_meshes(os.path.join(wd, "meshes"))
     mats = build_materials(man["palette"])
@@ -824,7 +856,7 @@ def main():
     if t.get("far_mesh") and t["far_mesh"] in meshes:
         place_static(meshes[t["far_mesh"]], "TerrainFar", material=mats["RW_Terrain"])
     # castle + its cliff face: authored in world space, so placed at the origin
-    for key, label in (("castle_mesh", "Castle"), ("crag_mesh", "CastleCliff")):
+    for key, label in (("castle_mesh", "Castle"), ("crag_mesh", "CastleCliff"), ("props_mesh", "MeadowProps")):
         if t.get(key) and t[key] in meshes:
             place_static(meshes[t[key]], label)
     plane = unreal.load_asset("/Engine/BasicShapes/Plane")
