@@ -82,7 +82,10 @@ def ridged(noise, x, y, octaves=7, lacunarity=2.03, gain=0.5, sharpness=2.0):
 
 
 def smoothstep(e0, e1, x):
-    if e1 == e0:  # zero-width edge: a hard step
-        return (np.asarray(x) >= e0).astype(np.float64)
-    t = np.clip((x - e0) / (e1 - e0), 0.0, 1.0)
+    """Hermite step; edges may be scalars or arrays. A zero-width edge
+    becomes a hard step instead of dividing by zero."""
+    e0 = np.asarray(e0, dtype=np.float64)
+    w = np.asarray(e1, dtype=np.float64) - e0
+    t = np.clip((x - e0) / np.where(w == 0, 1.0, w), 0.0, 1.0)
+    t = np.where(w == 0, (np.asarray(x) >= e0).astype(np.float64), t)
     return t * t * (3.0 - 2.0 * t)
