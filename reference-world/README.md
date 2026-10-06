@@ -122,6 +122,12 @@ instances from the preset palette. It then creates
   - The terrain gets rock strata and macro variation.
   - The river has animated ripples.
   - Foliage sways in the wind, with grass, ferns, bushes and trees tuned separately.
+- **Atmosphere.**
+  - The sun lights the volumetric fog and throws light shafts.
+  - A second, low fog layer lays mist along the valley floor.
+  - The post process applies a split-tone grade: warm highlights, cool shadows and slightly more saturation.
+  - Auto exposure has the range to adapt when you walk into torch-lit rooms.
+  - Lumen runs at raised final-gather and scene-lighting quality.
 - **Performance.** Grass, pebbles, ferns and bushes fade out with distance, and grass and pebbles cast no shadows.
 - **Playability.**
   - Terrain, cliff and castle use their own triangles as collision, so every stair, floor and wall-walk is walkable.
