@@ -519,6 +519,13 @@ def build_environment(man):
     sc.set_light_color(lc(lt["sun_color"]))
     sc.set_editor_property("atmosphere_sun_light", True)
     sc.set_editor_property("light_source_angle", max(0.5, lt["sun_angle_deg"]))
+    # atmospheric depth: the sun lights the volumetric fog and throws shafts
+    for k, v in (("volumetric_scattering_intensity", 1.6), ("enable_light_shaft_bloom", True),
+                 ("bloom_scale", 0.12), ("bloom_threshold", 4.0)):
+        try:
+            sc.set_editor_property(k, v)
+        except Exception as e:
+            unreal.log_warning(f"[ReferenceWorld] sun setting {k}: {e}")
 
     atmo = spawn(unreal.SkyAtmosphere, (0, 0, 0), None, "SkyAtmosphere")
     ac = comp(atmo, unreal.SkyAtmosphereComponent)
@@ -544,6 +551,15 @@ def build_environment(man):
     fc.set_editor_property("start_distance", lt["mist_start_m"] * 100.0)
     fc.set_editor_property("volumetric_fog", True)
     fc.set_editor_property("volumetric_fog_scattering_distribution", 0.6)
+    # a second, thin and low fog layer: valley mist that hugs the river
+    try:
+        second = fc.get_editor_property("second_fog_data")
+        second.set_editor_property("fog_density", 0.025 * lt["haze_amount"] / 0.72)
+        second.set_editor_property("fog_height_falloff", 0.35)
+        second.set_editor_property("fog_height_offset", 0.0)
+        fc.set_editor_property("second_fog_data", second)
+    except Exception as e:
+        unreal.log_warning(f"[ReferenceWorld] second fog layer: {e}")
     for prop in ("fog_inscattering_luminance", "fog_inscattering_color"):
         try:
             fc.set_editor_property(prop, lc([c * 0.2 for c in lt["haze_color"]]))
@@ -555,9 +571,18 @@ def build_environment(man):
     ppv.set_editor_property("unbound", True)
     s = ppv.get_editor_property("settings")
     ev = 13.0 - lt.get("exposure", 0.0)
-    for k, v in (("auto_exposure_min_brightness", ev - 1.5), ("auto_exposure_max_brightness", ev + 1.5),
+    # interiors are far darker than the sunlit valley: give auto exposure
+    # room to adapt when the player walks inside
+    for k, v in (("auto_exposure_min_brightness", ev - 4.5), ("auto_exposure_max_brightness", ev + 1.5),
+                 ("auto_exposure_speed_up", 2.0), ("auto_exposure_speed_down", 1.2),
                  ("bloom_intensity", 0.4 + lt["bloom"]), ("vignette_intensity", lt["vignette"] * 1.6),
-                 ("film_grain_intensity", 0.08), ("scene_fringe_intensity", 0.4)):
+                 ("film_grain_intensity", 0.08), ("scene_fringe_intensity", 0.4),
+                 # split-tone grade: warm highlights, cool shadows, a touch of saturation
+                 ("color_gain_highlights", unreal.Vector4(1.04, 1.0, 0.95, 1.0)),
+                 ("color_gain_shadows", unreal.Vector4(0.97, 0.99, 1.03, 1.0)),
+                 ("color_saturation", unreal.Vector4(1.0, 1.0, 1.0, 1.06)),
+                 # cleaner bounce light in torch-lit interiors
+                 ("lumen_final_gather_quality", 1.5), ("lumen_scene_lighting_quality", 1.5)):
         try:
             s.set_editor_property("override_" + k, True)
             s.set_editor_property(k, v)
