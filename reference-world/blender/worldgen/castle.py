@@ -562,6 +562,8 @@ def build(cfg, terrain, mats, coll):
         B.box(F, 0, L, -wt / 2, wt / 2, z0, T_ww)
         B.box(F, 0, L, wt / 2 - 0.3, wt / 2 + 1.3, z0, min(top + 1.5, T_ww - 5))      # batter
         B.merlon_run(F, 0, L, wt / 2 - 0.6, wt / 2, T_ww)                             # parapet
+        for x in np.arange(9.0, L - 4.0, 18.0):                                        # wall-walk torches
+            B.torch(F, x, wt / 2 - 0.6, T_ww + 0.75, facing_y=-1)
         for x in np.arange(5.0, L - 3.0, 7.0):                                         # arrow slits
             B.decal(F.P(x, wt / 2, T_ww - 4.5), F.vec(0, 1), 0.3, 1.6, WIN_DARK, arch=False)
         if ei in stair_edges and L * 0.75 > 21.5:
@@ -633,7 +635,13 @@ def build(cfg, terrain, mats, coll):
         B.barrel((p.x + 2.4 * math.cos(a_in + 2.6), p.y + 2.4 * math.sin(a_in + 2.6)), floor0)
         B.crate(Ft, -2.8, -1.8, floor0, 0.9)
         B.light((p.x, p.y, floor0 + 2.5), TORCH, 60.0, 0.1, "tower")
-        B.light((p.x, p.y, T_ww + 2.5), TORCH, 60.0, 0.1, "tower")
+        # brazier in the middle of the wall-walk room (clear of the stair band)
+        B.frustum(p, 0.12, 0.12, T_ww, T_ww + 0.7, 8, IRON)
+        B.frustum(p, 0.25, 0.5, T_ww + 0.7, T_ww + 1.0, 12, IRON, cap=True)
+        for k in range(3):
+            a = 2 * math.pi * k / 3
+            B.frustum((p.x + 0.15 * math.cos(a), p.y + 0.15 * math.sin(a)), 0.14, 0.0, T_ww + 1.0, T_ww + 1.45, 6, FIRE)
+        B.light((p.x, p.y, T_ww + 1.6), TORCH, 110.0, 0.3, "brazier")
 
     # ---------------------------------------------------------- gatehouse
     G = Frame(gate_mid.x, gate_mid.y, math.atan2(gdir.y, gdir.x))

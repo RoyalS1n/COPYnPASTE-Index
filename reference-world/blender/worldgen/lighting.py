@@ -93,6 +93,8 @@ def render_settings(cfg, scene, preview=False):
     c.caustics_refractive = False
     c.blur_glossy = 1.0
     scene.render.film_transparent = True  # the sky comes back in the compositor
+    # keep BVH/scene data between frames: the flythrough only moves the camera
+    scene.render.use_persistent_data = True
     scene.render.use_compositing = True
     scene.render.compositor_device = "CPU"  # works headless; GPU compositing needs EGL
     res = r["video_resolution"] if preview else r["resolution"]

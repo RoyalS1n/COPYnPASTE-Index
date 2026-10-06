@@ -98,6 +98,9 @@ on macOS it is Xcode.
 | Jump | Space | A / Cross |
 | Sprint | Left Shift (hold) | Left stick click (hold) |
 
+A small HUD shows a centre dot, and a controls hint that fades after a few
+seconds.
+
 Things to find: the switchback road and gatehouse, the courtyard stairs up
 to the wall-walks, the doors from the wall-walks into the towers and their
 curved stairs to the top, the keep's four floors and roof deck, and the
