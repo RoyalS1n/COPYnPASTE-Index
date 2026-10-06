@@ -35,6 +35,7 @@ def parse_args():
     p.add_argument("--quick", action="store_true", help="lower resolution and instance counts for fast iteration")
     p.add_argument("--frames", default=None, help="video frame range override, e.g. 1-48")
     p.add_argument("--preview", action="store_true", help="--quick plus a single low-res hero still")
+    p.add_argument("--stills", default=None, help="comma-separated still names to render (default: all)")
     p.add_argument("--ue-project", default=os.path.normpath(os.path.join(HERE, "..", "unreal", "ReferenceWorld")),
                    help="Unreal project that receives a copy of the exports in WorldData/ ('' to skip)")
     return p.parse_args(argv)
@@ -60,6 +61,9 @@ def main():
     if args.preview:
         cfg["render"]["resolution"] = [640, 360]
         cfg["render"]["samples"] = 16
+    if args.stills:
+        wanted = {n.strip() for n in args.stills.split(",")}
+        cfg["camera"]["stills"] = [st for st in cfg["camera"]["stills"] if st["name"] in wanted]
     out = os.path.join(args.out, cfg["name"])
     os.makedirs(os.path.join(out, "renders"), exist_ok=True)
 
