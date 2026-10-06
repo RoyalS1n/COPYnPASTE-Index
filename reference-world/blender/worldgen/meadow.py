@@ -75,6 +75,13 @@ class Meadow:
                 zc = max(zc, zt)
             if top > zc:
                 self.B.box(F, xa, xb, -thick / 2, thick / 2, zc, top, mat)
+                # loose, tilted capstones soften the stepped silhouette of
+                # a collapsed top
+                if rng.uniform() < 0.7:
+                    a = F.P(xa + rng.uniform(-0.05, 0.1), rng.uniform(-thick / 3, thick / 3), top + 0.05)
+                    b = F.P(xb + rng.uniform(-0.1, 0.15), rng.uniform(-thick / 3, thick / 3),
+                            top + rng.uniform(-0.12, 0.18))
+                    self.B.beam(a, b, rng.uniform(0.2, 0.32), rng.uniform(0.12, 0.2), mat)
 
     def wavy(self, base, amp, lo=0.0, collapse=None):
         """Smooth random height profile for ruined wall tops."""
