@@ -448,8 +448,163 @@ def fern(name, mats, coll, seed, size=0.9):
     return _obj(name, bm, mats, coll)
 
 
+# ------------------------------------------------------------------- marsh
+def _strap(bm, base, rot, height, width, lean, droop, twist, segs, mat, uv=None, leaf=True):
+    """Flat, tapering leaf strap that arches out and droops, twisting along
+    its length. Per-vertex leafvar shades it dark at the base, light at the tip."""
+    prev = None
+    up = Vector((0, 0, 1))
+    for k in range(segs + 1):
+        u = k / segs
+        c = base + rot @ Vector((lean * height * u * u, 0, height * u - droop * height * u ** 3))
+        nxt = base + rot @ Vector((lean * height * min(1, u + 0.05) ** 2, 0,
+                                   height * min(1, u + 0.05) - droop * height * min(1, u + 0.05) ** 3))
+        tan = (nxt - c).normalized() if (nxt - c).length > 1e-6 else up
+        side0 = rot @ Vector((0, 1, 0))
+        side = (Matrix.Rotation(twist * u, 3, tan) @ side0) * (width * (1 - 0.85 * u) * 0.5 + 0.0008)
+        pair = (bm.verts.new(c - side), bm.verts.new(c + side), u)
+        if leaf:
+            _set_leafvar(bm, pair[:2], 0.55 + 0.75 * u)
+        if prev:
+            f = bm.faces.new((prev[0], prev[1], pair[1], pair[0]))
+            f.material_index = mat
+            if uv is not None:
+                for loop, vv in zip(f.loops, (prev[2], prev[2], pair[2], pair[2])):
+                    loop[uv].uv = (0.5, vv)
+        prev = pair
+
+
+def cattail(name, mats, coll, seed):
+    """Bulrush clump: strap leaves, stems, velvety brown seed heads with a
+    thin spike above. mats: [reed leaves/stems, seed heads]."""
+    rng = np.random.default_rng(seed)
+    bm = bmesh.new()
+    _normal_layers(bm)
+    for _ in range(int(rng.integers(7, 13))):                       # stems
+        base = Vector((rng.normal(0, 0.16), rng.normal(0, 0.16), -0.3))
+        h = rng.uniform(1.4, 2.2)
+        lean = Vector((rng.normal(0, 0.06), rng.normal(0, 0.06), 0))
+        path = [base + Vector((0, 0, h * t)) + lean * (h * t) ** 1.5 for t in np.linspace(0, 1, 6)]
+        rings = _tapered_tube(bm, path, list(np.linspace(0.011, 0.004, 6)), 5, mat=0)
+        _set_leafvar(bm, [v for r in rings for v in r], 0.85)
+        if rng.uniform() < 0.7:
+            t0 = rng.uniform(0.72, 0.84)
+            p0 = base + Vector((0, 0, h * t0)) + lean * (h * t0) ** 1.5
+            p1 = p0 + (path[-1] - path[-2]).normalized() * rng.uniform(0.15, 0.24)
+            _tapered_tube(bm, [p0, p0 + (p1 - p0) * 0.1, p1 - (p1 - p0) * 0.1, p1],
+                          [0.012, 0.027, 0.027, 0.012], 10, mat=1)
+    for _ in range(int(rng.integers(9, 15))):                       # leaves
+        base = Vector((rng.normal(0, 0.14), rng.normal(0, 0.14), -0.3))
+        rot = Matrix.Rotation(rng.uniform(0, 2 * math.pi), 3, "Z")
+        _strap(bm, base, rot, rng.uniform(1.0, 1.8), rng.uniform(0.016, 0.026), rng.uniform(0.08, 0.32),
+               rng.uniform(0.05, 0.3), rng.uniform(-1.2, 1.2), 8, 0)
+    return _obj(name, bm, mats, coll)
+
+
+def reed(name, mats, coll, seed):
+    """Common reed clump: tall thin stems with alternate leaves and drooping,
+    feathery plumes. mats: [reed leaves/stems, plume]."""
+    rng = np.random.default_rng(seed)
+    bm = bmesh.new()
+    _normal_layers(bm)
+    wind = Vector((rng.normal(0, 1), rng.normal(0, 1), 0)).normalized()
+    for _ in range(int(rng.integers(14, 24))):
+        base = Vector((rng.normal(0, 0.22), rng.normal(0, 0.22), -0.3))
+        h = rng.uniform(1.9, 2.8)
+        bend = wind * rng.uniform(0.05, 0.2)
+        path = [base + Vector((0, 0, h * t)) + bend * (h * t) ** 2 / h for t in np.linspace(0, 1, 7)]
+        rings = _tapered_tube(bm, path, list(np.linspace(0.008, 0.003, 7)), 4, mat=0)
+        _set_leafvar(bm, [v for r in rings for v in r], 0.9)
+        for k in range(int(rng.integers(5, 8))):                    # alternate leaves
+            t = 0.2 + 0.6 * k / 7 + rng.uniform(-0.03, 0.03)
+            node = base + Vector((0, 0, h * t)) + bend * (h * t) ** 2 / h
+            rot = Matrix.Rotation(rng.uniform(0, 2 * math.pi) + k * math.pi, 3, "Z") @ Matrix.Rotation(1.1, 3, "Y")
+            _strap(bm, node, rot, rng.uniform(0.25, 0.42), rng.uniform(0.014, 0.022), rng.uniform(0.2, 0.5),
+                   rng.uniform(0.3, 0.7), rng.uniform(-0.6, 0.6), 4, 0)
+        if rng.uniform() < 0.85:                                    # plume
+            top = path[-1]
+            for _ in range(int(rng.integers(30, 55))):
+                u = rng.uniform(0, 1)
+                at = top - Vector((0, 0, 0.32 * u))
+                d = (wind * rng.uniform(0.4, 1.0) + Vector((rng.normal(0, 0.45), rng.normal(0, 0.45), -rng.uniform(0.1, 0.6))))
+                d.normalize()
+                L = rng.uniform(0.05, 0.12) * (1.2 - 0.6 * u)
+                perp = d.cross(Vector((0, 0, 1)))
+                perp = perp.normalized() * L * 0.18 if perp.length > 1e-5 else Vector((L * 0.18, 0, 0))
+                vs = [bm.verts.new(at), bm.verts.new(at + d * L * 0.5 + perp), bm.verts.new(at + d * L),
+                      bm.verts.new(at + d * L * 0.5 - perp)]
+                bm.faces.new(vs).material_index = 1
+    return _obj(name, bm, mats, coll)
+
+
+def sedge(name, mats, coll, seed):
+    """Sedge / rush tussock: dense, stiff, upright blades, a few brown seed
+    spikes. UV.y runs root (0) -> tip (1). mats: [sedge blades, seed spikes]."""
+    rng = np.random.default_rng(seed)
+    bm = bmesh.new()
+    uv = bm.loops.layers.uv.new("UVMap")
+    for _ in range(int(rng.integers(50, 75))):
+        base = Vector((rng.normal(0, 0.11), rng.normal(0, 0.11), -0.03))
+        rot = Matrix.Rotation(rng.uniform(0, 2 * math.pi), 3, "Z")
+        _strap(bm, base, rot, rng.uniform(0.38, 0.9), rng.uniform(0.006, 0.011), rng.uniform(0.04, 0.3),
+               rng.uniform(0.0, 0.25), rng.uniform(-0.4, 0.4), 5, 0, uv=uv, leaf=False)
+    for _ in range(int(rng.integers(2, 6))):
+        base = Vector((rng.normal(0, 0.08), rng.normal(0, 0.08), 0))
+        h = rng.uniform(0.6, 0.95)
+        path = [base + Vector((0, 0, h * t)) for t in np.linspace(0, 1, 3)]
+        _tapered_tube(bm, path, [0.003, 0.0025, 0.002], 4, mat=0)
+        _tapered_tube(bm, [path[-1], path[-1] + Vector((0.01, 0, 0.05)), path[-1] + Vector((0.02, 0, 0.09))],
+                      [0.008, 0.009, 0.003], 6, mat=1)
+    return _obj(name, bm, mats, coll)
+
+
+def lily_cluster(name, mats, coll, seed):
+    """Water-lily cluster floating at z = 0: notched pads with slightly
+    curled rims, a few open flowers (two petal rings and a golden centre)
+    and closed buds. mats: [pads, petals, flower centres]."""
+    rng = np.random.default_rng(seed)
+    bm = bmesh.new()
+    pads = []
+    for k in range(int(rng.integers(5, 11))):
+        c = Vector((rng.normal(0, 0.45), rng.normal(0, 0.45), 0.004 + 0.0025 * k))
+        r = rng.uniform(0.1, 0.27)
+        notch = rng.uniform(0, 2 * math.pi)
+        segs = 22
+        centre = bm.verts.new(c)
+        inner, outer = [], []
+        for i in range(segs + 1):
+            a = notch + 0.22 + (2 * math.pi - 0.44) * i / segs
+            curl = 0.012 * rng.uniform(0.3, 1.0) if rng.uniform() < 0.35 else 0.0
+            inner.append(bm.verts.new(c + Vector((math.cos(a) * r * 0.55, math.sin(a) * r * 0.55, 0.001))))
+            outer.append(bm.verts.new(c + Vector((math.cos(a) * r, math.sin(a) * r, curl))))
+        for i in range(segs):
+            bm.faces.new((centre, inner[i], inner[i + 1])).material_index = 0
+            bm.faces.new((inner[i], outer[i], outer[i + 1], inner[i + 1])).material_index = 0
+        pads.append((c, r))
+    for c, r in pads[: int(rng.integers(1, 4))]:
+        fc = c + Vector((rng.normal(0, r * 0.2), rng.normal(0, r * 0.2), 0.012))
+        if rng.uniform() < 0.25:                                     # closed bud
+            _tapered_tube(bm, [fc, fc + Vector((0, 0, 0.04)), fc + Vector((0, 0, 0.09))], [0.022, 0.026, 0.004], 8, 1)
+            continue
+        for ring, (n, L, tilt, w) in enumerate(((11, 0.085, 0.35, 0.028), (9, 0.065, 0.8, 0.024), (7, 0.045, 1.15, 0.02))):
+            a0 = rng.uniform(0, 2 * math.pi)
+            for i in range(n):
+                a = a0 + 2 * math.pi * i / n
+                d = Vector((math.cos(a) * math.cos(tilt), math.sin(a) * math.cos(tilt), math.sin(tilt)))
+                side = Vector((-math.sin(a), math.cos(a), 0)) * w * 0.5
+                base = fc + Vector((0, 0, 0.004 * ring))
+                vs = [bm.verts.new(base), bm.verts.new(base + d * L * 0.45 + side), bm.verts.new(base + d * L + Vector((0, 0, 0.006))),
+                      bm.verts.new(base + d * L * 0.45 - side)]
+                bm.faces.new(vs).material_index = 1
+        head = bmesh.ops.create_icosphere(bm, subdivisions=1, radius=0.016,
+                                          matrix=Matrix.Translation(fc + Vector((0, 0, 0.022))))
+        for f in {f for v in head["verts"] for f in v.link_faces}:
+            f.material_index = 2
+    return _obj(name, bm, mats, coll)
+
+
 # --------------------------------------------------------------------------
-def build_library(mats, root_coll):
+def build_library(mats, root_coll, marsh=False):
     """Creates one collection per scatter category. Returns
     {category: (collection, [object names in instance order])}."""
     lib = {}
@@ -492,4 +647,16 @@ def build_library(mats, root_coll):
     c = cat("outcrops")
     lib["outcrops"] = (c, [boulder(f"{i:02d}_Outcrop_{i}", [mats["rock"]], c, 1100 + i, 9.0, subdiv=5, fractures=12, flat=0.6)
                            for i in range(3)])
+
+    if marsh:
+        c = cat("reeds")
+        rm = [mats["reed"], mats["cattail"]]
+        objs = [cattail(f"{i:02d}_Cattail_{i}", rm, c, 1200 + i) for i in range(3)]          # 0-2
+        objs += [reed(f"{3 + i:02d}_Reed_{i}", [mats["reed"], mats["plume"]], c, 1300 + i) for i in range(2)]  # 3-4
+        lib["reeds"] = (c, objs)
+        c = cat("sedges")
+        lib["sedges"] = (c, [sedge(f"{i:02d}_Sedge_{i}", [mats["sedge"], mats["cattail"]], c, 1400 + i) for i in range(3)])
+        c = cat("lilies")
+        lib["lilies"] = (c, [lily_cluster(f"{i:02d}_Lily_{i}", [mats["lilypad"], mats["lilyflower"], mats["lilycenter"]],
+                                          c, 1500 + i) for i in range(3)])
     return lib

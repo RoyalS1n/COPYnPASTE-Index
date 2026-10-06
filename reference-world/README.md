@@ -165,14 +165,21 @@ across, ringed by forested hills, with mountains on the horizon.
   - an old well and a cart wreck
 
   The masonry is rough, mossy rubble with ivy, rubble heaps lie around every ruin, and grass grows inside them.
+- **Marsh pond.** A small, highly detailed marsh about 70 m west of the lane:
+  - **Ground.** The shoreline is a lobed, noise-warped outline. A shallow reed shelf drops to a 1.5 m deep centre, inside a low, wet margin. A high-resolution terrain patch with vertices about 0.24 m apart replaces the main terrain there. It adds sedge tussocks, real puddles, silt and mud micro-relief, and its edges match the main terrain exactly at full and export resolution.
+  - **Plants.** Cattail clumps with velvety seed heads stand in the shallows, and tall reeds with feathery plumes line the shore. Sedge tussocks cover the wet margin, and water-lily clusters float on the deeper water, with notched pads, white and pink flowers, and buds.
+  - **Wood.** A weathered boardwalk runs out over the water, with missing and broken planks, a sagging end and a loose plank afloat. A mossy fallen log lies half in the water with its root plate on the bank, a dead snag stands in the shallows, and stepping stones cross the margin.
+  - **Water and mud.** The water is tea-brown, with ripples, duckweed mats where it is shallow and a faint pollen film. The mud is dark and glossy where saturated, and the pond bed has silt, algae and leaf litter.
+
+  Its stills are `marsh` (across the pond) and `marsh_close` (kneeling at the end of the boardwalk over the lilies).
 
 ```bash
 python blender/build_world.py --preset serene_meadow --preview          # quick look
 python blender/build_world.py --preset serene_meadow --export --render stills
 ```
 
-Its stills are `hero` (eye level on the lane), `cottage`, `barn`, `chapel`
-and `overview`. In Unreal, each preset gets its own folder and map:
+Its stills are `hero` (eye level on the lane), `cottage`, `barn`, `chapel`,
+`marsh`, `marsh_close` and `overview`. In Unreal, each preset gets its own folder and map:
 `/Game/ReferenceWorld/<preset>/Maps/L_<preset>`. Exports go to
 `WorldData/<preset>/`, so the castle valley and the meadow live side by
 side. The level script builds the most recent export by default; run

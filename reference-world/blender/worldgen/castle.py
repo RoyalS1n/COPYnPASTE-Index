@@ -28,9 +28,9 @@ from mathutils import Matrix, Vector
 def Matrix_rot(angle, axis):
     return Matrix.Rotation(angle, 3, Vector(axis))
 
-STONE, ROOF, WOOD, WIN_DARK, WIN_LIT, CLOTH, ROOF_ALT, IRON, FIRE, HAY, IVY, RUBBLE = range(12)
+STONE, ROOF, WOOD, WIN_DARK, WIN_LIT, CLOTH, ROOF_ALT, IRON, FIRE, HAY, IVY, RUBBLE, BARK, DEADWOOD, MOSS, ROCK = range(16)
 MAT_KEYS = ("stone", "roof", "wood", "window_dark", "window_lit", "cloth", "roof_alt", "iron", "fire", "hay", "ivy",
-            "rubble")
+            "rubble", "bark", "deadwood", "moss", "rock")
 WIND = Vector((0.6, 0.8))
 
 TORCH = (1.0, 0.55, 0.22)

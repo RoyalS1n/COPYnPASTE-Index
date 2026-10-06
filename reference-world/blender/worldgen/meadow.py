@@ -16,7 +16,9 @@ import bpy
 import numpy as np
 from mathutils import Vector
 
-from .castle import (Builder, Frame, HAY, IVY, MAT_KEYS, ROOF, ROOF_ALT, RUBBLE, STONE, WIN_DARK, WOOD)
+from .assets import _blob, _tapered_tube
+from .castle import (BARK, DEADWOOD, MOSS, ROCK, Builder, Frame, HAY, IVY, MAT_KEYS, ROOF, ROOF_ALT, RUBBLE, STONE,
+                     WIN_DARK, WOOD)
 
 
 class Meadow:
@@ -25,7 +27,8 @@ class Meadow:
         self.m = cfg["meadow"]
         self.rng = np.random.default_rng(self.m["seed"])
         self.B = Builder(0.0)
-        self.footprints = []        # (x, y, radius): no trees / rocks here
+        self.footprints = []        # (x, y, radius[, soft]): no trees / rocks / reeds here
+        self.avoid = []             # (x, y, radius): field fences keep out
         self.cameras = {}
 
     # ----------------------------------------------------------------- helpers
@@ -341,6 +344,170 @@ class Meadow:
         self.footprints.append((F.ox, F.oy, 4.0))
 
 
+    # ----------------------------------------------------------------- marsh
+    def _smooth(self, verts):
+        for f in {f for v in verts for f in v.link_faces}:
+            f.smooth = True
+
+    def _tube(self, path, radii, sides, mat):
+        rings = _tapered_tube(self.B.bm, [Vector(p) for p in path], list(radii), sides, mat=mat)
+        self._smooth([v for r in rings for v in r])
+        return rings
+
+    def marsh(self):
+        """Boardwalk into the pond, a mossy fallen log, a dead snag in the
+        shallows, stepping stones over the wet margin, and two cameras."""
+        T = self.T
+        if not getattr(T, "marsh", None):
+            return
+        rng, B = self.rng, self.B
+        mz = T.marsh
+        wl = mz["water_level"]
+        cx, cy = mz["center"]
+        c = Vector((cx, cy))
+        B.v0 = wl
+
+        def sd(p):
+            return float(T.marsh_sd(np.array(p[0]), np.array(p[1])))
+
+        def shore(direction):
+            t = 0.0
+            while sd(c + direction * t) < 0 and t < 120:
+                t += 0.25
+            return t
+
+        def rot(v, deg):
+            a = math.radians(deg)
+            return Vector((v.x * math.cos(a) - v.y * math.sin(a), v.x * math.sin(a) + v.y * math.cos(a)))
+
+        self.avoid.append((cx, cy, mz["radius_m"] * 1.7 + mz["margin_m"]))
+
+        # -------- boardwalk, from the lane-side shore out over the water
+        dirv = (Vector((self.lane(cy), cy)) - c).normalized()
+        ts = shore(dirv)
+        start = c + dirv * (ts + 4.0)
+        end = c + dirv * (ts - 10.0)
+        fwd = (end - start).normalized()
+        F = Frame(start.x, start.y, math.atan2(fwd.y, fwd.x))              # local +x runs out over the pond
+        L = (end - start).length
+        deck = wl + 0.5
+
+        def sag(x):
+            return max(0.0, (x - (L - 3.6)) / 3.6) * 0.38
+
+        def drop(x, s):                                                    # far corner collapsed
+            return 0.28 * max(0.0, (x - (L - 2.2)) / 2.2) if s > 0 else 0.0
+
+        for x in np.arange(0.4, L, 1.6):
+            for s in (-1, 1):
+                p = F.P(x, s * 0.62, 0)
+                zb = self.ground(p.x, p.y) - 0.45
+                top = Vector((p.x + rng.normal(0, 0.03), p.y + rng.normal(0, 0.03), deck - 0.1 - sag(x) - drop(x, s)))
+                B.beam(Vector((p.x, p.y, zb)), top, 0.15, 0.15, DEADWOOD)
+        for s in (-1, 1):
+            pts = [F.P(x, s * 0.55, deck - 0.15 - sag(x) - drop(x, s)) for x in np.linspace(0.2, L, 9)]
+            for a, b in zip(pts[:-1], pts[1:]):
+                B.beam(a, b, 0.09, 0.16, DEADWOOD)
+        x = 0.1
+        while x < L - 0.12:
+            w = rng.uniform(0.15, 0.19)
+            r = rng.uniform()
+            if r < 0.07 and 1.5 < x < L - 1.0:
+                x += w + 0.03                                              # missing plank
+                continue
+            y1 = 0.74 if r > 0.15 else rng.uniform(-0.15, 0.35)            # broken short
+            xm = x + w / 2
+            za = deck - sag(xm) - drop(xm, -1) + rng.uniform(-0.012, 0.012)
+            zb = deck - sag(xm) - drop(xm, 1) * (y1 + 0.74) / 1.48 + rng.uniform(-0.012, 0.012)
+            B.beam(F.P(xm, -0.74, za), F.P(xm + rng.normal(0, 0.015), y1, zb), w, 0.045, WOOD)
+            x += w + rng.uniform(0.018, 0.035)
+        fp = F.P(L + 1.6, -1.9, wl + 0.012)                               # loose plank afloat
+        B.beam(fp, fp + Vector((1.25, 0.55, 0.0)), 0.17, 0.04, WOOD)
+        for x in np.arange(0.0, L + 0.1, 1.5):
+            q = F.P(x, 0, 0)
+            self.footprints.append((q.x, q.y, 1.0, 0.9))
+        # stepping stones from the lane side over the wet margin
+        for k in range(6):
+            q = start - fwd * (1.3 + 1.25 * k) + Vector((-fwd.y, fwd.x)) * rng.normal(0, 0.35)
+            z = self.ground(q.x, q.y)
+            verts = _blob(B.bm, Vector((q.x, q.y, z + 0.02)), rng.uniform(0.3, 0.42), rng, ROCK, 2, 0.32, 0.25)
+            self._smooth(verts)
+            self.footprints.append((q.x, q.y, 0.5, 0.6))
+
+        # -------- fallen log: roots on the bank, crown end under water
+        d2 = rot(dirv, 112.0)
+        t2 = shore(d2)
+        root, tip = c + d2 * (t2 + 3.8), c + d2 * (t2 - 6.5)
+        zr, zt = self.ground(root.x, root.y) + 0.32, wl - 0.14
+        path = []
+        for u in np.linspace(0, 1, 9):
+            q = root + (tip - root) * u + Vector((-d2.y, d2.x)) * 0.35 * math.sin(math.pi * u)
+            path.append((q.x, q.y, zr + (zt - zr) * u ** 1.2 + 0.12 * math.sin(math.pi * u)))
+        self._tube(path, np.linspace(0.44, 0.2, 9), 14, BARK)
+        for k in range(7):                                                  # root plate
+            a = 2 * math.pi * k / 7 + rng.uniform(-0.2, 0.2)
+            out = Vector((math.cos(a), math.sin(a), 0)) * 0.35 + (root - tip).normalized().to_3d() * 0.35
+            p0 = Vector(path[0])
+            self._tube([p0, p0 + out * 1.4 + Vector((0, 0, rng.uniform(-0.2, 0.4))),
+                        p0 + out * 2.6 + Vector((0, 0, rng.uniform(-0.5, 0.2)))], (0.15, 0.08, 0.025), 6, BARK)
+        for u in (0.33, 0.58, 0.8):                                         # broken branch stubs
+            i = int(u * 8)
+            p0 = Vector(path[i])
+            d = Vector((rng.normal(0, 1), rng.normal(0, 1), rng.uniform(0.5, 1.2))).normalized()
+            self._tube([p0, p0 + d * rng.uniform(0.5, 0.9)], (0.09, 0.045), 6, BARK)
+        for k in range(8):                                                  # moss cushions along the top
+            u = rng.uniform(0.05, 0.8)
+            i = min(7, int(u * 8))
+            q = Vector(path[i]).lerp(Vector(path[i + 1]), u * 8 - i)
+            rad = 0.44 - 0.24 * u
+            verts = _blob(B.bm, q + Vector((rng.normal(0, 0.08), rng.normal(0, 0.08), rad * 0.82)),
+                          rng.uniform(0.16, 0.3), rng, MOSS, 2, 0.35, 0.3)
+            self._smooth(verts)
+        mid = root.lerp(tip, 0.5)
+        self.footprints.append((mid.x, mid.y, 2.2, 1.0))
+
+        # -------- dead snag standing in the shallows
+        d3 = rot(dirv, -68.0)
+        t3 = shore(d3)
+        base = c + d3 * (t3 - 4.2)
+        zb = self.ground(base.x, base.y) - 0.3
+        lean = Vector((rng.normal(0, 0.05), rng.normal(0, 0.05), 1.0)).normalized()
+        H = 7.6
+        trunk = [Vector((base.x, base.y, zb)) + lean * H * u + Vector((0.12 * math.sin(3 * u), 0, 0)) for u in np.linspace(0, 1, 8)]
+        self._tube(trunk, np.linspace(0.34, 0.07, 8), 12, DEADWOOD)
+        for k, u in enumerate((0.45, 0.58, 0.7, 0.84)):
+            p0 = trunk[int(u * 7)]
+            a = rng.uniform(0, 2 * math.pi)
+            d = Vector((math.cos(a), math.sin(a), rng.uniform(0.35, 0.9))).normalized()
+            Lb = rng.uniform(0.6, 1.2) if k == 1 else rng.uniform(1.2, 2.4)
+            p1 = p0 + d * Lb * 0.55
+            p2 = p1 + (d + Vector((0, 0, 0.3))).normalized() * Lb * 0.45
+            self._tube([p0, p1, p2], (0.1, 0.06, 0.02), 7, DEADWOOD)
+        self.footprints.append((base.x, base.y, 1.2, 0.8))
+
+        # -------- cameras
+        az = math.radians(self.cfg["lighting"]["sun_azimuth_deg"])
+        for turn in (70.0, 85.0, 55.0, 100.0):
+            a = az + math.radians(turn)
+            d = Vector((math.sin(a), math.cos(a)))
+            tl = shore(d)
+            pos = c + d * (tl + 15.0)
+            if sd(pos) > 8.0:
+                break
+        self.cameras["marsh_camera"] = {"pos": (pos.x, pos.y, self.ground(pos.x, pos.y) + 2.1),
+                                        "target": (cx, cy, wl + 0.6)}
+        # a small clearing at the camera and a gap in the reeds toward the
+        # water, so the shot looks over the pond rather than into the reeds
+        self.footprints.append((pos.x, pos.y, 4.0, 3.0))
+        for u in (0.35, 0.55, 0.72):
+            q = pos.lerp(c, u)
+            self.footprints.append((q.x, q.y, 2.2, 2.5))
+        eye = F.P(L - 0.7, 0.0, deck - sag(L - 0.7) + 0.55)
+        focus = F.P(L + 4.3, 1.1, wl + 0.03)
+        self.cameras["marsh_close_camera"] = {"pos": tuple(eye), "target": tuple(focus)}
+        T.marsh_feats = {"lily_focus": (focus.x, focus.y)}
+
+
 # ---------------------------------------------------------------------------
 def build(cfg, terrain, mats, coll):
     M = Meadow(cfg, terrain)
@@ -354,6 +521,7 @@ def build(cfg, terrain, mats, coll):
     M.chimney_ruin(90.0, 1, 40.0)
     M.cart(105.0, -1, 8.0)
     M.chapel(390.0, -1, 46.0)
+    M.marsh()
 
     # fences along stretches of the lane, either side
     for y0, y1, s in ((-640.0, -520.0, -1), (-640.0, -560.0, 1), (-380.0, -255.0, 1),
@@ -369,7 +537,7 @@ def build(cfg, terrain, mats, coll):
         r = core * 0.85 * math.sqrt(rng.uniform())
         a = rng.uniform(0, 2 * math.pi)
         x, y = r * math.cos(a), r * math.sin(a) * 1.1
-        if abs(x - M.lane(y)) < 25 or any(math.hypot(x - fx, y - fy) < fr + 15 for fx, fy, fr in M.footprints):
+        if abs(x - M.lane(y)) < 25 or any(math.hypot(x - f[0], y - f[1]) < f[2] + 15 for f in M.footprints + M.avoid):
             continue
         hd = rng.uniform(0, 2 * math.pi)
         L = rng.uniform(40.0, 110.0)
@@ -379,7 +547,8 @@ def build(cfg, terrain, mats, coll):
             pts.append((x, y))
             x += math.cos(hd) * L / 4
             y += math.sin(hd) * L / 4
-        if any(abs(px - M.lane(py)) < 8 for px, py in pts):
+        if any(abs(px - M.lane(py)) < 8 for px, py in pts) or \
+                any(math.hypot(px - f[0], py - f[1]) < f[2] for px, py in pts for f in M.avoid):
             continue
         if placed % 3 == 2:
             M.dry_stone_wall(pts, rng.uniform(0.8, 1.15))
@@ -402,7 +571,10 @@ def build(cfg, terrain, mats, coll):
                                "target": (M.lane(-120.0), -120.0, M.ground(M.lane(-120.0), -120.0))}
     # dense grass wherever a camera looks or a player is likely to linger
     terrain.hotspots = [(c["pos"][0], c["pos"][1], 130.0) for k, c in M.cameras.items()] + \
-                       [(fx, fy, fr + 45.0) for fx, fy, fr in M.footprints]
+                       [(f[0], f[1], f[2] + 45.0) for f in M.footprints if len(f) == 3]
+    if terrain.marsh:
+        cx, cy = terrain.marsh["center"]
+        terrain.hotspots.append((cx, cy, terrain.marsh["radius_m"] * 2.0 + 35.0))
 
     me = bpy.data.meshes.new("RW_MeadowProps")
     M.B.bm.to_mesh(me)

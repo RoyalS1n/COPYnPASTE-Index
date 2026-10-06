@@ -122,7 +122,7 @@ def _ucx_proxy(ob, kind):
 
 
 def export_all(cfg, terrain, lib, scatter, cam_keys, out_dir, terrain_obj_lowres, terrain_obj_far=None,
-               castle_obj=None, crag_obj=None, castle_info=None, props_obj=None):
+               castle_obj=None, crag_obj=None, castle_info=None, props_obj=None, extra=None):
     os.makedirs(os.path.join(out_dir, "meshes"), exist_ok=True)
     h = terrain.height
     hmin, hmax = float(h.min()), float(h.max())
@@ -156,6 +156,9 @@ def export_all(cfg, terrain, lib, scatter, cam_keys, out_dir, terrain_obj_lowres
         _fbx(os.path.join(out_dir, "meshes", "SM_Crag.fbx"), [crag_obj])
     if props_obj is not None:
         _fbx(os.path.join(out_dir, "meshes", "SM_MeadowProps.fbx"), [props_obj])
+    extra = extra or {}
+    for key, (mesh_name, ob) in extra.items():
+        _fbx(os.path.join(out_dir, "meshes", f"{mesh_name}.fbx"), [ob])
     assets = {}
     for cat, (_, objs) in lib.items():
         names = []
@@ -212,7 +215,10 @@ def export_all(cfg, terrain, lib, scatter, cam_keys, out_dir, terrain_obj_lowres
                     "far_mesh": "SM_TerrainFar" if terrain_obj_far is not None else None,
                     "castle_mesh": "SM_Castle" if castle_obj is not None else None,
                     "crag_mesh": "SM_Crag" if crag_obj is not None else None,
-                    "props_mesh": "SM_MeadowProps" if props_obj is not None else None},
+                    "props_mesh": "SM_MeadowProps" if props_obj is not None else None,
+                    **{k: v[0] for k, v in (extra or {}).items()},
+                    # the marsh brings its own water surface instead of the map-wide plane
+                    "water_plane": "water_mesh" not in (extra or {})},
         "assets": assets,
         "palette": cfg["palette"],
         "lighting": {**lt,

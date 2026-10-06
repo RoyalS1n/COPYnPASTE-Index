@@ -41,14 +41,20 @@ def compute_masks(cfg, h, X, Y, spacing):
     }
 
 
-def grid_mesh(bpy, name, X, Y, H, masks, uv_size):
+def grid_mesh(bpy, name, X, Y, H, masks, uv_size, hole=None):
     """Build a quad-grid mesh with mask attributes, a packed 'Masks' colour
-    attribute (R grass, G rock, B snow, A wet) and planar UVs."""
+    attribute (R grass, G rock, B snow, A wet) and planar UVs. hole =
+    (r0, r1, c0, c1) removes those grid cells (a detail patch fills them)."""
     r_y, r_x = H.shape
     verts = np.dstack([X, Y, H]).reshape(-1, 3).astype(np.float32)
     idx = np.arange(r_y * r_x).reshape(r_y, r_x)
     faces = np.stack([idx[:-1, :-1].ravel(), idx[:-1, 1:].ravel(),
                       idx[1:, 1:].ravel(), idx[1:, :-1].ravel()], axis=1).astype(np.int32)
+    if hole is not None:
+        r0, r1, c0, c1 = hole
+        ii, jj = np.meshgrid(np.arange(r_y - 1), np.arange(r_x - 1), indexing="ij")
+        keep = ~((ii >= r0) & (ii < r1) & (jj >= c0) & (jj < c1))
+        faces = faces[keep.ravel()]
     me = bpy.data.meshes.new(name)
     me.vertices.add(len(verts))
     me.vertices.foreach_set("co", verts.ravel())
@@ -171,6 +177,8 @@ class Terrain:
         h = np.where(outside & (h < wl + 0.25), wl + 0.25, h)
 
         self.height = h.astype(np.float64)
+        self.marsh = None
+        self.patch = None
         self.dist_river = np.where(river_zone, dist, 1e4)
         self.slope_deg, self.masks = compute_masks(self.cfg, self.height, X, Y, self.spacing)
         # road + courtyard: bare ground, no grass, no rock
@@ -290,14 +298,6 @@ class Terrain:
         h -= 1.4 * (1 - smoothstep(0.0, 70.0, dpath)) * (1 - rise)          # the lane follows low ground
         h = self._thermal_erosion(h, 12, talus=1.0)
 
-        wl = self.cfg["biome"]["water_level_m"]
-        px, py, pr = m["pond"]
-        dp = np.hypot(X - px, Y - py) * (1.0 + 0.12 * fbm(n2, X / 30.0, Y / 30.0, 2))
-        bowl = (1 - smoothstep(pr * 0.5, pr * 1.25, dp))
-        pond_zone = dp < pr * 1.4
-        h = np.where(pond_zone, h * (1 - bowl) + (wl - 1.6) * bowl, h)
-        h = np.where(pond_zone, h, np.maximum(h, wl + 0.35))
-
         # two-track lane across the whole meadow. The ruts are far finer than
         # the mesh, so the mesh only carries a smooth lane band plus the exact
         # signed distance to the centreline (lane_d); the shader draws the
@@ -305,9 +305,22 @@ class Terrain:
         along = smoothstep(core * 1.45, core * 1.25, np.abs(Y))
         band = (1 - smoothstep(1.2, 1.9, dpath)) * along
         h -= 0.1 * band
+
+        wl = self.cfg["biome"]["water_level_m"]
+        h_pre = h.copy()
+        mc = m.get("marsh", {})
+        self.marsh = None
+        if mc.get("enabled", True):
+            self.marsh = dict(mc, center=tuple(mc["center"]), water_level=wl)
+            h, sd = self._marsh_height(X, Y, h, fine=False)
+            far = sd > mc["margin_m"] * 1.3
+            h = np.where(far, np.maximum(h, wl + 0.35), h)
+            self.dist_river = np.abs(sd)                   # "water's edge" is the marsh shore
+        else:
+            h = np.maximum(h, wl + 0.35)
+            self.dist_river = np.full_like(h, 1e4)
         self.height = h.astype(np.float64)
         self.rise = rise
-        self.dist_river = np.abs(dp - pr)                  # "water's edge" is the pond shore
         self.castle = None
         self.slope_deg, self.masks = compute_masks(self.cfg, self.height, X, Y, self.spacing)
         self.masks["path"] = band.astype(np.float32)
@@ -316,7 +329,149 @@ class Terrain:
         self.lane_along = along
         for k in ("rock", "dry"):
             self.masks[k] = (self.masks[k] * (1 - band)).astype(np.float32)
+        self.patch = None
+        if self.marsh:
+            self._build_marsh_patch(h_pre)
         return self
+
+    # ------------------------------------------------------------------ marsh
+    def marsh_sd(self, x, y):
+        """Signed distance (m) to the marsh pond shore; negative in water.
+        A smooth union of lobes, warped by noise, gives an organic outline."""
+        M = self.marsh
+        cx, cy = M["center"]
+        r = M["radius_m"]
+        x = np.asarray(x, dtype=np.float64)
+        y = np.asarray(y, dtype=np.float64)
+        d = None
+        for ox, oy, rr in ((0.0, 0.0, 1.0), (0.72, 0.42, 0.62), (-0.55, -0.58, 0.55), (-0.2, 0.78, 0.45)):
+            di = np.hypot(x - (cx + ox * r), y - (cy + oy * r)) - rr * r
+            d = di if d is None else -4.0 * np.logaddexp(-d / 4.0, -di / 4.0)   # smooth union
+        na, nb = Perlin2D(self.seed + 70), Perlin2D(self.seed + 71)
+        return d + 2.4 * fbm(na, x / 14.0, y / 14.0, 3) + 0.6 * fbm(nb, x / 4.0, y / 4.0, 2)
+
+    def _marsh_height(self, X, Y, h_base, fine=False):
+        """Pond bed (shallow reed shelf, deeper centre) and a low, wet margin
+        rising back to the meadow. fine adds the micro-relief: tussocks,
+        puddles, silt and mud texture."""
+        M = self.marsh
+        wl = M["water_level"]
+        sd = self.marsh_sd(X, Y)
+        inside = -sd
+        depth = 0.28 * smoothstep(0.0, 2.5, inside) + 1.15 * smoothstep(5.0, 14.0, inside)
+        bed = wl - 0.05 - depth
+        mw = M["margin_m"]
+        t = smoothstep(0.0, mw, sd)
+        shore = wl + 0.06 + np.maximum(h_base - wl - 0.06, 0.0) * t ** 1.6
+        h = np.where(sd < 0, bed, np.minimum(h_base, shore))
+        if fine:
+            n5, n6, n7, n8 = (Perlin2D(self.seed + i) for i in (80, 81, 82, 83))
+            zone = 1 - smoothstep(mw * 0.7, mw * 1.15, sd)
+            tz = smoothstep(-4.0, -1.0, sd) * (1 - smoothstep(6.0, 11.0, sd))        # shallows + inner margin
+            tussock = 0.34 * smoothstep(0.58, 0.8, 0.5 + 0.5 * fbm(n5, X / 1.6, Y / 1.6, 3))
+            pz = smoothstep(1.0, 3.0, sd) * (1 - smoothstep(9.0, 13.0, sd))           # puddles on the margin
+            puddle = -0.24 * smoothstep(0.6, 0.78, 0.5 + 0.5 * fbm(n6, X / 5.0, Y / 5.0, 3))
+            silt = 0.1 * fbm(n8, X / 3.0, Y / 3.0, 3) * (sd < 0)
+            mud = 0.035 * fbm(n7, X / 0.45, Y / 0.45, 3)
+            h = h + zone * (tz * tussock + pz * puddle + silt + mud)
+        return h, sd
+
+    def _sample_grid(self, arr, x0, y0, sp, x, y):
+        ny, nx = arr.shape
+        fx = np.clip((np.asarray(x) - x0) / sp, 0, nx - 1.001)
+        fy = np.clip((np.asarray(y) - y0) / sp, 0, ny - 1.001)
+        i0 = np.floor(fx).astype(int)
+        j0 = np.floor(fy).astype(int)
+        tx, ty = fx - i0, fy - j0
+        a = arr[j0, i0] * (1 - tx) + arr[j0, i0 + 1] * tx
+        b = arr[j0 + 1, i0] * (1 - tx) + arr[j0 + 1, i0 + 1] * tx
+        return a * (1 - ty) + b * ty
+
+    def _build_marsh_patch(self, h_pre):
+        """High-resolution terrain patch over the marsh. Its rectangle is
+        cut out of the main terrain on even grid lines; along those lines
+        the main heights are made linear between even samples, so the patch
+        edge matches both the full-resolution terrain and the half-resolution
+        export exactly (no cracks)."""
+        M = self.marsh
+        cx, cy = M["center"]
+        half = M["patch_half_m"]
+        sp, H = self.spacing, self.height
+
+        def even_lo(v):
+            i = int(np.floor((v + self.half) / sp))
+            return max(0, i - i % 2)
+
+        def even_hi(v):
+            i = int(np.ceil((v + self.half) / sp))
+            return min(self.res - 1, i + i % 2)
+
+        c0, c1, r0, r1 = even_lo(cx - half), even_hi(cx + half), even_lo(cy - half), even_hi(cy + half)
+        for r in (r0, r1):
+            for c in range(c0 + 1, c1, 2):
+                H[r, c] = 0.5 * (H[r, c - 1] + H[r, c + 1])
+        for c in (c0, c1):
+            for r in range(r0 + 1, r1, 2):
+                H[r, c] = 0.5 * (H[r - 1, c] + H[r + 1, c])
+        sub = int(M["patch_sub"])
+        nx, ny = (c1 - c0) * sub + 1, (r1 - r0) * sub + 1
+        xs = np.linspace(self.X[0, c0], self.X[0, c1], nx)
+        ys = np.linspace(self.Y[r0, 0], self.Y[r1, 0], ny)
+        PX, PY = np.meshgrid(xs, ys)
+        base = self.sample(h_pre, PX, PY)
+        hp, _ = self._marsh_height(PX, PY, base, fine=True)
+        edge = self.sample(H, PX, PY)
+        db = np.minimum.reduce([PX - xs[0], xs[-1] - PX, PY - ys[0], ys[-1] - PY])
+        w = smoothstep(0.0, 6.0, db)
+        hp = edge * (1 - w) + hp * w
+        psp = sp / sub
+        _, masks = compute_masks(self.cfg, hp, PX, PY, psp)
+        for k in ("path", "lane_d", "lane_rut"):
+            masks[k] = self.sample(self.masks[k], PX, PY).astype(np.float32)
+        self.patch = {"r0": r0, "r1": r1, "c0": c0, "c1": c1, "x0": xs[0], "x1": xs[-1], "y0": ys[0], "y1": ys[-1],
+                      "sp": psp, "X": PX, "Y": PY, "H": hp, "masks": masks}
+
+    def patch_mesh(self, bpy, name="Terrain_Detail"):
+        p = self.patch
+        return grid_mesh(bpy, name, p["X"], p["Y"], p["H"], p["masks"], self.size)
+
+    def pond_water_mesh(self, bpy, name="PondWater", step=2):
+        """Water surface over the marsh (pond and puddles) at the water
+        level, with per-vertex 'depth' (m) for the shader and a Depth
+        vertex colour (R = depth / 2) for Unreal."""
+        p = self.patch
+        wl = self.marsh["water_level"]
+        s_ = slice(None, None, step)
+        X, Y, D = p["X"][s_, s_], p["Y"][s_, s_], wl - p["H"][s_, s_]
+        r_y, r_x = D.shape
+        idx = np.arange(r_y * r_x).reshape(r_y, r_x)
+        faces = np.stack([idx[:-1, :-1].ravel(), idx[:-1, 1:].ravel(),
+                          idx[1:, 1:].ravel(), idx[1:, :-1].ravel()], axis=1)
+        dmax = np.maximum.reduce([D[:-1, :-1], D[:-1, 1:], D[1:, 1:], D[1:, :-1]]).ravel()
+        faces = faces[dmax > -0.03]
+        used = np.unique(faces)
+        remap = np.full(r_y * r_x, -1, dtype=np.int64)
+        remap[used] = np.arange(len(used))
+        faces = remap[faces].astype(np.int32)
+        verts = np.stack([X.ravel()[used], Y.ravel()[used], np.full(len(used), wl)], 1).astype(np.float32)
+        me = bpy.data.meshes.new(name)
+        me.vertices.add(len(verts))
+        me.vertices.foreach_set("co", verts.ravel())
+        me.loops.add(faces.size)
+        me.loops.foreach_set("vertex_index", faces.ravel())
+        me.polygons.add(len(faces))
+        me.polygons.foreach_set("loop_start", np.arange(0, faces.size, 4, dtype=np.int32))
+        me.update(calc_edges=True)
+        depth = D.ravel()[used].astype(np.float32)
+        me.attributes.new("depth", "FLOAT", "POINT").data.foreach_set("value", depth)
+        col = me.color_attributes.new("Depth", "FLOAT_COLOR", "POINT")
+        dc = np.clip(depth / 2.0, 0, 1)
+        col.data.foreach_set("color", np.stack([dc, dc, dc, np.ones_like(dc)], 1).astype(np.float32).ravel())
+        uv = me.uv_layers.new(name="UVMap")
+        lv = faces.ravel()
+        uv.data.foreach_set("uv", np.stack([verts[lv, 0] / self.size + 0.5, verts[lv, 1] / self.size + 0.5], 1)
+                            .astype(np.float32).ravel())
+        return me
 
     def _thermal_erosion(self, h, passes, talus=0.9, rate=0.22):
         """Thermal erosion: material slides downhill where the slope exceeds
@@ -383,13 +538,25 @@ class Terrain:
         return a * (1 - ty) + b * ty
 
     def height_at(self, x, y):
-        return self.sample(self.height, x, y)
+        h = self.sample(self.height, x, y)
+        p = getattr(self, "patch", None)
+        if p is not None:
+            x = np.asarray(x, dtype=np.float64)
+            y = np.asarray(y, dtype=np.float64)
+            inside = (x >= p["x0"]) & (x <= p["x1"]) & (y >= p["y0"]) & (y <= p["y1"])
+            if np.any(inside):
+                h = np.where(inside, self._sample_grid(p["H"], p["x0"], p["y0"], p["sp"], x, y), h)
+        return h
 
     # ------------------------------------------------------------------ mesh
     def to_mesh(self, bpy, name="Terrain", step=1):
         s = slice(None, None, step)
         masks = {k: m[s, s] for k, m in self.masks.items()}
-        return grid_mesh(bpy, name, self.X[s, s], self.Y[s, s], self.height[s, s], masks, self.size)
+        hole = None
+        p = getattr(self, "patch", None)
+        if p is not None:
+            hole = (p["r0"] // step, p["r1"] // step, p["c0"] // step, p["c1"] // step)
+        return grid_mesh(bpy, name, self.X[s, s], self.Y[s, s], self.height[s, s], masks, self.size, hole)
 
     def skirt_mesh(self, bpy, name="Terrain_Far"):
         X, Y, H, masks, size = self.build_skirt()

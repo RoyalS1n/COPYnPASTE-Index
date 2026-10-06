@@ -131,6 +131,17 @@
         "lens_mm": 28.0
       },
       {
+        "name": "marsh",
+        "camera": "marsh_camera",
+        "lens_mm": 30.0
+      },
+      {
+        "name": "marsh_close",
+        "camera": "marsh_close_camera",
+        "lens_mm": 24.0,
+        "fstop": 2.8
+      },
+      {
         "name": "overview",
         "camera": "overview_camera",
         "lens_mm": 30.0
@@ -141,6 +152,8 @@
       "cottage",
       "barn",
       "chapel",
+      "marsh",
+      "marsh_close",
       "overview"
     ]
   }

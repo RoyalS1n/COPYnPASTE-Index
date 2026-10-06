@@ -459,6 +459,21 @@ def build_materials(pal):
         "RW_Water": instance(water, "MI_RW_Water", {"Color": pal["water"]}, {"Roughness": 0.04, "Specular": 0.5}),
         "RW_Fern": instance(fol, "MI_RW_Fern", {"ColorA": [c * 1.1 for c in pal["leaves"]], "ColorB": pal["needles"]}, {"Variation": 0.5, "WindStrength": 5.0, "WindHeight": 90.0}),
     }
+    # marsh plants and water (only used by presets with a marsh)
+    mats.update({
+        "RW_Reed": instance(fol, "MI_RW_Reed", {"ColorA": [0.06, 0.1, 0.028], "ColorB": [0.13, 0.15, 0.045]},
+                            {"Variation": 0.7, "WindStrength": 9.0, "WindHeight": 250.0, "WindSpeed": 1.9}),
+        "RW_ReedPlume": instance(fol, "MI_RW_ReedPlume", {"ColorA": [0.16, 0.1, 0.1], "ColorB": [0.3, 0.24, 0.16]},
+                                 {"Variation": 0.7, "WindStrength": 12.0, "WindHeight": 250.0, "WindSpeed": 1.9}),
+        "RW_Cattail": instance(lit, "MI_RW_Cattail", {"Color": [0.065, 0.036, 0.02]}, {"Roughness": 0.95, "Specular": 0.2}),
+        "RW_Sedge": instance(fol, "MI_RW_Sedge", {"ColorA": [0.03, 0.065, 0.028], "ColorB": [0.11, 0.1, 0.045]},
+                             {"Variation": 0.8, "WindStrength": 4.0, "WindHeight": 80.0, "WindSpeed": 2.2}),
+        "RW_LilyPad": instance(lit, "MI_RW_LilyPad", {"Color": [0.035, 0.08, 0.018]}, {"Roughness": 0.3, "Specular": 0.55}),
+        "RW_LilyFlower": instance(fol, "MI_RW_LilyFlower", {"ColorA": [0.82, 0.8, 0.74], "ColorB": [0.8, 0.38, 0.5]},
+                                  {"Variation": 0.5, "WindStrength": 0.0}),
+        "RW_LilyCenter": instance(lit, "MI_RW_LilyCenter", {"Color": [0.75, 0.45, 0.04]}, {"Roughness": 0.6}),
+        "RW_PondWater": instance(master_pond_water(), "MI_RW_PondWater", {"Color": [0.025, 0.03, 0.018]}, {}),
+    })
     if "stone" in pal:  # castle
         mats.update({
             "RW_Stone": instance(crs, "MI_RW_Stone",
@@ -495,6 +510,10 @@ def build_materials(pal):
                                    "GrimeColor": pal["moss"]},
                                   {"BlockWidth": 0.46, "BlockHeight": 0.27, "MortarWidth": 0.02, "RowOffset": 0.5,
                                    "Grime": 0.8, "Roughness": 0.9, "Specular": 0.25, "NormalStrength": 0.04}),
+            "RW_Bark": instance(lit, "MI_RW_Bark_Props", {"Color": pal["bark"]}, {"Roughness": 0.9, "Specular": 0.3}),
+            "RW_DeadWood": instance(lit, "MI_RW_DeadWood", {"Color": [0.075, 0.068, 0.058]}, {"Roughness": 0.9, "Specular": 0.3}),
+            "RW_Moss": instance(lit, "MI_RW_Moss", {"Color": pal["moss"]}, {"Roughness": 0.95, "Specular": 0.2}),
+            "RW_Rock": instance(lit, "MI_RW_Rock_Props", {"Color": pal["rock"]}, {"Roughness": 0.82, "Specular": 0.35}),
             "RW_Hay": instance(lit, "MI_RW_Hay", {"Color": pal.get("hay", [0.42, 0.33, 0.12])}, {"Roughness": 0.9, "Specular": 0.2}),
             "RW_Iron": instance(lit, "MI_RW_Iron", {"Color": pal.get("iron", [0.03, 0.03, 0.032])}, {"Roughness": 0.45, "Specular": 0.6}),
             "RW_Fire": instance(lit, "MI_RW_Fire", {"Color": [0, 0, 0], "EmissiveColor": [1.0, 0.42, 0.1]},
@@ -760,12 +779,42 @@ def build_camera_and_sequence(man):
     return cam, seq
 
 
+def master_pond_water():
+    """Marsh water: dark tea colour, animated ripples, and duckweed mats
+    where the water is shallow (vertex colour R = depth / 2 from Blender)."""
+    m = _new_material("M_RW_PondWater")
+    vc = _expr(m, unreal.MaterialExpressionVertexColor, -1000, 0)
+    depth = _op(m, unreal.MaterialExpressionMultiply, _mask(m, vc, -850, 0, r=True), 2.0, -700, 0)
+    shallow = _op(m, unreal.MaterialExpressionSubtract, 0.55, depth, -550, 0)
+    shallow = _op(m, unreal.MaterialExpressionMultiply, shallow, 2.2, -450, 0)
+    patches = _expr(m, unreal.MaterialExpressionNoise, -700, 150, scale=0.006, levels=4, output_min=-0.6, output_max=1.4)
+    weed = _op(m, unreal.MaterialExpressionMultiply, shallow, patches, -300, 50)
+    weed_s = _expr(m, unreal.MaterialExpressionSaturate, -150, 50)
+    mel.connect_material_expressions(weed, "", weed_s, "")
+    col = _lerp(m, _vparam(m, "Color", [0.025, 0.03, 0.018], -300, -250),
+                _vparam(m, "Duckweed", [0.06, 0.15, 0.02], -300, -150), weed_s, 0, -100)
+    mel.connect_material_property(col, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    rough = _lerp(m, _sparam(m, "Roughness", 0.04, -150, 250), _expr(m, unreal.MaterialExpressionConstant, -150, 330, r=0.6),
+                  weed_s, 0, 250)
+    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.connect_material_property(_sparam(m, "Specular", 0.5, 0, 400), "", unreal.MaterialProperty.MP_SPECULAR)
+    n = _custom(m, WATER_NORMAL_HLSL, ["WorldPos", "T"], -300, 550, desc="RW ripples")
+    mel.connect_material_expressions(_expr(m, unreal.MaterialExpressionWorldPosition, -600, 550), "", n, "WorldPos")
+    mel.connect_material_expressions(_expr(m, unreal.MaterialExpressionTime, -600, 650), "", n, "T")
+    flat = _expr(m, unreal.MaterialExpressionConstant3Vector, -300, 700, constant=unreal.LinearColor(0, 0, 1, 1))
+    nrm = _lerp(m, n, flat, weed_s, 0, 600)
+    mel.connect_material_property(nrm, "", unreal.MaterialProperty.MP_NORMAL)
+    mel.recompile_material(m)
+    return m
+
+
 # --------------------------------------------------------------------------
 # playability
-COMPLEX_COLLISION = ("SM_Terrain", "SM_TerrainFar", "SM_Castle", "SM_Crag", "SM_MeadowProps")
-NO_COLLISION_CATEGORIES = ("grass", "ferns", "pebbles", "bushes")
+COMPLEX_COLLISION = ("SM_Terrain", "SM_TerrainFar", "SM_Castle", "SM_Crag", "SM_MeadowProps", "SM_TerrainDetail")
+NO_COLLISION_CATEGORIES = ("grass", "ferns", "pebbles", "bushes", "reeds", "sedges", "lilies")
 # (start fade, fully culled) in cm; keeps the frame rate up in the meadow
-CULL_DISTANCES = {"grass": (5000, 8000), "pebbles": (3500, 6000), "ferns": (7000, 11000), "bushes": (15000, 25000)}
+CULL_DISTANCES = {"grass": (5000, 8000), "pebbles": (3500, 6000), "ferns": (7000, 11000), "bushes": (15000, 25000),
+                  "sedges": (6000, 9000), "lilies": (9000, 14000), "reeds": (20000, 30000)}
 NO_SHADOW_CATEGORIES = ("grass", "pebbles")
 
 
@@ -859,9 +908,14 @@ def main(preset=None):
     for key, label in (("castle_mesh", "Castle"), ("crag_mesh", "CastleCliff"), ("props_mesh", "MeadowProps")):
         if t.get(key) and t[key] in meshes:
             place_static(meshes[t[key]], label)
-    plane = unreal.load_asset("/Engine/BasicShapes/Plane")
-    size = t["size_m"]  # the engine plane is 1 m square
-    place_static(plane, "Water", (0, 0, t["water_level_m"] * 100.0), (size, size, 1), mats["RW_Water"])
+    if t.get("water_plane", True):
+        plane = unreal.load_asset("/Engine/BasicShapes/Plane")
+        size = t["size_m"]  # the engine plane is 1 m square
+        place_static(plane, "Water", (0, 0, t["water_level_m"] * 100.0), (size, size, 1), mats["RW_Water"])
+    if t.get("detail_mesh") and t["detail_mesh"] in meshes:      # high-res marsh terrain patch
+        place_static(meshes[t["detail_mesh"]], "TerrainDetail", material=mats["RW_Terrain"])
+    if t.get("water_mesh") and t["water_mesh"] in meshes:        # marsh water surface
+        place_static(meshes[t["water_mesh"]], "PondWater", material=mats["RW_PondWater"])
     place_instances(meshes)
     place_lights(man)
     place_player_and_bounds(man)

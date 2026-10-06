@@ -87,17 +87,27 @@ def main():
     far_ob = bpy.data.objects.new("RW_Terrain_Far", terrain.skirt_mesh(bpy, "RW_Terrain_Far"))
     far_ob.data.materials.append(mats["terrain"])
     c_world.objects.link(far_ob)
-
-    import bmesh
-    bm = bmesh.new()
-    bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=terrain.half)
-    wme = bpy.data.meshes.new("RW_Water")
-    bm.to_mesh(wme)
-    bm.free()
-    wme.materials.append(mats["water"])
-    w_ob = bpy.data.objects.new("RW_Water", wme)
-    w_ob.location.z = cfg["biome"]["water_level_m"]
-    c_world.objects.link(w_ob)
+    detail_ob = pond_ob = None
+    if getattr(terrain, "patch", None) is not None:
+        # high-resolution marsh patch fills the hole cut in the main terrain
+        detail_ob = bpy.data.objects.new("RW_TerrainDetail", terrain.patch_mesh(bpy, "RW_TerrainDetail"))
+        detail_ob.data.materials.append(mats["terrain"])
+        c_world.objects.link(detail_ob)
+        pond_ob = bpy.data.objects.new("RW_PondWater", terrain.pond_water_mesh(bpy, "RW_PondWater"))
+        pond_ob.data.materials.append(mats["pondwater"])
+        c_world.objects.link(pond_ob)
+        log(f"  marsh patch {len(detail_ob.data.vertices)} verts, water {len(pond_ob.data.polygons)} faces")
+    else:
+        import bmesh
+        bm = bmesh.new()
+        bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=terrain.half)
+        wme = bpy.data.meshes.new("RW_Water")
+        bm.to_mesh(wme)
+        bm.free()
+        wme.materials.append(mats["water"])
+        w_ob = bpy.data.objects.new("RW_Water", wme)
+        w_ob.location.z = cfg["biome"]["water_level_m"]
+        c_world.objects.link(w_ob)
 
     castle_ob = crag_ob = props_ob = None
     castle_info = {}            # features info: lights, cameras, player start
@@ -123,7 +133,7 @@ def main():
         log(f"  {len(castle_info['lights'])} feature lights")
 
     log("asset library")
-    lib = assets.build_library(mats, c_lib)
+    lib = assets.build_library(mats, c_lib, marsh=getattr(terrain, "patch", None) is not None)
     for ob in c_lib.all_objects:
         ob.location.x += 10000  # parked far away; instanced through Geometry Nodes
 
@@ -158,8 +168,11 @@ def main():
         saved = {ob.name: ob.location.copy() for ob in c_lib.all_objects}
         for ob in c_lib.all_objects:
             ob.location.x -= 10000
+        extra = {}
+        if detail_ob is not None:
+            extra = {"detail_mesh": ("SM_TerrainDetail", detail_ob), "water_mesh": ("SM_PondWater", pond_ob)}
         export.export_all(cfg, terrain, lib, points, camera.keys_for_export(keys), exp_dir, lowres, far_exp,
-                          castle_ob, crag_ob, castle_info, props_ob)
+                          castle_ob, crag_ob, castle_info, props_ob, extra)
         for ob in c_lib.all_objects:
             ob.location = saved[ob.name]
         scene.view_layers[0].layer_collection.children["Library"].exclude = True

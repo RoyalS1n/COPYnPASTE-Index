@@ -102,8 +102,10 @@ def compute(cfg, terrain, cam_keys):
             ring = smoothstep(terrain.castle["plateau_r"] + margin * 0.5, terrain.castle["plateau_r"] + margin,
                               terrain.dist_to_castle(x, y))
         if buildings:
-            for fx, fy, fr in feats:
-                ring = ring * smoothstep(fr, fr + 4.0, np.hypot(np.asarray(x) - fx, np.asarray(y) - fy))
+            for f in feats:
+                fx, fy, fr = f[:3]
+                soft = f[3] if len(f) > 3 else 4.0
+                ring = ring * smoothstep(fr, fr + soft, np.hypot(np.asarray(x) - fx, np.asarray(y) - fy))
         return (1 - smoothstep(0.05, 0.4, path)) * ring
 
     def forest_density(x, y):
@@ -144,6 +146,8 @@ def compute(cfg, terrain, cam_keys):
             if abs(px_ - float(terrain.river_center(np.array(py_)))) < 18:
                 continue
             if keep_clear(np.array([px_]), np.array([py_]), 0.0)[0] < 0.5:
+                continue
+            if float(terrain.height_at(np.array(px_), np.array(py_))) < wl + 0.5:     # not in the marsh
                 continue
             sx.append(px_)
             sy.append(py_)
@@ -316,6 +320,55 @@ def compute(cfg, terrain, cam_keys):
         rz_ = np.concatenate([rz_, rng.uniform(0, 2 * np.pi, len(px))])
         v = np.concatenate([v, rng.integers(0, 3, len(px))])
     out["outcrops"] = dict(x=x, y=y, z=z, rx=rx_, ry=ry_, rz=rz_, s=s, v=v)
+
+    # ---- marsh: reeds and cattails, sedge tussocks, water lilies
+    mz = getattr(terrain, "marsh", None)
+    if mz and getattr(terrain, "patch", None) is not None:
+        p_ = terrain.patch
+        mb = (p_["x0"], p_["x1"], p_["y0"], p_["y1"])
+        n_r, n_s, n_l = Perlin2D(cfg["seed"] + 91), Perlin2D(cfg["seed"] + 92), Perlin2D(cfg["seed"] + 93)
+        focus = (getattr(terrain, "marsh_feats", None) or {}).get("lily_focus")
+
+        def depth(x, y):
+            return wl - terrain.height_at(x, y)
+
+        def reed_density(x, y):
+            d = depth(x, y)
+            band = smoothstep(-0.3, 0.02, d) * (1 - smoothstep(0.45, 0.7, d))
+            clump = smoothstep(-0.12, 0.32, fbm(n_r, x / 9.0, y / 9.0, 3))
+            return band * (0.12 + 0.88 * clump) * keep_clear(x, y, 0.0, lane=False)
+
+        x, y = _rejection(rng, terrain, reed_density, mz["reed_count"], mb, batch=150000)
+        d = depth(x, y)
+        cat_p = np.clip(0.25 + 0.9 * d, 0.1, 0.85)                       # cattails stand in the water
+        v = np.where(rng.uniform(0, 1, len(x)) < cat_p, rng.integers(0, 3, len(x)), rng.integers(3, 5, len(x)))
+        out["reeds"] = dict(x=x, y=y, z=terrain.height_at(x, y), rx=rng.normal(0, 0.05, len(x)),
+                            ry=rng.normal(0, 0.05, len(x)), rz=rng.uniform(0, 2 * np.pi, len(x)),
+                            s=rng.uniform(0.8, 1.25, len(x)), v=v)
+
+        def sedge_density(x, y):
+            d = depth(x, y)
+            band = smoothstep(-1.1, -0.05, d) * (1 - smoothstep(0.0, 0.14, d))
+            patch = 0.35 + 0.65 * smoothstep(-0.3, 0.3, fbm(n_s, x / 6.0, y / 6.0, 3))
+            return band * patch * keep_clear(x, y, 0.0, lane=False)
+
+        x, y = _rejection(rng, terrain, sedge_density, mz["sedge_count"], mb, batch=150000)
+        out["sedges"] = dict(x=x, y=y, z=terrain.height_at(x, y), rx=rng.normal(0, 0.06, len(x)),
+                             ry=rng.normal(0, 0.06, len(x)), rz=rng.uniform(0, 2 * np.pi, len(x)),
+                             s=rng.uniform(0.75, 1.3, len(x)), v=rng.integers(0, 3, len(x)))
+
+        def lily_density(x, y):
+            d = depth(x, y)
+            band = smoothstep(0.38, 0.6, d) * (1 - smoothstep(1.35, 1.55, d))
+            patch = smoothstep(0.05, 0.4, fbm(n_l, x / 7.0, y / 7.0, 3))
+            if focus is not None:
+                patch = np.maximum(patch, np.exp(-((x - focus[0]) ** 2 + (y - focus[1]) ** 2) / (2 * 2.2 ** 2)))
+            return band * patch * keep_clear(x, y, 0.0, lane=False)
+
+        x, y = _rejection(rng, terrain, lily_density, mz["lily_count"], mb, batch=100000)
+        out["lilies"] = dict(x=x, y=y, z=np.full(len(x), wl + 0.006) + rng.uniform(0, 0.004, len(x)),
+                             rx=np.zeros(len(x)), ry=np.zeros(len(x)), rz=rng.uniform(0, 2 * np.pi, len(x)),
+                             s=rng.uniform(0.8, 1.4, len(x)), v=rng.integers(0, 3, len(x)))
     return out
 
 

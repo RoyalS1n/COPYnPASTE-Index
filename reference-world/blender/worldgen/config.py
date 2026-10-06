@@ -50,7 +50,18 @@ DEFAULTS = {
         "rim_height_m": 150.0,
         "path_amp_m": 45.0,         # lane meander
         "path_wavelength_m": 760.0,
-        "pond": [-120.0, 260.0, 28.0],   # x, y, radius
+        # a small, highly detailed marsh pond
+        "marsh": {
+            "enabled": True,
+            "center": [-45.0, 225.0],
+            "radius_m": 20.0,
+            "margin_m": 15.0,           # low, wet ground around the water
+            "patch_half_m": 62.0,       # extent of the high-resolution terrain patch
+            "patch_sub": 5,             # patch vertices per main-terrain cell (5 -> ~0.24 m)
+            "reed_count": 2600,
+            "sedge_count": 6500,
+            "lily_count": 320,
+        },
         "field_fences": 9,
     },
     # an original, procedurally generated castle on a crag above the river

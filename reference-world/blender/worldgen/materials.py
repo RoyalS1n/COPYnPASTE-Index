@@ -133,7 +133,7 @@ def _principled(nb, color, rough=0.8, normal=None, sss=0.0, spec=0.5):
 
 
 # --------------------------------------------------------------------------
-def terrain(pal):
+def terrain(pal, wl=-0.7):
     m = _new("RW_Terrain")
     nb = NB(m)
     tc = nb.n("ShaderNodeTexCoord")
@@ -224,7 +224,20 @@ def terrain(pal):
                _mix(nb, 1.0, col, cav_rgb.outputs[0], "MULTIPLY"))
     snow_fac = _maprange(nb, _math(nb, "ADD", snow_a, _math(nb, "MULTIPLY", _math(nb, "SUBTRACT", fine.outputs["Fac"], 0.5), 0.6)), 0.4, 0.55)
     col = _mix(nb, snow_fac, col, snow_col)
-    wet_col = _mix(nb, wet_a, col, [c * 0.45 for c in pal["soil"]])
+    # wet ground: dark, silty mud rather than one flat brown
+    mud_n = _noise(nb, 0.35, 6, 0.6, pos)
+    mud_col = _mix(nb, _maprange(nb, mud_n.outputs["Fac"], 0.35, 0.65),
+                   [c * 0.32 for c in pal["soil"]], [c * 0.62 for c in pal["soil"]])
+    wet_col = _mix(nb, wet_a, col, mud_col)
+    # below the waterline: silt with olive algae films and dark leaf litter
+    posz = nb.n("ShaderNodeSeparateXYZ")
+    nb.link(pos, posz.inputs[0])
+    under = _maprange(nb, posz.outputs["Z"], wl + 0.03, wl - 0.12)
+    algae = _maprange(nb, _noise(nb, 0.5, 5, 0.6, pos).outputs["Fac"], 0.42, 0.68)
+    silt = _mix(nb, algae, [0.05, 0.043, 0.03], [0.035, 0.055, 0.018])
+    litter = _maprange(nb, _noise(nb, 3.0, 4, 0.6, pos).outputs["Fac"], 0.58, 0.66, 0.0, 0.6)
+    silt = _mix(nb, litter, silt, [0.03, 0.018, 0.01])
+    wet_col = _mix(nb, under, wet_col, silt)
     # road + courtyard: packed earth with embedded gravel and wheel ruts.
     # On a meadow lane (lane_rut = 1) only the two ruts are bare: they are
     # drawn per pixel from lane_d, the signed distance to the centreline.
@@ -242,7 +255,13 @@ def terrain(pal):
     earth = _mix(nb, _maprange(nb, mid.outputs["Fac"], 0.4, 0.65, 0.0, 0.5), earth, pal["soil"])
     wet_col = _mix(nb, _maprange(nb, earth_f, 0.2, 0.7), wet_col, earth)
 
-    rough = _math(nb, "SUBTRACT", 0.92, _math(nb, "MULTIPLY", wet_a, 0.2))
+    # saturated ground gets glossy, puddled patches
+    puddle = _math(nb, "MULTIPLY", _math(nb, "MULTIPLY", wet_a, wet_a),
+                   _maprange(nb, _noise(nb, 0.8, 4, 0.55, pos).outputs["Fac"], 0.48, 0.66))
+    rough = _math(nb, "SUBTRACT", 0.92, _math(nb, "ADD", _math(nb, "MULTIPLY", wet_a, 0.42),
+                                             _math(nb, "MULTIPLY", puddle, 0.4)))
+    rough = _math(nb, "MAXIMUM", rough, 0.07)
+    spec = _math(nb, "ADD", 0.12, _math(nb, "MULTIPLY", wet_a, 0.33))
     height = _math(nb, "ADD", _math(nb, "MULTIPLY", fine.outputs["Fac"], 1.0),
                    _math(nb, "MULTIPLY", mid.outputs["Fac"], 2.0))
     height = _math(nb, "SUBTRACT", height, _math(nb, "MULTIPLY", _math(nb, "MULTIPLY", cracks, rock_fac), 1.5))
@@ -258,6 +277,7 @@ def terrain(pal):
     normal = _bump(nb, macro_h, 0.8, 3.0, normal)
     normal = _bump(nb, height, 0.35, 0.25, normal)
     p = _principled(nb, wet_col, rough, normal, spec=0.12)   # low: no white sheen on backlit grass ground
+    nb.link(spec, p.inputs["Specular IOR Level"])            # ...except on wet mud
     _out(nb, p.outputs[0])
     return m
 
@@ -316,10 +336,10 @@ def foliage(name, base, alt, translucency=0.35, variation=0.6):
     return m
 
 
-def grass_blades(pal):
+def grass_blades(pal, name="RW_Grass"):
     """Grass: darker at the root, lighter / drier at the tip (UV.y runs
     root->tip on the blade meshes)."""
-    m = _new("RW_Grass")
+    m = _new(name)
     nb = NB(m)
     tc = nb.n("ShaderNodeTexCoord")
     sep = nb.n("ShaderNodeSeparateXYZ")
@@ -346,8 +366,10 @@ def grass_blades(pal):
     return m
 
 
-def bark(pal):
-    m = _new("RW_Bark")
+def bark(pal, name="RW_Bark", color=None):
+    m = _new(name)
+    if color is not None:
+        pal = dict(pal, bark=color)
     nb = NB(m)
     tc = nb.n("ShaderNodeTexCoord")
     mapping = nb.n("ShaderNodeMapping")
@@ -600,10 +622,138 @@ def simple(name, color, rough=0.8, emission=None, strength=0.0, translucent=0.0)
     return m
 
 
+# ------------------------------------------------------------------- marsh
+def cattail_head():
+    """Velvety brown seed heads: soft sheen, fine noise variation."""
+    m = _new("RW_Cattail")
+    nb = NB(m)
+    tc = nb.n("ShaderNodeTexCoord")
+    n = _noise(nb, 40.0, 6, 0.6, tc.outputs["Object"])
+    col = _mix(nb, _maprange(nb, n.outputs["Fac"], 0.35, 0.65), [0.045, 0.024, 0.013], [0.085, 0.05, 0.028])
+    p = _principled(nb, col, 0.95, _bump(nb, n.outputs["Fac"], 0.4, 0.004), spec=0.2)
+    p.inputs["Sheen Weight"].default_value = 0.6
+    _out(nb, p.outputs[0])
+    return m
+
+
+def lily_pad():
+    """Waxy pads: two greens mottled, darker fine veining, bronze edges on
+    some instances, low roughness so they catch the sky."""
+    m = _new("RW_LilyPad")
+    nb = NB(m)
+    tc = nb.n("ShaderNodeTexCoord")
+    oi = nb.n("ShaderNodeObjectInfo")
+    pos = tc.outputs["Object"]
+    mott = _noise(nb, 9.0, 4, 0.6, pos)
+    col = _mix(nb, _maprange(nb, mott.outputs["Fac"], 0.35, 0.68), [0.022, 0.06, 0.014], [0.05, 0.1, 0.022])
+    col = _mix(nb, _maprange(nb, oi.outputs["Random"], 0.6, 1.0, 0.0, 0.5), col, [0.09, 0.05, 0.02])
+    veins = _noise(nb, 70.0, 3, 0.5, pos)
+    col = _mix(nb, _maprange(nb, veins.outputs["Fac"], 0.55, 0.7, 0.0, 0.35), col, [0.015, 0.03, 0.01])
+    normal = _bump(nb, veins.outputs["Fac"], 0.25, 0.002)
+    p = _principled(nb, col, 0.3, normal, spec=0.55)
+    tr = nb.n("ShaderNodeBsdfTranslucent")
+    nb.link(col, tr.inputs["Color"])
+    mix = nb.n("ShaderNodeMixShader")
+    mix.inputs[0].default_value = 0.1
+    nb.link(p.outputs[0], mix.inputs[1])
+    nb.link(tr.outputs[0], mix.inputs[2])
+    _out(nb, mix.outputs[0])
+    return m
+
+
+def lily_flower():
+    """Petals: white, or (per instance) blushing pink toward the tips;
+    translucent so backlight glows through."""
+    m = _new("RW_LilyFlower")
+    nb = NB(m)
+    tc = nb.n("ShaderNodeTexCoord")
+    oi = nb.n("ShaderNodeObjectInfo")
+    sep = nb.n("ShaderNodeSeparateXYZ")
+    nb.link(tc.outputs["Object"], sep.inputs[0])
+    pink = _math(nb, "MULTIPLY", _maprange(nb, oi.outputs["Random"], 0.62, 0.7),
+                 _maprange(nb, sep.outputs["Z"], 0.02, 0.075))
+    col = _mix(nb, pink, [0.82, 0.8, 0.74], [0.8, 0.38, 0.5])
+    p = _principled(nb, col, 0.45, spec=0.4)
+    tr = nb.n("ShaderNodeBsdfTranslucent")
+    nb.link(col, tr.inputs["Color"])
+    mix = nb.n("ShaderNodeMixShader")
+    mix.inputs[0].default_value = 0.35
+    nb.link(p.outputs[0], mix.inputs[1])
+    nb.link(tr.outputs[0], mix.inputs[2])
+    _out(nb, mix.outputs[0])
+    return m
+
+
+def moss(pal):
+    m = _new("RW_Moss")
+    nb = NB(m)
+    tc = nb.n("ShaderNodeTexCoord")
+    n = _noise(nb, 6.0, 8, 0.65, tc.outputs["Object"])
+    col = _mix(nb, _maprange(nb, n.outputs["Fac"], 0.3, 0.7), [c * 0.6 for c in pal["moss"]], [c * 1.5 for c in pal["moss"]])
+    p = _principled(nb, col, 0.95, _bump(nb, n.outputs["Fac"], 0.8, 0.02), spec=0.2)
+    p.inputs["Sheen Weight"].default_value = 0.4
+    _out(nb, p.outputs[0])
+    return m
+
+
+def pond_water(pal):
+    """Marsh water. Tea-brown tannin absorption, fine wind ripples, and
+    duckweed: speckled green mats where the water is shallow (per-vertex
+    'depth' attribute from the terrain), plus a faint pollen film."""
+    m = _new("RW_PondWater")
+    nb = NB(m)
+    tc = nb.n("ShaderNodeTexCoord")
+    pos = tc.outputs["Object"]
+    depth = _attr(nb, "depth")
+    mapping = nb.n("ShaderNodeMapping")
+    mapping.inputs["Scale"].default_value = (1.0, 2.2, 1.0)
+    nb.link(pos, mapping.inputs["Vector"])
+    ripple = _noise(nb, 1.4, 5, 0.55, mapping.outputs[0])
+    swell = _noise(nb, 0.12, 3, 0.5, pos)
+    # duckweed: shallow water x patch noise x tiny frond specks
+    shallow = _maprange(nb, depth, 0.55, 0.08)
+    patches = _maprange(nb, _noise(nb, 0.16, 4, 0.6, pos).outputs["Fac"], 0.45, 0.6)
+    vor = nb.n("ShaderNodeTexVoronoi", feature="F1")
+    vor.inputs["Scale"].default_value = 90.0
+    nb.link(pos, vor.inputs["Vector"])
+    speck = _maprange(nb, vor.outputs["Distance"], 0.42, 0.2)
+    weed = _math(nb, "MULTIPLY", _math(nb, "MULTIPLY", shallow, patches), _math(nb, "ADD", 0.45, _math(nb, "MULTIPLY", speck, 0.55)),
+                 clamp=True)
+    weed = _maprange(nb, weed, 0.25, 0.6)
+    normal = _bump(nb, ripple.outputs["Fac"], 0.06, 0.03)
+    normal = _bump(nb, swell.outputs["Fac"], 0.05, 0.2, normal)
+    w = nb.n("ShaderNodeBsdfPrincipled")
+    w.inputs["Base Color"].default_value = _lin([0.6, 0.55, 0.42])
+    w.inputs["Roughness"].default_value = 0.025
+    w.inputs["IOR"].default_value = 1.333
+    w.inputs["Transmission Weight"].default_value = 1.0
+    nb.link(normal, w.inputs["Normal"])
+    # pollen film: barely-there yellow streaks on the surface
+    film = _maprange(nb, _noise(nb, 0.4, 3, 0.5, mapping.outputs[0]).outputs["Fac"], 0.62, 0.72, 0.0, 0.12)
+    filmc = nb.n("ShaderNodeBsdfDiffuse")
+    filmc.inputs["Color"].default_value = _lin([0.35, 0.3, 0.1])
+    wf = nb.n("ShaderNodeMixShader")
+    nb.link(film, wf.inputs[0])
+    nb.link(w.outputs[0], wf.inputs[1])
+    nb.link(filmc.outputs[0], wf.inputs[2])
+    dcol = _mix(nb, speck, [0.04, 0.1, 0.012], [0.11, 0.2, 0.03])
+    dw = _principled(nb, dcol, 0.55, _bump(nb, speck, 0.3, 0.004), spec=0.35)
+    mix = nb.n("ShaderNodeMixShader")
+    nb.link(weed, mix.inputs[0])
+    nb.link(wf.outputs[0], mix.inputs[1])
+    nb.link(dw.outputs[0], mix.inputs[2])
+    vol = nb.n("ShaderNodeVolumeAbsorption")
+    vol.inputs["Color"].default_value = _lin([0.55, 0.42, 0.22])
+    vol.inputs["Density"].default_value = 1.4
+    o = _out(nb, mix.outputs[0])
+    nb.link(vol.outputs[0], o.inputs["Volume"])
+    return m
+
+
 def build_all(cfg):
     pal = cfg["palette"]
     return {
-        "terrain": terrain(pal),
+        "terrain": terrain(pal, cfg["biome"]["water_level_m"]),
         "water": water(pal),
         "needles": foliage("RW_Needles", pal["needles"], [c * 1.5 for c in pal["needles"]], 0.25),
         "leaves": foliage("RW_Leaves", pal["leaves"], pal["leaves_alt"], 0.4, 0.45),
@@ -626,4 +776,15 @@ def build_all(cfg):
         "cloth": simple("RW_Cloth", pal["cloth"], 0.7, translucent=0.35),
         "hay": simple("RW_Hay", pal.get("hay", [0.42, 0.33, 0.12]), 0.9, translucent=0.15),
         "ivy": foliage("RW_Ivy", [0.025, 0.06, 0.015], [0.05, 0.09, 0.02], 0.3, 0.6),
+        # marsh
+        "reed": foliage("RW_Reed", [0.06, 0.1, 0.028], [0.13, 0.15, 0.045], 0.4, 0.7),
+        "plume": foliage("RW_ReedPlume", [0.16, 0.1, 0.1], [0.3, 0.24, 0.16], 0.55, 0.7),
+        "cattail": cattail_head(),
+        "sedge": grass_blades(dict(pal, grass=[0.03, 0.065, 0.028], grass_dry=[0.11, 0.1, 0.045]), "RW_Sedge"),
+        "lilypad": lily_pad(),
+        "lilyflower": lily_flower(),
+        "lilycenter": simple("RW_LilyCenter", [0.75, 0.45, 0.04], 0.6),
+        "moss": moss(pal),
+        "deadwood": bark(pal, "RW_DeadWood", [0.075, 0.068, 0.058]),
+        "pondwater": pond_water(pal),
     }
