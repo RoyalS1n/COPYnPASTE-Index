@@ -245,18 +245,39 @@ def broadleaf(name, mats, coll, seed, height=12.0):
         pts = [top + d * length * t + Vector((0, 0, -0.15 * length * t * t)) for t in np.linspace(0, 1, 5)]
         _tapered_tube(bm, pts, list(np.linspace(0.2, 0.05, 5) * k), 6, mat=0)
         clumps.append((pts[-1] + Vector((0, 0, height * 0.06)), height * rng.uniform(0.17, 0.24)))
-    crown_c = top + Vector((0, 0, height * 0.22))
-    crown_r = height * 0.36
-    for _ in range(int(rng.integers(9, 15))):
-        off = Vector(rng.normal(0, 1, 3)).normalized() * crown_r * rng.uniform(0.25, 0.95)
-        off.z = abs(off.z) * 0.55
-        clumps.append((crown_c + off, height * rng.uniform(0.1, 0.16)))
+    # crown silhouette per variant: wide spreading, tall ovoid, or leaning
+    shape = int(seed) % 3
+    if shape == 0:
+        crown_r, sx, sz, lift, lean2 = height * 0.42, 1.0, 0.55, 0.18, Vector((0, 0, 0))
+    elif shape == 1:
+        crown_r, sx, sz, lift, lean2 = height * 0.27, 1.0, 1.35, 0.32, Vector((0, 0, 0))
+    else:
+        crown_r, sx, sz, lift, lean2 = height * 0.34, 1.15, 0.8, 0.22, Vector((rng.uniform(-1, 1), rng.uniform(-1, 1), 0)).normalized() * height * 0.12
+    crown_c = top + Vector((0, 0, height * lift)) + lean2
+    # clumps sit on the crown's shell (with gaps), a few dark masses inside
+    for _ in range(int(rng.integers(15, 22))):
+        d = Vector(rng.normal(0, 1, 3)).normalized()
+        d.z = abs(d.z) * 0.9 - 0.15
+        off = Vector((d.x * crown_r * sx, d.y * crown_r, d.z * crown_r * sz)) * rng.uniform(0.62, 1.0)
+        clumps.append((crown_c + off, height * rng.uniform(0.085, 0.14)))
     leaf_len = 0.18 * k
+    for _ in range(3):
+        c = crown_c + Vector(rng.normal(0, 0.25, 3)) * crown_r
+        core = _blob(bm, c, crown_r * 0.42, rng, 1, 2, sz * 0.8, 0.45)
+        for v in core:
+            _set_normal(bm, [v], (v.co - c + Vector((0, 0, crown_r * 0.3))).normalized())
+            _set_leafvar(bm, [v], 0.45)
     for c, r in clumps:
-        core = _blob(bm, c, r * 0.55, rng, 1, 2, 0.8, 0.5)    # dense core: no see-through holes
+        core = _blob(bm, c, r * 0.5, rng, 1, 2, 0.8, 0.5)     # dense core: no see-through holes
         for v in core:
             _set_normal(bm, [v], (v.co - c + Vector((0, 0, r * 0.3))).normalized())
+            _set_leafvar(bm, [v], 0.6)
         _leaf_cards(bm, c, r, rng, int(2300 * (r / (2.4 * k)) ** 2), leaf_len, 1)
+    # root flare
+    for a in np.linspace(0, 2 * math.pi, 5, endpoint=False) + rng.uniform(0, 1):
+        d = Vector((math.cos(a), math.sin(a), 0))
+        pts = [Vector((0, 0, 0.6)) + d * 0.15, d * 0.55 + Vector((0, 0, 0.1)), d * 0.95 + Vector((0, 0, -0.25))]
+        _tapered_tube(bm, pts, [0.22 * k, 0.14 * k, 0.05 * k], 6, mat=0)
     return _obj(name, bm, mats, coll)
 
 
