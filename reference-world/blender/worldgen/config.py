@@ -141,8 +141,8 @@ DEFAULTS = {
     "render": {
         "resolution": [1920, 1080],
         "samples": 64,
-        "video_resolution": [960, 540],
-        "video_samples": 24,
+        "video_resolution": [640, 360],
+        "video_samples": 16,
     },
 }
 
