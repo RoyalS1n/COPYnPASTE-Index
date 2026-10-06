@@ -85,6 +85,7 @@ DEFAULTS = {
         "cloth": [0.42, 0.03, 0.03],
         "window_glow": [1.0, 0.55, 0.22],
         "iron": [0.03, 0.03, 0.032],
+        "hay": [0.42, 0.33, 0.12],
     },
     "lighting": {
         "sun_elevation_deg": 14.0,

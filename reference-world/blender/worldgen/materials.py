@@ -535,4 +535,5 @@ def build_all(cfg):
         "window_dark": simple("RW_WindowDark", [0.01, 0.01, 0.012], 0.2),
         "window_lit": simple("RW_WindowLit", [0.05, 0.03, 0.01], 0.3, pal["window_glow"], 6.0),
         "cloth": simple("RW_Cloth", pal["cloth"], 0.7, translucent=0.35),
+        "hay": simple("RW_Hay", pal.get("hay", [0.42, 0.33, 0.12]), 0.9, translucent=0.15),
     }

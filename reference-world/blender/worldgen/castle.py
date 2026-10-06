@@ -24,8 +24,9 @@ import bpy
 import numpy as np
 from mathutils import Vector
 
-STONE, ROOF, WOOD, WIN_DARK, WIN_LIT, CLOTH, ROOF_ALT, IRON, FIRE = range(9)
-MAT_KEYS = ("stone", "roof", "wood", "window_dark", "window_lit", "cloth", "roof_alt", "iron", "fire")
+STONE, ROOF, WOOD, WIN_DARK, WIN_LIT, CLOTH, ROOF_ALT, IRON, FIRE, HAY = range(10)
+MAT_KEYS = ("stone", "roof", "wood", "window_dark", "window_lit", "cloth", "roof_alt", "iron", "fire", "hay")
+WIND = Vector((0.6, 0.8))
 
 TORCH = (1.0, 0.55, 0.22)
 CANDLE = (1.0, 0.62, 0.3)
@@ -384,6 +385,108 @@ class Builder:
         self.light((c[0], c[1], z + 0.45), CANDLE, 260.0, 0.6, "chandelier")
 
 
+    # ------------------------------------------------------------- props
+    def door_leaf(self, hinge, direction, width, height, z0, thick=0.09):
+        """Open door leaf standing at a jamb (hinge) and swung along a 2D
+        direction, with iron straps."""
+        d = Vector((direction[0], direction[1])).normalized()
+        zc = z0 + height / 2
+        p0 = Vector((hinge[0], hinge[1], zc))
+        p1 = p0 + Vector((d.x, d.y, 0)) * width
+        self.beam(p0, p1, thick, height, WOOD)
+        for zz in (z0 + 0.4, z0 + height - 0.5):
+            self.beam(Vector((p0.x, p0.y, zz)), Vector((p1.x, p1.y, zz)), thick + 0.03, 0.08, IRON)
+
+    def pennant(self, top, length=3.2, height=1.2):
+        x, y, z = top
+        self.face([Vector((x, y, z)), Vector((x, y, z - height)),
+                   Vector((x + WIND.x * length, y + WIND.y * length, z - height * 0.6))], CLOTH,
+                  [(0, 0), (0, 1), (1, 0.5)])
+        self.face([Vector((x, y, z - height)), Vector((x, y, z)),
+                   Vector((x + WIND.x * length, y + WIND.y * length, z - height * 0.6))], CLOTH,
+                  [(0, 1), (0, 0), (1, 0.5)])
+
+    def wheel(self, c, axis, r=0.55, spokes=8):
+        """Cart wheel in the vertical plane perpendicular to the 2D axle."""
+        ax = Vector((axis[0], axis[1], 0)).normalized()
+        u = Vector((-ax.y, ax.x, 0))
+        w = Vector((0, 0, 1))
+        cc = Vector(c)
+        rim = [cc + (u * math.cos(a) + w * math.sin(a)) * r for a in np.linspace(0, 2 * math.pi, 13)]
+        for a_, b_ in zip(rim[:-1], rim[1:]):
+            self.beam(a_, b_, 0.08, 0.07, WOOD)
+        for k in range(spokes):
+            a = 2 * math.pi * k / spokes
+            self.beam(cc, cc + (u * math.cos(a) + w * math.sin(a)) * (r - 0.03), 0.05, 0.05, WOOD)
+        self.beam(cc - ax * 0.12, cc + ax * 0.12, 0.16, 0.16, IRON)
+
+    def cart(self, F, z, hay=True):
+        self.box(F, -1.5, 1.5, -0.8, 0.8, z + 0.55, z + 0.7, WOOD)                     # bed
+        for s in (-1, 1):
+            self.box(F, -1.5, 1.5, s * 0.8 - 0.05, s * 0.8 + 0.05, z + 0.7, z + 1.1, WOOD)  # sides
+            self.wheel(F.P(0.2, s * 0.92, z + 0.55), F.vec(0, 1), 0.55)
+        self.beam(F.P(1.5, -0.3, z + 0.6), F.P(3.4, -0.1, z + 0.15), 0.08, 0.08)          # shafts
+        self.beam(F.P(1.5, 0.3, z + 0.6), F.P(3.4, 0.1, z + 0.15), 0.08, 0.08)
+        if hay:
+            self.box(F, -1.4, 1.3, -0.72, 0.72, z + 0.7, z + 1.5, HAY)
+
+    def hay_bale(self, F, x, y, z):
+        self.box(F, x, x + 1.1, y, y + 0.55, z, z + 0.45, HAY)
+
+    def stall(self, F, z, canopy=CLOTH):
+        """Market stall: posts, counter with goods, sloped cloth canopy."""
+        for x in (-1.6, 1.6):
+            for y in (-1.0, 1.0):
+                h = 2.6 if y > 0 else 2.2
+                self.box(F, x - 0.06, x + 0.06, y - 0.06, y + 0.06, z, z + h, WOOD)
+        self.box(F, -1.6, 1.6, -1.0, -0.4, z + 0.85, z + 0.95, WOOD)                     # counter
+        self.box(F, -1.6, 1.6, -0.95, -0.45, z, z + 0.85, WOOD)
+        pts = [F.P(-1.8, -1.3, z + 2.15), F.P(1.8, -1.3, z + 2.15), F.P(1.8, 1.15, z + 2.65), F.P(-1.8, 1.15, z + 2.65)]
+        self.face(pts, canopy, [(0, 0)] * 4)
+        self.face(pts[::-1], canopy, [(0, 0)] * 4)
+        for i, x in enumerate(np.linspace(-1.2, 1.2, 4)):                                # baskets of goods
+            c = F.P(x, -0.7, 0)
+            self.frustum((c.x, c.y), 0.16, 0.22, z + 0.95, z + 1.15, 8, WOOD, cap=False)
+            self.frustum((c.x, c.y), 0.2, 0.12, z + 1.1, z + 1.25, 8, (HAY, ROOF_ALT, CLOTH, HAY)[i], cap=True)
+        self.crate(F, 0.6, 0.2, z, 0.7)
+        self.barrel(F.P(-1.0, 0.4, 0), z, 0.3, 0.8)
+
+    def dummy(self, F, x, y, z):
+        self.box(F, x - 0.07, x + 0.07, y - 0.07, y + 0.07, z, z + 1.9, WOOD)
+        self.box(F, x - 0.6, x + 0.6, y - 0.05, y + 0.05, z + 1.4, z + 1.5, WOOD)
+        c = F.P(x, y, 0)
+        self.frustum((c.x, c.y), 0.22, 0.28, z + 0.9, z + 1.6, 10, HAY, cap=True)
+        self.frustum((c.x, c.y), 0.15, 0.12, z + 1.6, z + 1.95, 8, CLOTH, cap=True)
+
+    def logs(self, F, x, y, z, length=1.8, rows=3):
+        for r in range(rows):
+            for k in range(rows - r + 2):
+                yy = y + (k + r * 0.5) * 0.24
+                zz = z + 0.12 + r * 0.21
+                self.beam(F.P(x, yy, zz), F.P(x + length, yy, zz), 0.22, 0.22, WOOD)
+
+    def smithy(self, F, z):
+        """Open-sided forge shed with a lit hearth, anvil and trough."""
+        for x in (-2.5, 2.5):
+            for y in (-1.8, 1.8):
+                self.box(F, x - 0.1, x + 0.1, y - 0.1, y + 0.1, z, z + (3.4 if y > 0 else 2.6), WOOD)
+        pts = [F.P(-2.9, -2.2, z + 2.5), F.P(2.9, -2.2, z + 2.5), F.P(2.9, 2.2, z + 3.5), F.P(-2.9, 2.2, z + 3.5)]
+        self.face(pts, ROOF, [(p.x, p.y) for p in pts])
+        self.face(pts[::-1], WOOD, [(p.x, p.y) for p in pts[::-1]])
+        self.box(F, 0.6, 2.3, 0.6, 1.8, z, z + 0.9)                                       # forge
+        self.box(F, 1.0, 2.0, 1.2, 1.8, z + 0.9, z + 3.6)                                 # flue
+        for k in range(4):
+            c = F.P(1.1 + 0.3 * k, 0.9, 0)
+            self.frustum((c.x, c.y), 0.12, 0.0, z + 0.9, z + 1.25, 6, FIRE)
+        self.light(F.P(1.45, 0.6, z + 1.4), (1.0, 0.45, 0.12), 260.0, 0.3, "forge")
+        self.box(F, -0.6, -0.2, -0.3, 0.3, z, z + 0.6, WOOD)                               # anvil stump
+        self.box(F, -0.75, -0.05, -0.15, 0.15, z + 0.6, z + 0.85, IRON)                    # anvil
+        self.box(F, -2.3, -1.0, 0.8, 1.5, z, z + 0.6, WOOD)                                # trough
+        self.box(F, -2.2, -1.1, 0.9, 1.4, z + 0.45, z + 0.58, WIN_DARK)                    # water
+        for k in range(5):                                                                 # tool rack
+            self.box(F, -2.4 + k * 0.3, -2.35 + k * 0.3, 1.75, 1.8, z + 1.0, z + 2.1, IRON)
+
+
 # ---------------------------------------------------------------------------
 def build(cfg, terrain, mats, coll):
     """Returns (object, info). info carries light positions, the player
@@ -508,7 +611,9 @@ def build(cfg, terrain, mats, coll):
             B.frustum(p, r_out + 0.45, r_out + 0.45, z_room_top, z_room_top + 0.9, 28, cap=True)  # corbel ring
             B.disc_slab(p, r_out + 0.4, z_room_top + 0.01, 0.4, mat=WOOD)                       # ceiling
             B.frustum(p, r_out + 0.2, r_out + 0.2, z_room_top + 0.9, z_room_top + 2.4, 28)
-            B.cone(p, r_out + 0.4, z_room_top + 2.4, (r_out + 0.4) * rng.uniform(2.0, 2.5), 28)
+            cone_h = (r_out + 0.4) * rng.uniform(2.0, 2.5)
+            B.cone(p, r_out + 0.4, z_room_top + 2.4, cone_h, 28)
+            B.pennant((p.x, p.y, z_room_top + 2.4 + cone_h + 1.7), 2.6, 1.0)
             B.light((p.x, p.y, T_top + 2.6), CANDLE, 120.0, 0.3, "tower")
         else:
             seg = max(10, int(2 * math.pi * r_out / 1.8))
@@ -520,6 +625,9 @@ def build(cfg, terrain, mats, coll):
         for k, a in enumerate(outs):                                                   # slits
             B.decal((p.x + r_out * math.cos(a), p.y + r_out * math.sin(a), floor0 + 2.0),
                     (math.cos(a), math.sin(a)), 0.3, 1.6, WIN_DARK, arch=False)
+        jamb = a_in + 0.9 / r_out
+        B.door_leaf((p.x + r_in * math.cos(jamb), p.y + r_in * math.sin(jamb)),
+                    (-math.cos(jamb), -math.sin(jamb)), 1.5, 2.9, floor0)
         Ft = Frame(p.x, p.y, a_in + math.pi / 2)  # local +y toward courtyard
         B.barrel((p.x + 1.6 * math.cos(a_in + 2.2), p.y + 1.6 * math.sin(a_in + 2.2)), floor0)
         B.barrel((p.x + 2.4 * math.cos(a_in + 2.6), p.y + 2.4 * math.sin(a_in + 2.6)), floor0)
@@ -555,6 +663,8 @@ def build(cfg, terrain, mats, coll):
             a = math.atan2(G.vec(0, 1).y, G.vec(0, 1).x) + s * (0.4 + 0.5 * k)
             B.decal((tc.x + 4.6 * math.cos(a), tc.y + 4.6 * math.sin(a), top + 5 + 4 * k),
                     (math.cos(a), math.sin(a)), 0.3, 1.6, WIN_DARK, arch=False)
+    for x in (-3.5, 3.5):                                                              # banners on the outer face
+        B.banner(G.sub(0, GD / 2, 0), x, 0, T_ww - 0.6, 1.3, 5.5, facing_y=1)
     for x in np.arange(-pw / 2 + 0.25, pw / 2, 0.45):                                  # raised portcullis
         B.box(G, x - 0.05, x + 0.05, GD / 2 - 2.6, GD / 2 - 2.5, floor0 + 5.0, floor0 + ph, IRON)
     for z in (floor0 + 5.3, floor0 + 6.2):
@@ -653,6 +763,11 @@ def build(cfg, terrain, mats, coll):
     for k, side in enumerate(("E", "S", "W", "N")):
         for x in (-3.5, 3.5):
             B.torch(inner[side], x, 0, fl[k] + 2.6, facing_y=1)
+    for sx in (-1, 1):                                                                  # door leaves
+        hinge = K.P(sx * 1.4, -S / 2 + kt, 0)
+        B.door_leaf((hinge.x, hinge.y), K.vec(sx * 0.25, 1.0), 1.4, 3.7, fl[0])
+    for x in (-4.6, 4.6):                                                               # heraldic banners
+        B.banner(K.sub(0, -S / 2, math.pi), -x, 0, fl[2] + 4.0, 2.2, 8.5, facing_y=1)
     B.torch(K, -2.2, -S / 2, fl[0] + 2.8, facing_y=-1)                                  # outside the door
     B.torch(K, 2.2, -S / 2, fl[0] + 2.8, facing_y=-1)
     # roof deck: pavilion + bartizans
@@ -749,6 +864,9 @@ def build(cfg, terrain, mats, coll):
     for u in (-10.0, 10.0):
         if abs(u) < L / 2 - 2:
             B.torch(H, u, D / 2 - t, floor0 + 2.8, facing_y=-1)
+    for sx in (-1, 1):
+        hinge = H.P(sx * 1.4, D / 2 - t, 0)
+        B.door_leaf((hinge.x, hinge.y), H.vec(sx * 0.25, -1.0), 1.4, 3.9, floor0)
     B.torch(H, -2.2, D / 2, floor0 + 3.0, facing_y=1)
     B.torch(H, 2.2, D / 2, floor0 + 3.0, facing_y=1)
     info["hall_camera"] = {"pos": tuple(H.P(di + 1.0, 0.0, floor0 + 0.6 + 1.65)),
@@ -773,6 +891,8 @@ def build(cfg, terrain, mats, coll):
         B.box(Hf, 2.3, 4.3, -3.15, -1.65, floor0 + 0.5, floor0 + 0.65, CLOTH)
         B.barrel(Hf.P(-4.2, -2.8, 0), floor0)
         B.light(Hf.P(0, 0, floor0 + 3.0), TORCH, 80.0, 0.2, "house")
+        hinge = Hf.P(-2.8, Dh / 2 - 0.8, 0)
+        B.door_leaf((hinge.x, hinge.y), Hf.vec(-0.3, -1.0), 1.5, 2.5, floor0)
 
     # courtyard paving: flagstones at the building-floor level so every
     # threshold lines up (polygon inset from the curtain wall's inner face)
@@ -796,6 +916,24 @@ def build(cfg, terrain, mats, coll):
     B.beam(Wf.P(-1.4, 0, floor0 + 2.2), Wf.P(1.4, 0, floor0 + 2.2), 0.12, 0.12)
     for i in range(4):
         B.barrel(Wf.P(5.0 + (i % 2) * 0.9, 3.0 + (i // 2) * 0.9, 0), top)
+
+    # ---------------------------------------------------------- courtyard life
+    left = Vector((-ug.y, ug.x))
+
+    def Pc(fw, lf, yaw_off=0.0):
+        q = center + ug * fw + left * lf
+        return Frame(q.x, q.y, gate_a + yaw_off)
+
+    for k, (fw, lf) in enumerate(((31.0, -12.0), (31.0, -18.5), (24.0, -24.0))):      # market
+        B.stall(Pc(fw, lf, math.pi / 2), floor0, (CLOTH, ROOF_ALT, HAY)[k % 3])
+    B.cart(Pc(40.0, 16.0, 0.4), floor0)                                                 # hay cart by the gate
+    for i in range(4):
+        B.hay_bale(Pc(43.0 + (i % 2) * 1.2, 19.0 + (i // 2) * 0.7), 0, 0, floor0 + (0.45 if i == 3 else 0.0))
+    B.smithy(Pc(-4.0, -30.0, math.pi / 2), floor0)                                      # smithy
+    for i, lf in enumerate((-14.0, -16.5, -19.0)):                                      # training yard
+        B.dummy(Pc(9.0 + (i % 2) * 2.0, lf), 0, 0, floor0)
+    B.logs(Pc(-2.0, 36.0, math.pi / 2), 0, 0, floor0)                                   # firewood by the hall
+    B.logs(Pc(1.0, 36.0, math.pi / 2), 0, 0, floor0)
 
     # ---------------------------------------------------------- player start
     road = site["road"]

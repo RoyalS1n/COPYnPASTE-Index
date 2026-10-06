@@ -38,7 +38,8 @@ Nanite, a physical sky, volumetric clouds and a matching Sequencer shot.
 |---|---|
 | Terrain | 2.4 km heightfield, 2017² samples (about 1.2 m apart): domain-warped ridged multifractal mountains, a meandering valley, thermal erosion, multi-scale gully detail, hummocky micro-relief and a carved river channel |
 | Castle | Original, walkable design about 165 m across. A paved courtyard sits inside curtain walls whose foundations run down the cliff, with wall-walks reached by courtyard stairs. Seven hollow round towers each have a ground room, a wall-walk room and a curved stair to a roofed top room or an open battlemented platform. The gatehouse has a walk-through passage, raised portcullis and open gates. There is a four-storey keep, a 64 m spire, a great hall, houses and a well. Real-scale UVs drive ashlar-stone, slate, clay-tile and timber-plank shaders |
-| Interiors | Keep: stores, then a pillared throne hall with dais and banners, then bedchambers, then an armoury, connected by stair flights through stairwells up to a roof deck with a pavilion and turrets. Great hall: timber trusses, long tables, a high table on a dais, a fireplace with chimney, banners and chandeliers. 48 torch, chandelier and fire lights, exported to Unreal as point lights |
+| Interiors | Keep: stores, then a pillared throne hall with dais and banners, then bedchambers, then an armoury, connected by stair flights through stairwells up to a roof deck with a pavilion and turrets. Great hall: timber trusses, long tables, a high table on a dais, a fireplace with chimney, banners and chandeliers. Open, iron-strapped door leaves in the doorways |
+| Courtyard and dressing | Market stalls with goods, a hay cart and bales, a smithy with a lit forge, anvil and trough, training dummies and firewood stacks. Pennants fly on the tower cones and heraldic banners hang on the keep and gatehouse. 49 torch, chandelier, fire and forge lights, exported to Unreal as point lights |
 | Crag | The castle's hill is raised and carved after erosion so its cliffs stay sharp. A dedicated polar-grid cliff mesh, at about 0.5 m resolution, wraps it with vertical jointing, ledges and overhangs that a heightfield cannot hold. A switchback road is cut into the hillside from the gate down to the valley |
 | Distant ranges | 16 km low-resolution skirt of snow-capped ranges for layered depth; it continues the main terrain's edge seamlessly |
 | Biomes | Slope, height and noise masks for grass, dry grass, rock, snow and wet ground. They drive the shader, the scatter and the Unreal weightmaps |
@@ -113,6 +114,12 @@ instances from the preset palette. It then creates
   rock variant.
 - **Camera.** A `RW_Camera` cine camera and an `LS_Flythrough` sequence that
   replays the Blender camera move. Render it with Movie Render Queue.
+- **Materials.** Unreal materials are procedural, using the same patterns as Blender rather than flat colours:
+  - Castle stone, slate and clay tiles, and timber planks share a coursed-block shader built from Custom HLSL nodes. It gives each block its own tone, recessed bevelled mortar, weathering noise and grime at the foot of walls.
+  - The terrain gets rock strata and macro variation.
+  - The river has animated ripples.
+  - Foliage sways in the wind, with grass, ferns, bushes and trees tuned separately.
+- **Performance.** Grass, pebbles, ferns and bushes fade out with distance, and grass and pebbles cast no shadows.
 - **Playability.**
   - Terrain, cliff and castle use their own triangles as collision, so every stair, floor and wall-walk is walkable.
   - Trees collide only at the trunk and rocks with a convex hull, through exported `UCX_` proxies.

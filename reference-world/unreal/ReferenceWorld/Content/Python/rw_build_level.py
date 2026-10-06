@@ -145,34 +145,134 @@ def _lerp(mat, a, b, alpha, x, y, a_out="", b_out="", alpha_out=""):
     return e
 
 
+# --------------------------------------------------------------------------
+# procedural HLSL (Custom nodes), so the castle and foliage in Unreal match
+# the Blender look without baked textures
+
+COURSES_HLSL = """
+float2 sz = max(Size, float2(0.01, 0.01));
+float2 p = UV / sz;
+float row = floor(p.y);
+p.x += frac(row * Offset);
+float2 cell = floor(p);
+float2 f = frac(p);
+float2 d = min(f, 1.0 - f) * sz;
+float e = min(d.x, d.y);
+float mortar = 1.0 - smoothstep(Mortar * 0.5, Mortar * 0.5 + 0.012, e);
+float rnd = frac(sin(dot(cell, float2(12.9898, 78.233))) * 43758.5453);
+return float3(rnd, mortar, e);
+"""
+
+COURSES_NORMAL_HLSL = """
+struct RWCourses {
+    float h(float2 uv, float2 sz, float m, float o) {
+        float2 p = uv / sz;
+        float row = floor(p.y);
+        p.x += frac(row * o);
+        float2 f = frac(p);
+        float2 d = min(f, 1.0 - f) * sz;
+        return smoothstep(m * 0.5, m * 0.5 + 0.04, min(d.x, d.y));
+    }
+};
+RWCourses c;
+float2 sz = max(Size, float2(0.01, 0.01));
+float s = 0.006;
+float h0 = c.h(UV, sz, Mortar, Offset);
+float hx = c.h(UV + float2(s, 0), sz, Mortar, Offset);
+float hy = c.h(UV + float2(0, s), sz, Mortar, Offset);
+return normalize(float3((h0 - hx) / s * Strength, (h0 - hy) / s * Strength, 1.0));
+"""
+
+WIND_HLSL = """
+float h = saturate(LocalPos.z / max(Height, 1.0));
+float ph = Phase * 6.2831 + dot(WorldPos.xy, float2(0.0013, 0.0017));
+float s = sin(T * Speed + ph) * 0.7 + sin(T * Speed * 2.31 + ph * 1.7) * 0.3;
+return float3(0.8, 0.6, 0.0) * (s * Strength * h * h);
+"""
+
+WATER_NORMAL_HLSL = """
+float2 p = WorldPos.xy * 0.01;
+float2 g = float2(0, 0);
+g += float2(0.8, 0.6) * cos(dot(p, float2(0.8, 0.6)) * 1.9 + T * 1.3) * 0.06;
+g += float2(-0.4, 0.9) * cos(dot(p, float2(-0.4, 0.9)) * 3.7 + T * 2.1) * 0.035;
+g += float2(0.9, -0.3) * cos(dot(p, float2(0.9, -0.3)) * 7.3 + T * 3.0) * 0.02;
+g += float2(0.2, 1.0) * cos(dot(p, float2(0.2, 1.0)) * 13.0 + T * 4.2) * 0.012;
+return normalize(float3(-g.x, -g.y, 1.0));
+"""
+
+
+def _custom(mat, code, inputs, x, y, out=unreal.CustomMaterialOutputType.CMOT_FLOAT3, desc="RW"):
+    e = _expr(mat, unreal.MaterialExpressionCustom, x, y)
+    e.set_editor_property("code", code)
+    e.set_editor_property("output_type", out)
+    e.set_editor_property("description", desc)
+    pins = []
+    for name in inputs:
+        ci = unreal.CustomInput()
+        ci.set_editor_property("input_name", name)
+        pins.append(ci)
+    e.set_editor_property("inputs", pins)
+    return e
+
+
+def _mask(mat, src, x, y, r=False, g=False, b=False, a=False, src_out=""):
+    e = _expr(mat, unreal.MaterialExpressionComponentMask, x, y, r=r, g=g, b=b, a=a)
+    mel.connect_material_expressions(src, src_out, e, "")
+    return e
+
+
+def _op(mat, cls, a, b, x, y, a_out="", b_out=""):
+    e = _expr(mat, cls, x, y)
+    mel.connect_material_expressions(a, a_out, e, "A")
+    if isinstance(b, (int, float)):
+        e.set_editor_property("const_b", float(b))
+    else:
+        mel.connect_material_expressions(b, b_out, e, "B")
+    return e
+
+
 def master_terrain(pal):
-    """Vertex colour masks from Blender: R grass, G rock, B snow, A wet."""
+    """Vertex colour masks from Blender: R grass, G rock, B snow, A bare
+    (wet banks, road, courtyard). Adds macro variation and rock strata."""
     m = _new_material("M_RW_Terrain")
-    vc = _expr(m, unreal.MaterialExpressionVertexColor, -1200, 0)
-    grass = _vparam(m, "Grass", pal["grass"], -1200, -400)
-    dry = _vparam(m, "GrassDry", pal["grass_dry"], -1200, -250)
-    rock = _vparam(m, "Rock", pal["rock"], -1200, 250)
-    snow = _vparam(m, "Snow", pal["snow"], -1200, 400)
-    wet = _vparam(m, "Wet", [c * 0.45 for c in pal["soil"]], -1200, 550)
-    # large-scale variation: world-space noise
-    noise = _expr(m, unreal.MaterialExpressionNoise, -1000, -150, scale=0.0004, levels=4,
+    vc = _expr(m, unreal.MaterialExpressionVertexColor, -1400, 0)
+    grass = _vparam(m, "Grass", pal["grass"], -1400, -400)
+    dry = _vparam(m, "GrassDry", pal["grass_dry"], -1400, -250)
+    rock = _vparam(m, "Rock", pal["rock"], -1400, 250)
+    snow = _vparam(m, "Snow", pal["snow"], -1400, 400)
+    wet = _vparam(m, "Wet", [c * 0.45 for c in pal["soil"]], -1400, 550)
+    noise = _expr(m, unreal.MaterialExpressionNoise, -1200, -150, scale=0.0004, levels=4,
                   output_min=0.0, output_max=1.0)
-    g = _lerp(m, grass, dry, noise, -800, -300)
-    b = _lerp(m, g, rock, vc, -600, -100, alpha_out="G")
-    b = _lerp(m, b, snow, vc, -400, 0, alpha_out="B")
-    b = _lerp(m, b, wet, vc, -200, 100, alpha_out="A")
+    g = _lerp(m, grass, dry, noise, -1000, -300)
+    # rock strata: sine bands on world height, broken up by noise
+    wp = _expr(m, unreal.MaterialExpressionWorldPosition, -1400, 700)
+    z = _mask(m, wp, -1250, 700, b=True)
+    zn = _op(m, unreal.MaterialExpressionMultiply, z, 0.0035, -1100, 700)
+    bn = _expr(m, unreal.MaterialExpressionNoise, -1250, 850, scale=0.002, levels=3, output_min=0.0, output_max=3.0)
+    za = _op(m, unreal.MaterialExpressionAdd, zn, bn, -950, 750)
+    band = _expr(m, unreal.MaterialExpressionSine, -800, 750)
+    mel.connect_material_expressions(za, "", band, "")
+    band_s = _op(m, unreal.MaterialExpressionMultiply, band, 0.15, -650, 750)
+    band_o = _op(m, unreal.MaterialExpressionAdd, band_s, 0.9, -500, 750)
+    rock_b = _op(m, unreal.MaterialExpressionMultiply, rock, band_o, -400, 600)
+    b = _lerp(m, g, rock_b, vc, -800, -100, alpha_out="G")
+    b = _lerp(m, b, snow, vc, -600, 0, alpha_out="B")
+    b = _lerp(m, b, wet, vc, -400, 100, alpha_out="A")
+    macro = _expr(m, unreal.MaterialExpressionNoise, -400, 300, scale=0.00015, levels=3,
+                  output_min=0.82, output_max=1.12)
+    b = _op(m, unreal.MaterialExpressionMultiply, b, macro, -200, 100)
     mel.connect_material_property(b, "", unreal.MaterialProperty.MP_BASE_COLOR)
-    r_dry = _sparam(m, "Roughness", 0.9, -400, 300)
-    r_wet = _sparam(m, "WetRoughness", 0.6, -400, 400)
-    r = _lerp(m, r_dry, r_wet, vc, -200, 350, alpha_out="A")
+    r_dry = _sparam(m, "Roughness", 0.9, -400, 450)
+    r_wet = _sparam(m, "WetRoughness", 0.7, -400, 550)
+    r = _lerp(m, r_dry, r_wet, vc, -200, 500, alpha_out="A")
     mel.connect_material_property(r, "", unreal.MaterialProperty.MP_ROUGHNESS)
     mel.recompile_material(m)
     return m
 
 
 def master_foliage():
-    """Two-sided foliage with per-instance colour variation, the UE
-    counterpart of the Blender foliage shader."""
+    """Two-sided foliage: per-instance colour variation, plus wind (world
+    position offset) that grows with height above the mesh pivot."""
     m = _new_material("M_RW_Foliage")
     m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_TWO_SIDED_FOLIAGE)
     m.set_editor_property("two_sided", True)
@@ -190,6 +290,75 @@ def master_foliage():
     sss.set_editor_property("const_b", 0.6)
     mel.connect_material_property(sss, "", unreal.MaterialProperty.MP_SUBSURFACE_COLOR)
     mel.connect_material_property(_sparam(m, "Roughness", 0.6, -200, 350), "", unreal.MaterialProperty.MP_ROUGHNESS)
+    wind = _custom(m, WIND_HLSL, ["LocalPos", "WorldPos", "T", "Phase", "Strength", "Height", "Speed"], -300, 600,
+                   desc="RW wind")
+    mel.connect_material_expressions(_expr(m, unreal.MaterialExpressionPreSkinnedPosition, -700, 500), "", wind, "LocalPos")
+    mel.connect_material_expressions(_expr(m, unreal.MaterialExpressionWorldPosition, -700, 600), "", wind, "WorldPos")
+    mel.connect_material_expressions(_expr(m, unreal.MaterialExpressionTime, -700, 700), "", wind, "T")
+    mel.connect_material_expressions(rnd, "", wind, "Phase")
+    mel.connect_material_expressions(_sparam(m, "WindStrength", 8.0, -700, 800), "", wind, "Strength")
+    mel.connect_material_expressions(_sparam(m, "WindHeight", 1500.0, -700, 900), "", wind, "Height")
+    mel.connect_material_expressions(_sparam(m, "WindSpeed", 1.6, -700, 1000), "", wind, "Speed")
+    mel.connect_material_property(wind, "", unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET)
+    mel.recompile_material(m)
+    return m
+
+
+def master_courses():
+    """Coursed masonry / roof tiles / planks on the castle's metre-scale
+    UVs: per-block colour, recessed mortar with bevelled edges, weathering
+    noise, and grime at the foot of walls (UV v = height above courtyard)."""
+    m = _new_material("M_RW_Courses")
+    tc = _expr(m, unreal.MaterialExpressionTextureCoordinate, -1600, 0, coordinate_index=0)
+    size = _expr(m, unreal.MaterialExpressionAppendVector, -1400, 150)
+    mel.connect_material_expressions(_sparam(m, "BlockWidth", 0.95, -1600, 120), "", size, "A")
+    mel.connect_material_expressions(_sparam(m, "BlockHeight", 0.44, -1600, 220), "", size, "B")
+    mortar_w = _sparam(m, "MortarWidth", 0.014, -1600, 320)
+    offset = _sparam(m, "RowOffset", 0.5, -1600, 420)
+    courses = _custom(m, COURSES_HLSL, ["UV", "Size", "Mortar", "Offset"], -1200, 0, desc="RW courses")
+    nrm = _custom(m, COURSES_NORMAL_HLSL, ["UV", "Size", "Mortar", "Offset", "Strength"], -1200, 400,
+                  desc="RW courses normal")
+    for node in (courses, nrm):
+        mel.connect_material_expressions(tc, "", node, "UV")
+        mel.connect_material_expressions(size, "", node, "Size")
+        mel.connect_material_expressions(mortar_w, "", node, "Mortar")
+        mel.connect_material_expressions(offset, "", node, "Offset")
+    mel.connect_material_expressions(_sparam(m, "NormalStrength", 0.03, -1600, 520), "", nrm, "Strength")
+    rnd = _mask(m, courses, -1000, -100, r=True)
+    mortar = _mask(m, courses, -1000, 50, g=True)
+    base = _lerp(m, _vparam(m, "ColorB", [0.15, 0.13, 0.1], -900, -300),
+                 _vparam(m, "ColorA", [0.25, 0.21, 0.17], -900, -200), rnd, -750, -200)
+    weather = _expr(m, unreal.MaterialExpressionNoise, -900, -50, scale=0.003, levels=4, output_min=0.7, output_max=1.1)
+    base = _op(m, unreal.MaterialExpressionMultiply, base, weather, -600, -150)
+    base = _lerp(m, base, _vparam(m, "MortarColor", [0.12, 0.1, 0.08], -750, 50), mortar, -450, -100)
+    v = _mask(m, tc, -1000, 250, g=True)
+    foot = _expr(m, unreal.MaterialExpressionOneMinus, -700, 250)
+    mel.connect_material_expressions(_op(m, unreal.MaterialExpressionDivide, v, 3.5, -850, 300), "", foot, "")
+    foot_s = _expr(m, unreal.MaterialExpressionSaturate, -560, 250)
+    mel.connect_material_expressions(foot, "", foot_s, "")
+    grime = _op(m, unreal.MaterialExpressionMultiply, foot_s, _sparam(m, "Grime", 0.5, -700, 350), -420, 250)
+    base = _lerp(m, base, _vparam(m, "GrimeColor", [0.05, 0.06, 0.03], -450, 150), grime, -250, 0)
+    mel.connect_material_property(base, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    rough = _lerp(m, _sparam(m, "Roughness", 0.85, -450, 400), _expr(m, unreal.MaterialExpressionConstant, -450, 480, r=0.95),
+                  mortar, -250, 400)
+    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.connect_material_property(_sparam(m, "Specular", 0.35, -250, 550), "", unreal.MaterialProperty.MP_SPECULAR)
+    mel.connect_material_property(nrm, "", unreal.MaterialProperty.MP_NORMAL)
+    mel.recompile_material(m)
+    return m
+
+
+def master_water():
+    """Opaque river surface with animated ripple normals; Lumen supplies
+    the reflections."""
+    m = _new_material("M_RW_Water")
+    mel.connect_material_property(_vparam(m, "Color", [0.02, 0.05, 0.05], -600, 0), "", unreal.MaterialProperty.MP_BASE_COLOR)
+    mel.connect_material_property(_sparam(m, "Roughness", 0.04, -600, 150), "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.connect_material_property(_sparam(m, "Specular", 0.5, -600, 250), "", unreal.MaterialProperty.MP_SPECULAR)
+    n = _custom(m, WATER_NORMAL_HLSL, ["WorldPos", "T"], -300, 400, desc="RW ripples")
+    mel.connect_material_expressions(_expr(m, unreal.MaterialExpressionWorldPosition, -600, 400), "", n, "WorldPos")
+    mel.connect_material_expressions(_expr(m, unreal.MaterialExpressionTime, -600, 500), "", n, "T")
+    mel.connect_material_property(n, "", unreal.MaterialProperty.MP_NORMAL)
     mel.recompile_material(m)
     return m
 
@@ -227,28 +396,48 @@ def build_materials(pal):
     terrain = master_terrain(pal)
     fol = master_foliage()
     lit = master_lit()
+    crs = master_courses()
+    water = master_water()
     mats = {
         "RW_Terrain": terrain,
-        "RW_Needles": instance(fol, "MI_RW_Needles", {"ColorA": pal["needles"], "ColorB": [c * 1.5 for c in pal["needles"]]}, {"Variation": 0.6}),
-        "RW_Leaves": instance(fol, "MI_RW_Leaves", {"ColorA": pal["leaves"], "ColorB": pal["leaves_alt"]}, {"Variation": 0.45}),
-        "RW_Bush": instance(fol, "MI_RW_Bush", {"ColorA": [c * 0.85 for c in pal["leaves"]], "ColorB": pal["needles"]}, {"Variation": 0.7}),
-        "RW_Grass": instance(fol, "MI_RW_Grass", {"ColorA": pal["grass"], "ColorB": pal["grass_dry"]}, {"Variation": 0.8, "Roughness": 0.55}),
+        "RW_Needles": instance(fol, "MI_RW_Needles", {"ColorA": pal["needles"], "ColorB": [c * 1.5 for c in pal["needles"]]}, {"Variation": 0.6, "WindStrength": 10.0, "WindHeight": 1800.0}),
+        "RW_Leaves": instance(fol, "MI_RW_Leaves", {"ColorA": pal["leaves"], "ColorB": pal["leaves_alt"]}, {"Variation": 0.45, "WindStrength": 16.0, "WindHeight": 1400.0}),
+        "RW_Bush": instance(fol, "MI_RW_Bush", {"ColorA": [c * 0.85 for c in pal["leaves"]], "ColorB": pal["needles"]}, {"Variation": 0.7, "WindStrength": 4.0, "WindHeight": 250.0}),
+        "RW_Grass": instance(fol, "MI_RW_Grass", {"ColorA": pal["grass"], "ColorB": pal["grass_dry"]}, {"Variation": 0.8, "Roughness": 0.55, "WindStrength": 6.0, "WindHeight": 60.0, "WindSpeed": 2.2}),
         "RW_Flowers": instance(lit, "MI_RW_Flowers", {"Color": pal["flowers"][0]}, {"Roughness": 0.5}),
         "RW_Bark": instance(lit, "MI_RW_Bark", {"Color": pal["bark"]}, {"Roughness": 0.9, "Specular": 0.3}),
         "RW_Rock": instance(lit, "MI_RW_Rock", {"Color": pal["rock"]}, {"Roughness": 0.82, "Specular": 0.35}),
-        "RW_Water": instance(lit, "MI_RW_Water", {"Color": pal["water"]}, {"Roughness": 0.03, "Specular": 0.5}),
-        "RW_Fern": instance(fol, "MI_RW_Fern", {"ColorA": [c * 1.1 for c in pal["leaves"]], "ColorB": pal["needles"]}, {"Variation": 0.5}),
+        "RW_Water": instance(water, "MI_RW_Water", {"Color": pal["water"]}, {"Roughness": 0.04, "Specular": 0.5}),
+        "RW_Fern": instance(fol, "MI_RW_Fern", {"ColorA": [c * 1.1 for c in pal["leaves"]], "ColorB": pal["needles"]}, {"Variation": 0.5, "WindStrength": 5.0, "WindHeight": 90.0}),
     }
     if "stone" in pal:  # castle
         mats.update({
-            "RW_Stone": instance(lit, "MI_RW_Stone", {"Color": pal["stone"]}, {"Roughness": 0.86, "Specular": 0.3}),
-            "RW_Roof": instance(lit, "MI_RW_Roof", {"Color": pal["roof"]}, {"Roughness": 0.5, "Specular": 0.5}),
-            "RW_RoofAlt": instance(lit, "MI_RW_RoofAlt", {"Color": pal["roof_alt"]}, {"Roughness": 0.55, "Specular": 0.5}),
-            "RW_Wood": instance(lit, "MI_RW_Wood", {"Color": pal["wood"]}, {"Roughness": 0.8}),
+            "RW_Stone": instance(crs, "MI_RW_Stone",
+                                 {"ColorA": pal["stone"], "ColorB": [pal["stone"][0] * 0.62, pal["stone"][1] * 0.6, pal["stone"][2] * 0.55],
+                                  "MortarColor": [c * 0.55 for c in pal["stone"]], "GrimeColor": pal["moss"]},
+                                 {"BlockWidth": 0.95, "BlockHeight": 0.44, "MortarWidth": 0.014, "RowOffset": 0.5,
+                                  "Grime": 0.5, "Roughness": 0.86, "Specular": 0.3, "NormalStrength": 0.03}),
+            "RW_Roof": instance(crs, "MI_RW_Roof",
+                                {"ColorA": pal["roof"], "ColorB": [c * 0.7 for c in pal["roof"]],
+                                 "MortarColor": [c * 0.3 for c in pal["roof"]]},
+                                {"BlockWidth": 0.34, "BlockHeight": 0.2, "MortarWidth": 0.012, "RowOffset": 0.5,
+                                 "Grime": 0.0, "Roughness": 0.5, "Specular": 0.5, "NormalStrength": 0.04}),
+            "RW_RoofAlt": instance(crs, "MI_RW_RoofAlt",
+                                   {"ColorA": pal["roof_alt"], "ColorB": [c * 0.7 for c in pal["roof_alt"]],
+                                    "MortarColor": [c * 0.3 for c in pal["roof_alt"]]},
+                                   {"BlockWidth": 0.34, "BlockHeight": 0.2, "MortarWidth": 0.012, "RowOffset": 0.5,
+                                    "Grime": 0.0, "Roughness": 0.55, "Specular": 0.5, "NormalStrength": 0.04}),
+            "RW_Wood": instance(crs, "MI_RW_Wood",
+                                {"ColorA": pal["wood"], "ColorB": [c * 0.7 for c in pal["wood"]],
+                                 "MortarColor": [c * 0.25 for c in pal["wood"]]},
+                                {"BlockWidth": 2.4, "BlockHeight": 0.22, "MortarWidth": 0.008, "RowOffset": 0.37,
+                                 "Grime": 0.0, "Roughness": 0.75, "Specular": 0.3, "NormalStrength": 0.02}),
             "RW_WindowDark": instance(lit, "MI_RW_WindowDark", {"Color": [0.01, 0.01, 0.012]}, {"Roughness": 0.2}),
             "RW_WindowLit": instance(lit, "MI_RW_WindowLit", {"Color": [0.05, 0.03, 0.01], "EmissiveColor": pal["window_glow"]},
                                      {"Roughness": 0.3, "EmissiveStrength": 20.0}),
-            "RW_Cloth": instance(fol, "MI_RW_Cloth", {"ColorA": pal["cloth"], "ColorB": pal["cloth"]}, {"Variation": 0.0}),
+            "RW_Cloth": instance(fol, "MI_RW_Cloth", {"ColorA": pal["cloth"], "ColorB": pal["cloth"]},
+                                 {"Variation": 0.0, "WindStrength": 0.0}),
+            "RW_Hay": instance(lit, "MI_RW_Hay", {"Color": pal.get("hay", [0.42, 0.33, 0.12])}, {"Roughness": 0.9, "Specular": 0.2}),
             "RW_Iron": instance(lit, "MI_RW_Iron", {"Color": pal.get("iron", [0.03, 0.03, 0.032])}, {"Roughness": 0.45, "Specular": 0.6}),
             "RW_Fire": instance(lit, "MI_RW_Fire", {"Color": [0, 0, 0], "EmissiveColor": [1.0, 0.42, 0.1]},
                                 {"EmissiveStrength": 60.0}),
@@ -403,6 +592,10 @@ def place_instances(meshes):
                 total += k
                 if cat in NO_COLLISION_CATEGORIES:
                     hism.set_collision_enabled(unreal.CollisionEnabled.NO_COLLISION)
+                if cat in CULL_DISTANCES:
+                    hism.set_cull_distances(*CULL_DISTANCES[cat])
+                if cat in NO_SHADOW_CATEGORIES:
+                    hism.set_cast_shadow(False)
             except Exception as e:
                 # fallback: individual actors for the big stuff, skip grass
                 unreal.log_warning(f"[ReferenceWorld] HISM failed ({e}); falling back to actors for {mesh_name}")
@@ -488,6 +681,9 @@ def build_camera_and_sequence(man):
 # playability
 COMPLEX_COLLISION = ("SM_Terrain", "SM_TerrainFar", "SM_Castle", "SM_Crag")
 NO_COLLISION_CATEGORIES = ("grass", "ferns", "pebbles", "bushes")
+# (start fade, fully culled) in cm; keeps the frame rate up in the meadow
+CULL_DISTANCES = {"grass": (5000, 8000), "pebbles": (3500, 6000), "ferns": (7000, 11000), "bushes": (15000, 25000)}
+NO_SHADOW_CATEGORIES = ("grass", "pebbles")
 
 
 def setup_collision(meshes):
