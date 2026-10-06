@@ -22,10 +22,14 @@ import math
 import bmesh
 import bpy
 import numpy as np
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
-STONE, ROOF, WOOD, WIN_DARK, WIN_LIT, CLOTH, ROOF_ALT, IRON, FIRE, HAY = range(10)
-MAT_KEYS = ("stone", "roof", "wood", "window_dark", "window_lit", "cloth", "roof_alt", "iron", "fire", "hay")
+
+def Matrix_rot(angle, axis):
+    return Matrix.Rotation(angle, 3, Vector(axis))
+
+STONE, ROOF, WOOD, WIN_DARK, WIN_LIT, CLOTH, ROOF_ALT, IRON, FIRE, HAY, IVY = range(11)
+MAT_KEYS = ("stone", "roof", "wood", "window_dark", "window_lit", "cloth", "roof_alt", "iron", "fire", "hay", "ivy")
 WIND = Vector((0.6, 0.8))
 
 TORCH = (1.0, 0.55, 0.22)
@@ -486,6 +490,61 @@ class Builder:
         for k in range(5):                                                                 # tool rack
             self.box(F, -2.4 + k * 0.3, -2.35 + k * 0.3, 1.75, 1.8, z + 1.0, z + 2.1, IRON)
 
+    def _leaf(self, centre, normal, size, rng):
+        n = Vector(normal).normalized()
+        t = n.orthogonal().normalized()
+        t = Matrix_rot(rng.uniform(0, math.pi), n) @ t
+        b = n.cross(t)
+        c = Vector(centre)
+        vs = [c + t * size * 0.5, c + b * size * 0.35, c - t * size * 0.5, c - b * size * 0.35]
+        self.face(vs, IVY, [(0, 0), (1, 0), (1, 1), (0, 1)])
+
+    def ivy_wall(self, F, x0, width, y_face, z_base, height, rng, count=900):
+        """Ivy patch climbing a planar wall (local +y outward): denser and
+        wider near the ground, thinning into tendrils higher up."""
+        for _ in range(count):
+            u = rng.uniform(0, 1) ** 1.6
+            z = z_base + u * height
+            w = width * (1.0 - 0.75 * u) ** 0.8
+            x = x0 + rng.normal(0, w * 0.35)
+            n = F.vec(rng.normal(0, 0.35), 1.0)
+            p = F.P(x, y_face + rng.uniform(0.03, 0.14), z)
+            self._leaf(p, (n.x, n.y, rng.normal(0.25, 0.2)), rng.uniform(0.1, 0.17), rng)
+
+    def ivy_round(self, c, r, a0, spread, z_base, height, rng, count=700):
+        for _ in range(count):
+            u = rng.uniform(0, 1) ** 1.6
+            a = a0 + rng.normal(0, spread * (1.0 - 0.7 * u) / r)
+            rr = r + rng.uniform(0.03, 0.13)
+            p = (c[0] + rr * math.cos(a), c[1] + rr * math.sin(a), z_base + u * height)
+            self._leaf(p, (math.cos(a), math.sin(a), rng.normal(0.25, 0.2)), rng.uniform(0.1, 0.17), rng)
+
+    def tapestry(self, F, x, y, z_top, w, h, facing_y=1, mat=CLOTH):
+        s = facing_y
+        yy = y + s * 0.07
+        pts = [F.P(x - w / 2, yy, z_top - h), F.P(x + w / 2, yy, z_top - h), F.P(x + w / 2, yy, z_top), F.P(x - w / 2, yy, z_top)]
+        if s < 0:
+            pts = pts[::-1]
+        self.face(pts, mat, [(0, 0), (1, 0), (1, 1), (0, 1)])
+        self.beam(F.P(x - w / 2 - 0.15, yy, z_top + 0.05), F.P(x + w / 2 + 0.15, yy, z_top + 0.05), 0.07, 0.07, WOOD)
+
+    def tableware(self, F, x0, x1, y, z_top, lights=True):
+        """Plates and goblets down both sides of a table, candles in the middle."""
+        for x in np.arange(x0 + 0.4, x1 - 0.3, 0.8):
+            for s in (-1, 1):
+                q = F.P(x, y + s * 0.3, 0)
+                self.frustum((q.x, q.y), 0.13, 0.14, z_top, z_top + 0.02, 10, IRON, cap=True)
+                if int(round(x / 0.8)) % 2 == 0:
+                    g = F.P(x + 0.18, y + s * 0.12, 0)
+                    self.frustum((g.x, g.y), 0.03, 0.045, z_top, z_top + 0.13, 8, IRON, cap=True)
+        for x in np.arange(x0 + 1.5, x1 - 1.0, 4.0):
+            q = F.P(x, y, 0)
+            self.frustum((q.x, q.y), 0.06, 0.06, z_top, z_top + 0.04, 8, IRON, cap=True)
+            self.frustum((q.x, q.y), 0.025, 0.025, z_top + 0.04, z_top + 0.28, 6, HAY, cap=True)
+            self.frustum((q.x, q.y), 0.018, 0.0, z_top + 0.28, z_top + 0.36, 5, FIRE)
+            if lights:
+                self.light((q.x, q.y, z_top + 0.4), CANDLE, 18.0, 0.02, "candle")
+
 
 # ---------------------------------------------------------------------------
 def build(cfg, terrain, mats, coll):
@@ -570,6 +629,12 @@ def build(cfg, terrain, mats, coll):
             B.torch(F, x, wt / 2 - 0.6, T_ww + 0.75, facing_y=-1)
         for x in np.arange(5.0, L - 3.0, 7.0):                                         # arrow slits
             B.decal(F.P(x, wt / 2, T_ww - 4.5), F.vec(0, 1), 0.3, 1.6, WIN_DARK, arch=False)
+        if rng.uniform() < 0.45:                                                        # ivy on the outer face
+            for _ in range(int(rng.integers(1, 3))):
+                xi = rng.uniform(4.0, max(4.5, L - 4.0))
+                zg = ground_min([F.P(xi, wt / 2 + 1.5, 0).x], [F.P(xi, wt / 2 + 1.5, 0).y])
+                B.ivy_wall(F, xi, rng.uniform(3.0, 6.0), wt / 2, max(zg, top - 6.0), rng.uniform(5.0, 10.0), rng,
+                           int(rng.integers(700, 1300)))
         if ei in stair_edges and L * 0.75 > 21.5:
             # flight along the inner face, landing on the wall-walk
             end = B.stair(F, "x", L * 0.25, 1, -wt / 2 - 2.2, -wt / 2, floor0, T_ww, tread=0.36)
@@ -586,6 +651,9 @@ def build(cfg, terrain, mats, coll):
         ys = [p.y + r_out * 1.3 * math.sin(a) for a in np.linspace(0, 2 * math.pi, 12)]
         tz0 = ground_min(xs, ys) - 2.0
         B.frustum(p, r_out * 1.16, r_out, tz0, top, 28, cap=True)                    # solid footing
+        if i % 3 == 1:                                                                # ivy at some tower bases
+            a_out = math.atan2(p.y - cy, p.x - cx) + rng.uniform(-0.6, 0.6)
+            B.ivy_round(p, r_out * 1.08, a_out, 3.0, top - 4.0, rng.uniform(6.0, 11.0), rng, 800)
         a_in = math.atan2(cy - p.y, cx - p.x)                                          # courtyard door
         a_prev = math.atan2(P[i - 1].y - p.y, P[i - 1].x - p.x)
         a_next = math.atan2(P[(i + 1) % n].y - p.y, P[(i + 1) % n].x - p.x)
@@ -772,12 +840,16 @@ def build(cfg, terrain, mats, coll):
         B.banner(K.sub(h, 0, math.pi / 2), y, 0, fl[1] + 6.8, 1.6, 4.2, facing_y=1)
     for x in (-3.5, 3.0):
         B.chandelier(K.P(x, 0, 0), fl[1] + 5.4, 1.2, hang_to=fl[2] - 0.45)
+    for x in (-3.5, 3.5):                                                               # tapestries between windows
+        B.tapestry(K, x, -h, fl[1] + 5.6, 2.6, 4.2, facing_y=1)
+    B.tapestry(K.sub(-h, 0, -math.pi / 2), 3.5, 0, fl[1] + 5.6, 2.6, 4.2, facing_y=1)
     # second floor: chambers
     for x in (-8.0, -4.0):
         B.box(K, x, x + 2.2, -h, -h + 2.6, fl[2], fl[2] + 0.55, WOOD)                   # bed frame
         B.box(K, x + 0.1, x + 2.1, -h + 0.05, -h + 2.5, fl[2] + 0.55, fl[2] + 0.75, CLOTH)
         B.box(K, x, x + 2.2, -h, -h + 0.2, fl[2], fl[2] + 1.6, WOOD)                    # headboard
         B.box(K, x + 0.4, x + 1.8, -h + 2.8, -h + 3.5, fl[2], fl[2] + 0.6, WOOD)        # chest
+    B.box(K, -0.5, 4.5, -4.2, 0.2, fl[2], fl[2] + 0.02, CLOTH)                          # rug
     B.table(K, 0.5, 3.5, -3.0, -1.0, fl[2])
     B.bench(K, 0.5, 3.5, -3.7, -3.3, fl[2])
     B.chandelier(K.P(-1.0, -2.0, 0), fl[2] + 5.4, 1.0, hang_to=fl[3] - 0.45)
@@ -876,6 +948,7 @@ def build(cfg, terrain, mats, coll):
     B.bench(H, di + 0.6, di + 1.1, -3.8, 3.8, floor0 + 0.6)
     for y in (-2.6, 2.6):                                                               # long tables
         B.table(H, di + 7.0, L / 2 - 6.5, y - 0.55, y + 0.55, floor0)
+        B.tableware(H, di + 7.0, L / 2 - 6.5, y, floor0 + 0.8)
         for s in (-1, 1):
             B.bench(H, di + 7.0, L / 2 - 6.5, y + s * 0.95 - 0.2, y + s * 0.95 + 0.2, floor0)
     fx = L / 2 - t                                                                      # fireplace

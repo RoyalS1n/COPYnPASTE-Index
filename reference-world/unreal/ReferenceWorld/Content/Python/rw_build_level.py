@@ -462,6 +462,8 @@ def build_materials(pal):
                                      {"Roughness": 0.3, "EmissiveStrength": 20.0}),
             "RW_Cloth": instance(fol, "MI_RW_Cloth", {"ColorA": pal["cloth"], "ColorB": pal["cloth"]},
                                  {"Variation": 0.0, "WindStrength": 0.0}),
+            "RW_Ivy": instance(fol, "MI_RW_Ivy", {"ColorA": [0.025, 0.06, 0.015], "ColorB": [0.05, 0.09, 0.02]},
+                               {"Variation": 0.6, "WindStrength": 1.5, "WindHeight": 100000.0}),
             "RW_Hay": instance(lit, "MI_RW_Hay", {"Color": pal.get("hay", [0.42, 0.33, 0.12])}, {"Roughness": 0.9, "Specular": 0.2}),
             "RW_Iron": instance(lit, "MI_RW_Iron", {"Color": pal.get("iron", [0.03, 0.03, 0.032])}, {"Roughness": 0.45, "Specular": 0.6}),
             "RW_Fire": instance(lit, "MI_RW_Fire", {"Color": [0, 0, 0], "EmissiveColor": [1.0, 0.42, 0.1]},
