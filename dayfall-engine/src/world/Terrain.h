@@ -27,8 +27,6 @@ public:
     float snowline = 100000.0f;
     float rockSlopeDeg = 40.0f;
     float dryAmount = 0.5f;
-    uint32_t chunkQuads = 64;
-    std::vector<float> lodDistances{90.0f, 200.0f, 450.0f, 1e9f};
 
     // derived by applyPaths(): final heights and path masks
     std::vector<float> height, pathMask, laneMask, laneDist;
@@ -57,6 +55,7 @@ public:
     vec3 normalAt(float x, float y) const;
     float slopeDegAt(float x, float y) const { return glm::degrees(std::acos(glm::clamp(normalAt(x, y).z, -1.0f, 1.0f))); }
     float pathAt(float x, float y) const;
+    bool rutAt(float x, float y) const;     // inside a wheel rut of a lane path
     float paintAt(uint32_t channel, float x, float y) const;
     // automatic + painted layer weights at a world point: rock, snow, wet, dry, path
     vec4 layersAt(float x, float y) const;
@@ -66,8 +65,17 @@ public:
     // params: {"enabled", "radius_m", "height_m", "roughness"}
     MeshAsset horizonMesh(const nlohmann::json& params) const;
 
-    void load(const std::filesystem::path& heightFile, const std::filesystem::path& paintFile, uint32_t samples, float spacing, vec2 origin);
-    void save(const std::filesystem::path& heightFile, const std::filesystem::path& paintFile) const;
+    // Replaces the terrain with a heightmap image: 16- or 8-bit PNG, or raw little-endian
+    // 16-bit (.r16 / .raw, square). {file, size_m, height_range_m [lo, hi], flip_x, flip_y, origin}
+    nlohmann::json importHeightmap(const std::filesystem::path& file, const nlohmann::json& p);
+    void flip(bool x, bool y);
+    // heights: .png (16-bit grey over [heightMin, heightMax]) or .f32 (raw float32);
+    // paint: two RGBA PNGs (dirt rock snow wet / dry grass - -) or one raw .u8 file
+    // PNG rows run north (top) to south like any image; northFirst = false reads the old south-first files
+    void load(const std::filesystem::path& heightFile, const std::vector<std::filesystem::path>& paintFiles, uint32_t samples,
+              float spacing, vec2 origin, vec2 heightRange, bool northFirst = true);
+    // returns the stored height range (PNG) for map.json
+    vec2 save(const std::filesystem::path& heightFile, const std::vector<std::filesystem::path>& paintFiles) const;
     nlohmann::json summary() const;
     // a coarse height grid for planning (rows from south to north)
     nlohmann::json heightGrid(uint32_t cells, Area area) const;

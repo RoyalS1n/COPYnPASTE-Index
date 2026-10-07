@@ -52,6 +52,14 @@ Area Area::parse(const json& j) {
         a.points = pts(j["line"], 2, "line");
         a.width = j.value("width", 4.0f);
         if (a.width <= 0) throw Error("area: line width must be > 0");
+    } else if (j.contains("union")) {
+        a.kind = Kind::Union;
+        if (!j["union"].is_array() || j["union"].empty()) throw Error("area: union needs a non-empty array of areas");
+        for (auto& c : j["union"]) {
+            Area child = parse(c);
+            if (child.kind == Kind::All) throw Error("area: a union cannot contain \"all\"");
+            a.children.push_back(child);
+        }
     } else if (j.value("all", false)) {
         return a;
     } else {
@@ -68,6 +76,7 @@ json Area::toJson() const {
         case Kind::Rect: j["rect"] = {{"center", {center.x, center.y}}, {"size", {size.x, size.y}}, {"yaw_deg", glm::degrees(yaw)}}; break;
         case Kind::Polygon: { json p = json::array(); for (auto& v : points) p.push_back({v.x, v.y}); j["polygon"] = p; break; }
         case Kind::Line: { json p = json::array(); for (auto& v : points) p.push_back({v.x, v.y}); j["line"] = p; j["width"] = width; break; }
+        case Kind::Union: { json u = json::array(); for (auto& c : children) u.push_back(c.toJson()); j["union"] = u; break; }
     }
     if (falloff > 0) j["falloff"] = falloff;
     return j;
@@ -99,12 +108,23 @@ float Area::distance(vec2 p) const {
             for (size_t i = 0; i + 1 < points.size(); ++i) dmin = std::min(dmin, segDist(p, points[i], points[i + 1]));
             return dmin - width * 0.5f;
         }
+        case Kind::Union: {
+            float d = 1e30f;
+            for (auto& c : children) d = std::min(d, c.distance(p));
+            return d;
+        }
     }
     return 1e9f;
 }
 
 float Area::weight(vec2 p) const {
     if (kind == Kind::All) return 1.0f;
+    if (kind == Kind::Union) {
+        float w = 0;
+        for (auto& c : children) w = std::max(w, c.weight(p));
+        if (falloff > 0) w = std::max(w, 1.0f - smoothstep(0.0f, falloff, distance(p)));
+        return w;
+    }
     float d = distance(p);
     if (d <= 0) return 1.0f;
     if (falloff <= 0) return 0.0f;
@@ -121,6 +141,10 @@ void Area::bounds(vec2& lo, vec2& hi) const {
             lo = vec2(1e30f); hi = vec2(-1e30f);
             for (auto& v : points) { lo = glm::min(lo, v); hi = glm::max(hi, v); }
             if (kind == Kind::Line) { lo -= width * 0.5f; hi += width * 0.5f; }
+            break;
+        case Kind::Union:
+            lo = vec2(1e30f); hi = vec2(-1e30f);
+            for (auto& c : children) { vec2 a, b; c.bounds(a, b); lo = glm::min(lo, a); hi = glm::max(hi, b); }
             break;
     }
     lo -= falloff;
@@ -141,6 +165,11 @@ float Area::areaM2() const {
             float len = 0;
             for (size_t i = 0; i + 1 < points.size(); ++i) len += glm::length(points[i + 1] - points[i]);
             return len * width;
+        }
+        case Kind::Union: {
+            float a = 0;
+            for (auto& c : children) a += c.areaM2();   // overlaps counted twice: an upper bound
+            return a;
         }
     }
     return 0;

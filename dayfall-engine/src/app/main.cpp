@@ -200,12 +200,13 @@ int main(int argc, char** argv) {
             if (!capture.empty()) {
                 json views = json::array();
                 std::string list = capture == "all" ? "overview,player,top_down" : capture;
-                if (capture == "all") for (auto& [k, v] : ed.scene.cameras) list += "," + k;
+                if (capture == "all") for (auto& [k, v] : ed.scene.cameras) if (k != "overview" && k != "player") list += "," + k;
                 size_t pos = 0;
                 while (pos <= list.size()) {
                     size_t e = list.find(',', pos);
                     std::string v = list.substr(pos, e == std::string::npos ? std::string::npos : e - pos);
-                    if (v == "overview" || v == "player" || v == "editor") views.push_back({{v, true}});
+                    if (ed.scene.cameras.count(v)) views.push_back({{"camera", v}});   // a map camera wins over a built-in view name
+                    else if (v == "overview" || v == "player" || v == "editor") views.push_back({{v, true}});
                     else if (v == "top_down") views.push_back({{"top_down", json::object()}});
                     else if (!v.empty()) views.push_back({{"camera", v}});
                     if (e == std::string::npos) break;

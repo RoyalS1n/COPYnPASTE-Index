@@ -24,12 +24,17 @@ void main() {
     Material m = materials[vMaterial];
     float time = frame.cameraPos.w;
     vec3 p = vPos;
-    // ripples: a few directional waves plus noise, as a gradient
+    // ripples: directional waves, each faded out where a pixel spans a good part of its
+    // wavelength, so distant water stays smooth instead of sparkling
+    float footprint = length(fwidth(p.xy));
     vec2 g = vec2(0.0);
-    g += vec2(0.8, 0.6) * cos(dot(p.xy, vec2(0.8, 0.6)) * 1.9 + time * 1.3) * 0.06;
-    g += vec2(-0.4, 0.9) * cos(dot(p.xy, vec2(-0.4, 0.9)) * 3.7 + time * 2.1) * 0.035;
-    g += vec2(0.9, -0.3) * cos(dot(p.xy, vec2(0.9, -0.3)) * 7.3 + time * 3.0) * 0.02;
-    g += vec2(0.2, 1.0) * cos(dot(p.xy, vec2(0.2, 1.0)) * 13.0 + time * 4.2) * 0.012;
+    const vec4 waves[4] = vec4[4](vec4(0.8, 0.6, 1.9, 0.06), vec4(-0.4, 0.9, 3.7, 0.035), vec4(0.9, -0.3, 7.3, 0.02), vec4(0.2, 1.0, 13.0, 0.012));
+    const float speed[4] = float[4](1.3, 2.1, 3.0, 4.2);
+    for (int i = 0; i < 4; ++i) {
+        float lambda = 6.2831853 / waves[i].z;
+        float keep = 1.0 - smoothstep(lambda * 0.08, lambda * 0.4, footprint);
+        g += waves[i].xy * cos(dot(p.xy, waves[i].xy) * waves[i].z + time * speed[i]) * waves[i].w * keep;
+    }
     g *= m.p[0].z > 0.0 ? m.p[0].z : 1.0;
     vec3 n = normalize(vec3(-g, 1.0));
     vec3 v = normalize(frame.cameraPos.xyz - p);

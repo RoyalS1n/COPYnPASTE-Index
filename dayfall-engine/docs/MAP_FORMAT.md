@@ -5,8 +5,10 @@ A map is a folder:
 ```
 maps/<name>/
   map.json             the world document (this page)
-  terrain/height.f32   base heights: float32, samples_per_side^2, row by row from the south-west corner
-  terrain/paint.u8     painted layers: 8 bytes per sample (dirt, rock, snow, wet, dry, grass, 2 reserved)
+  terrain/height.png   base heights: 16-bit greyscale PNG, samples_per_side square, north at the top;
+                       0 and 65535 map to terrain.height_range_m
+  terrain/paint_a.png  painted layers dirt, rock, snow, wet (RGBA8)
+  terrain/paint_b.png  painted layers dry, grass and 2 reserved (RGBA8)
   assets/              models imported with asset_import
   captures/            screenshots taken by agents and F12 (not committed)
 ```
@@ -53,13 +55,14 @@ except `format`.
   "clouds": {"enabled": true, "coverage": 0.55, "height_m": 1500, "color": [1, 0.7, 0.5]},
   "tonemap": {"exposure_ev": 0.9, "contrast": 1.15, "saturation": 1.05, "vignette": 0.25},
   "wind": {"direction": [0.6, 0.8], "strength": 1},
-  "water": {"enabled": true, "level_m": 2.0},
+  "water": {"enabled": true, "level_m": 2.0, "plane": true},
   "shadow_distance_m": 250
 }
 ```
 
-The preset applies first; any field given overrides it. Presets: `golden_hour`, `serene`, `noon`,
-`misty_morning`, `dusk`, `overcast`. `time_of_day` (hours) moves the sun along a simple day arc. Sun azimuth:
+`water.plane: false` keeps the water level (wet ground, the walk test's water events) but draws no sea plane;
+use it when ponds and rivers are their own meshes. The preset applies first; any field given overrides it.
+Presets: `golden_hour`, `serene`, `noon`, `misty_morning`, `dusk`, `overcast`. `time_of_day` (hours) moves the sun along a simple day arc. Sun azimuth:
 0 = the sun is north, 90 = east.
 
 ## terrain
@@ -67,8 +70,15 @@ The preset applies first; any field given overrides it. Presets: `golden_hour`, 
 ```json
 "terrain": {"samples_per_side": 513, "spacing_m": 1.0, "origin": [-256, -256], "seed": 7,
             "snowline_m": 380, "rock_slope_deg": 40, "dry_amount": 0.5, "material": "terrain",
-            "horizon": {"enabled": true, "radius_m": 6000, "height_m": 300, "roughness": 0.6}}
+            "horizon": {"enabled": true, "radius_m": 6000, "height_m": 300, "roughness": 0.6},
+            "height_file": "terrain/height.png", "height_range_m": [-12.5, 140.2],
+            "paint_files": ["terrain/paint_a.png", "terrain/paint_b.png"], "png_rows": "north_first"}
 ```
+
+The editor writes the file keys when it saves. `png_rows` says which way the image rows run: `north_first` (any
+image editor or exporter) or `south_first` (maps saved before it existed; the default when missing). Older maps
+with raw `height.f32` / `paint.u8` still load and are converted to PNG on the next save. Bring in an outside
+heightmap with the `terrain_import` tool rather than by hand.
 
 Rock appears on slopes steeper than `rock_slope_deg`, snow above `snowline_m`, wet ground near the water level;
 painted layers add to these. `horizon` is the distant land around the map.
@@ -101,6 +111,7 @@ comes back.
 | `align_to_ground` | tilt to the terrain normal |
 | `scale` | uniform scale |
 | `collision` | `auto`, `none`, `mesh`, `convex`, `box`, `cylinder` (`{"type": "cylinder", "radius", "height"}`), `sphere` |
+| `footprint_m` | radius kept clear of scatter (default: automatic for objects under 50 m; `false` for none) |
 | `shadow`, `cull_distance_m`, `hidden`, `tags` | |
 
 Primitives: `box` (size), `plane` (size, subdivisions), `cylinder`, `cone`, `sphere`, `capsule` (radius,
@@ -117,12 +128,13 @@ height), `ramp`, `stairs` (size, steps), `gem` (size); all take `material`. Thei
 ```
 
 Other keys: `tilt_deg`, `align_to_slope`, `avoid_water`, `max_rock`, `max_path`, `sink_m`, `clump_scale_m`,
-`yaw_deg` (fixed yaw), `shadow`, `cull_distance_m`, `max_instances`. Results are deterministic for a given
-rule and terrain.
+`yaw_deg` (fixed yaw), `shadow`, `cull_distance_m`, `max_instances`, `avoid_ruts` (keep out of the wheel ruts of
+`lane` paths but allow the strip between them). Results are deterministic for a given rule and terrain.
 
 Areas (used by scatter, sculpting, painting and deletion):
 `{"circle": {"center": [x, y], "radius": r}}`, `{"rect": {"center": [x, y], "size": [w, h], "yaw_deg": a}}`,
-`{"polygon": [[x, y], ...]}`, `{"line": [[x, y], ...], "width": w}` or `"all"`, plus `"falloff"` in metres.
+`{"polygon": [[x, y], ...]}`, `{"line": [[x, y], ...], "width": w}`, `{"union": [area, area, ...]}` or `"all"`,
+plus `"falloff"` in metres.
 
 ## entities
 

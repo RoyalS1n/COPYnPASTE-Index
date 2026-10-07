@@ -1,6 +1,8 @@
 #include "world/Terrain.h"
 #include "core/Error.h"
 #include "core/FileSystem.h"
+#include "core/Image.h"
+#include <stb_image.h>
 #include "world/Noise.h"
 #include <algorithm>
 #include <atomic>
@@ -423,6 +425,17 @@ float Terrain::heightAt(float x, float y) const { return sampleArr(height, x, y)
 float Terrain::baseAt(float x, float y) const { return sampleArr(base, x, y); }
 float Terrain::pathAt(float x, float y) const { return sampleArr(pathMask, x, y); }
 
+bool Terrain::rutAt(float x, float y) const {
+    if (empty() || laneMask.empty()) return false;
+    uint32_t i = (uint32_t)std::clamp((int)std::lround((x - origin.x) / spacing), 0, (int)n - 1);
+    uint32_t j = (uint32_t)std::clamp((int)std::lround((y - origin.y) / spacing), 0, (int)n - 1);
+    size_t k = (size_t)j * n + i;
+    if (laneMask[k] < 0.5f) return false;
+    // the sample's own lane distance, moved to the exact point across the lane
+    float d = std::abs(sampleArr(laneDist, x, y));
+    return std::abs(d - 0.78f) < 0.3f;
+}
+
 vec3 Terrain::normalAt(float x, float y) const {
     if (empty()) return vec3(0, 0, 1);
     float e = spacing;
@@ -528,28 +541,130 @@ MeshAsset Terrain::horizonMesh(const json& p) const {
     return m;
 }
 
-void Terrain::load(const std::filesystem::path& hf, const std::filesystem::path& pf, uint32_t samples, float sp, vec2 org) {
+void Terrain::load(const std::filesystem::path& hf, const std::vector<std::filesystem::path>& pfs, uint32_t samples, float sp,
+                   vec2 org, vec2 range, bool northFirst) {
     create(samples, sp, org);
-    auto h = readBinary(hf);
-    if (h.size() != base.size() * 4) throw Error(std::format("{}: expected {} bytes for {}x{} float32 heights, found {}", hf.string(),
-                                                              base.size() * 4, n, n, h.size()));
-    std::memcpy(base.data(), h.data(), h.size());
-    if (std::filesystem::exists(pf)) {
-        auto p = readBinary(pf);
-        if (p.size() == paint.size()) std::memcpy(paint.data(), p.data(), p.size());
-        else throw Error(std::format("{}: expected {} bytes of paint layers, found {}", pf.string(), paint.size(), p.size()));
+    if (hf.extension() == ".png") {
+        int w = 0, h = 0, c = 0;
+        stbi_us* px = stbi_load_16(hf.string().c_str(), &w, &h, &c, 1);
+        if (!px) throw Error("cannot read " + hf.string());
+        if ((uint32_t)w != n || (uint32_t)h != n) { stbi_image_free(px); throw Error(std::format("{} is {}x{}, the map says {}x{}", hf.string(), w, h, n, n)); }
+        for (uint32_t j = 0; j < n; ++j) {
+            uint32_t row = northFirst ? n - 1 - j : j;
+            for (uint32_t i = 0; i < n; ++i) base[(size_t)j * n + i] = range.x + (range.y - range.x) * (px[(size_t)row * n + i] / 65535.0f);
+        }
+        stbi_image_free(px);
+    } else {
+        auto raw = readBinary(hf);
+        if (raw.size() != base.size() * 4)
+            throw Error(std::format("{}: expected {} bytes for {}x{} float32 heights, found {}", hf.string(), base.size() * 4, n, n, raw.size()));
+        std::memcpy(base.data(), raw.data(), raw.size());
+    }
+    if (pfs.size() == 2 && pfs[0].extension() == ".png") {
+        for (int k = 0; k < 2; ++k) {
+            if (!std::filesystem::exists(pfs[k])) continue;
+            int w = 0, h = 0, c = 0;
+            stbi_uc* px = stbi_load(pfs[k].string().c_str(), &w, &h, &c, 4);
+            if (!px || (uint32_t)w != n || (uint32_t)h != n) { if (px) stbi_image_free(px); throw Error("bad paint image " + pfs[k].string()); }
+            for (uint32_t j = 0; j < n; ++j) {
+                uint32_t row = northFirst ? n - 1 - j : j;
+                for (uint32_t i = 0; i < n; ++i)
+                    std::memcpy(&paint[((size_t)j * n + i) * kPaintChannels + k * 4], &px[((size_t)row * n + i) * 4], 4);
+            }
+            stbi_image_free(px);
+        }
+    } else if (pfs.size() == 1 && std::filesystem::exists(pfs[0])) {
+        auto p = readBinary(pfs[0]);
+        if (p.size() != paint.size()) throw Error(std::format("{}: expected {} bytes of paint layers, found {}", pfs[0].string(), paint.size(), p.size()));
+        std::memcpy(paint.data(), p.data(), p.size());
     }
     height = base;
     touch();
 }
 
-void Terrain::save(const std::filesystem::path& hf, const std::filesystem::path& pf) const {
+void Terrain::flip(bool fx, bool fy) {
+    if (!fx && !fy) return;
+    auto flipArr = [&](auto& a, size_t stride) {
+        auto src = a;
+        for (uint32_t j = 0; j < n; ++j)
+            for (uint32_t i = 0; i < n; ++i) {
+                uint32_t si = fx ? n - 1 - i : i, sj = fy ? n - 1 - j : j;
+                std::memcpy(&a[((size_t)j * n + i) * stride], &src[((size_t)sj * n + si) * stride], sizeof(a[0]) * stride);
+            }
+    };
+    flipArr(base, 1);
+    flipArr(paint, kPaintChannels);
+    height = base;
+    touch();
+}
+
+json Terrain::importHeightmap(const std::filesystem::path& file, const json& p) {
+    if (!std::filesystem::exists(file)) throw Error("no such file: " + file.string());
+    std::vector<float> v;   // 0..1
+    uint32_t w = 0, h = 0;
+    std::string ext = file.extension().string();
+    for (auto& c : ext) c = (char)tolower((unsigned char)c);
+    if (ext == ".png") {
+        int iw, ih, ic;
+        stbi_us* px = stbi_load_16(file.string().c_str(), &iw, &ih, &ic, 1);
+        if (!px) throw Error("cannot read " + file.string());
+        w = (uint32_t)iw; h = (uint32_t)ih;
+        v.resize((size_t)w * h);
+        for (size_t i = 0; i < v.size(); ++i) v[i] = px[i] / 65535.0f;
+        stbi_image_free(px);
+    } else if (ext == ".r16" || ext == ".raw") {
+        auto raw = readBinary(file);
+        size_t count = raw.size() / 2;
+        w = h = (uint32_t)std::lround(std::sqrt((double)count));
+        if ((size_t)w * h != count) throw Error("raw 16-bit heightmaps must be square");
+        v.resize(count);
+        for (size_t i = 0; i < count; ++i) v[i] = (raw[i * 2] | (raw[i * 2 + 1] << 8)) / 65535.0f;
+    } else {
+        throw Error("heightmaps must be .png (16-bit) or .r16 / .raw");
+    }
+    if (w != h) throw Error(std::format("the heightmap is {}x{}: crop or pad it to a square first", w, h));
+    float size = num(p, "size_m", (float)(w - 1));
+    vec2 range(0, 100);
+    if (p.contains("height_range_m")) range = vec2(p["height_range_m"][0].get<float>(), p["height_range_m"][1].get<float>());
+    vec2 org = p.contains("origin") ? vec2(p["origin"][0].get<float>(), p["origin"][1].get<float>()) : vec2(-size * 0.5f);
+    create(w, size / (w - 1), org);
+    for (size_t i = 0; i < v.size(); ++i) base[i] = range.x + (range.y - range.x) * v[i];
+    // images run top row first; the engine's rows run from the south (low y)
+    flip(p.value("flip_x", false), !p.value("flip_y", false));
+    return summary();
+}
+
+vec2 Terrain::save(const std::filesystem::path& hf, const std::vector<std::filesystem::path>& pfs) const {
     std::filesystem::create_directories(hf.parent_path());
-    std::ofstream h(hf, std::ios::binary);
-    h.write((const char*)base.data(), (std::streamsize)(base.size() * 4));
-    std::ofstream p(pf, std::ios::binary);
-    p.write((const char*)paint.data(), (std::streamsize)paint.size());
-    if (!h || !p) throw Error("cannot write terrain files in " + hf.parent_path().string());
+    vec2 range(0, 1);
+    if (hf.extension() == ".png") {
+        float lo = 1e30f, hi = -1e30f;
+        for (float h : base) { lo = std::min(lo, h); hi = std::max(hi, h); }
+        hi = std::max(hi, lo + 0.01f);
+        range = vec2(lo, hi);
+        std::vector<uint16_t> q(base.size());
+        for (uint32_t j = 0; j < n; ++j)   // north (top row) first
+            for (uint32_t i = 0; i < n; ++i)
+                q[(size_t)(n - 1 - j) * n + i] = (uint16_t)std::lround((base[(size_t)j * n + i] - lo) / (hi - lo) * 65535.0f);
+        if (!writeFile(hf, encodePng16(q.data(), n, n))) throw Error("cannot write " + hf.string());
+    } else {
+        std::ofstream h(hf, std::ios::binary);
+        h.write((const char*)base.data(), (std::streamsize)(base.size() * 4));
+        if (!h) throw Error("cannot write " + hf.string());
+    }
+    if (pfs.size() == 2) {
+        for (int k = 0; k < 2; ++k) {
+            std::vector<uint8_t> img(base.size() * 4);
+            for (uint32_t j = 0; j < n; ++j)
+                for (uint32_t i = 0; i < n; ++i)
+                    std::memcpy(&img[((size_t)(n - 1 - j) * n + i) * 4], &paint[((size_t)j * n + i) * kPaintChannels + k * 4], 4);
+            if (!writeFile(pfs[k], encodePng(img.data(), n, n))) throw Error("cannot write " + pfs[k].string());
+        }
+    } else if (pfs.size() == 1) {
+        std::ofstream p(pfs[0], std::ios::binary);
+        p.write((const char*)paint.data(), (std::streamsize)paint.size());
+    }
+    return range;
 }
 
 json Terrain::summary() const {

@@ -4,6 +4,7 @@
 //   {"rect": {"center": [x, y], "size": [w, h], "yaw_deg": a}}
 //   {"polygon": [[x, y], ...]}
 //   {"line": [[x, y], ...], "width": w}            (a corridor along a polyline)
+//   {"union": [area, area, ...]}                    (any of several areas)
 //   "all"
 // plus an optional "falloff": metres over which the weight fades to 0 outside.
 #include "core/Math.h"
@@ -12,7 +13,8 @@
 
 namespace df {
 struct Area {
-    enum class Kind { All, Circle, Rect, Polygon, Line } kind = Kind::All;
+    enum class Kind { All, Circle, Rect, Polygon, Line, Union } kind = Kind::All;
+    std::vector<Area> children;    // Union
     vec2 center{0};
     float radius = 0;
     vec2 size{0};

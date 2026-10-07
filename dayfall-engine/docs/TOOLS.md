@@ -41,7 +41,7 @@ Terrain size, height range and a coarse height grid (rows south to north) to pla
 
 | argument | type | notes |
 |---|---|---|
-| area | any | Area: {"circle": {"center": [x,y], "radius": r}} / {"rect": {"center": [x,y], "size": [w,h], "yaw_deg": a}} / {"polygon": [[x,y],...]} / {"line": [[x,y],...], "width": w} / "all"; optional "falloff": metres of soft edge. |
+| area | any | Area: {"circle": {"center": [x,y], "radius": r}} / {"rect": {"center": [x,y], "size": [w,h], "yaw_deg": a}} / {"polygon": [[x,y],...]} / {"line": [[x,y],...], "width": w} / {"union": [area, ...]} / "all"; optional "falloff": metres of soft edge. |
 | grid_cells | integer | grid resolution per side, 2..64 (default 16) |
 
 ## ground_query
@@ -168,6 +168,21 @@ Replace the terrain with a procedural base. preset: flat|hills|valley|mountains|
 | size_m | number | side length |
 | spacing_m | number | sample spacing |
 
+## terrain_import
+
+*terrain*
+
+Replace the terrain with a heightmap image (porting a level from Unreal, World Machine, Gaea...): file (.png 16-bit, .r16 / .raw), size_m (world size of the image), height_range_m [lo, hi] (black..white), origin [x, y] (default: centred), flip_x, flip_y. Unreal landscape exports: height_range_m = [-2.56 * z_scale, 2.56 * z_scale], flip_y: true.
+
+| argument | type | notes |
+|---|---|---|
+| file (required) | string | heightmap path |
+| flip_x | boolean |  |
+| flip_y | boolean |  |
+| height_range_m | array | [lo, hi] |
+| origin | array |  |
+| size_m | number |  |
+
 ## terrain_sculpt
 
 *terrain*
@@ -176,7 +191,7 @@ Brush edits of the base terrain. op: raise|lower (amount_m) | flatten (height_m,
 
 | argument | type | notes |
 |---|---|---|
-| area | any | Area: {"circle": {"center": [x,y], "radius": r}} / {"rect": {"center": [x,y], "size": [w,h], "yaw_deg": a}} / {"polygon": [[x,y],...]} / {"line": [[x,y],...], "width": w} / "all"; optional "falloff": metres of soft edge. |
+| area | any | Area: {"circle": {"center": [x,y], "radius": r}} / {"rect": {"center": [x,y], "size": [w,h], "yaw_deg": a}} / {"polygon": [[x,y],...]} / {"line": [[x,y],...], "width": w} / {"union": [area, ...]} / "all"; optional "falloff": metres of soft edge. |
 | op | string | operation |
 | ops | array | several ops applied in order |
 | strength | number | 0..1, default 1 |
@@ -189,7 +204,7 @@ Paint surface layers: layer dirt|rock|snow|wet|dry|grass (grass removes automati
 
 | argument | type | notes |
 |---|---|---|
-| area | any | Area: {"circle": {"center": [x,y], "radius": r}} / {"rect": {"center": [x,y], "size": [w,h], "yaw_deg": a}} / {"polygon": [[x,y],...]} / {"line": [[x,y],...], "width": w} / "all"; optional "falloff": metres of soft edge. |
+| area | any | Area: {"circle": {"center": [x,y], "radius": r}} / {"rect": {"center": [x,y], "size": [w,h], "yaw_deg": a}} / {"polygon": [[x,y],...]} / {"line": [[x,y],...], "width": w} / {"union": [area, ...]} / "all"; optional "falloff": metres of soft edge. |
 | layer | string | layer |
 | mode | string | add/set/erase |
 | strength | number | 0..1 |
@@ -199,12 +214,11 @@ Paint surface layers: layer dirt|rock|snow|wet|dry|grass (grass removes automati
 
 *terrain*
 
-Automatic layer rules: snowline_m, rock_slope_deg (slopes steeper than this show rock), dry_amount (0..1 dry grass patches), material (terrain material name), lod_distances_m.
+Automatic layer rules: snowline_m, rock_slope_deg (slopes steeper than this show rock), dry_amount (0..1 dry grass patches), material (terrain material name).
 
 | argument | type | notes |
 |---|---|---|
 | dry_amount | number |  |
-| lod_distances_m | array |  |
 | material | string |  |
 | rock_slope_deg | number |  |
 | snowline_m | number |  |
@@ -263,7 +277,7 @@ Delete items by ids [...], by tag, or every item of a section inside an area ({s
 
 | argument | type | notes |
 |---|---|---|
-| area | any | Area: {"circle": {"center": [x,y], "radius": r}} / {"rect": {"center": [x,y], "size": [w,h], "yaw_deg": a}} / {"polygon": [[x,y],...]} / {"line": [[x,y],...], "width": w} / "all"; optional "falloff": metres of soft edge. |
+| area | any | Area: {"circle": {"center": [x,y], "radius": r}} / {"rect": {"center": [x,y], "size": [w,h], "yaw_deg": a}} / {"polygon": [[x,y],...]} / {"line": [[x,y],...], "width": w} / {"union": [area, ...]} / "all"; optional "falloff": metres of soft edge. |
 | ids | array |  |
 | section | string | objects/entities/scatter/paths/lights |
 | tag | string |  |
@@ -295,11 +309,11 @@ Place a row of objects along a path or polyline: fences, lamp posts, hedges, mar
 
 *foliage*
 
-Create or replace a procedural scatter rule (forests, grass, rocks, flowers). id (replace if exists), mesh or meshes [{mesh, weight}], area, density_per_100m2, min_spacing_m, clumping 0..1, clump_scale_m, scale [min,max], slope_deg [min,max], height_m [min,max], tilt_deg, align_to_slope 0..1, avoid_paths_m, avoid_objects_m, avoid_water, max_rock, max_path, sink_m, seed, shadow, collision (none|cylinder {radius, height}), cull_distance_m, max_instances.
+Create or replace a procedural scatter rule (forests, grass, rocks, flowers). id (replace if exists), mesh or meshes [{mesh, weight}], area, density_per_100m2, min_spacing_m, clumping 0..1, clump_scale_m, scale [min,max], slope_deg [min,max], height_m [min,max], tilt_deg, align_to_slope 0..1, avoid_paths_m, avoid_objects_m, avoid_water, avoid_ruts, max_rock, max_path, sink_m, seed, shadow, collision (none|cylinder {radius, height}), cull_distance_m, max_instances.
 
 | argument | type | notes |
 |---|---|---|
-| area | any | Area: {"circle": {"center": [x,y], "radius": r}} / {"rect": {"center": [x,y], "size": [w,h], "yaw_deg": a}} / {"polygon": [[x,y],...]} / {"line": [[x,y],...], "width": w} / "all"; optional "falloff": metres of soft edge. |
+| area | any | Area: {"circle": {"center": [x,y], "radius": r}} / {"rect": {"center": [x,y], "size": [w,h], "yaw_deg": a}} / {"polygon": [[x,y],...]} / {"line": [[x,y],...], "width": w} / {"union": [area, ...]} / "all"; optional "falloff": metres of soft edge. |
 | density_per_100m2 | number | instances per 100 m2 |
 | id | string | rule id |
 | mesh | any | mesh name or primitive spec |

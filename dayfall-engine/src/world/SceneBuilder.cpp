@@ -282,7 +282,7 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
 
     // water plane
     const json& env = doc.value("environment", json::object());
-    if (env.contains("water") && env["water"].value("enabled", false)) {
+    if (env.contains("water") && env["water"].value("enabled", false) && env["water"].value("plane", true)) {
         const json& wt = env["water"];
         float size = wt.value("size_m", T.empty() ? 2000.0f : T.size() + 400.0f);
         vec2 c = T.empty() ? vec2(0) : T.origin + vec2(T.size() * 0.5f);
@@ -325,8 +325,12 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
             uint32_t first = s.addInstance(m, vec3(xy, z), q, scale, o.value("shadow", true), cull);
             InstanceSet set{id, m, first, 1, parseCollision(o.value("collision", json()), defaultCollision(w, o["mesh"]))};
             s.sets.push_back(set);
+            // keep-out circle for scatter: footprint_m, or automatic for objects under 50 m (merged
+            // structures like a whole castle or a meadow's ruins must not clear the map)
             vec2 ext = glm::max(glm::abs(vec2(a->aabbMin)), glm::abs(vec2(a->aabbMax))) * scale;
-            footprints.push_back({xy, glm::length(ext) * 0.85f});
+            const json& fp = o.value("footprint_m", json());
+            if (fp.is_number()) { if (fp.get<float>() > 0) footprints.push_back({xy, fp.get<float>()}); }
+            else if (!fp.is_boolean() && glm::length(ext) < 50.0f) footprints.push_back({xy, glm::length(ext) * 0.85f});
             info.triangles += a->triangleCount();
         } catch (const Error& e) {
             warn(std::format("object '{}': {}", id, e.what()));

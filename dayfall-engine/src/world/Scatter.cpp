@@ -59,6 +59,7 @@ std::vector<ScatterPoint> evaluateScatter(const json& rule, const ScatterContext
     float avoidPaths = rule.value("avoid_paths_m", 1.0f);
     float avoidObjects = rule.value("avoid_objects_m", 1.0f);
     bool avoidWater = rule.value("avoid_water", true);
+    bool avoidRuts = rule.value("avoid_ruts", false);
     float sink = rule.value("sink_m", 0.05f);
     float maxRock = rule.value("max_rock", 1.0f), maxPath = rule.value("max_path", 0.15f);
     bool yawRandom = !rule.contains("yaw_deg");
@@ -107,6 +108,7 @@ std::vector<ScatterPoint> evaluateScatter(const json& rule, const ScatterContext
                 vec4 layers = t->layersAt(p.x, p.y);
                 if (layers.x > maxRock) continue;
                 if (layers.w > maxPath) continue;
+                if (avoidRuts && t->rutAt(p.x, p.y)) continue;
                 if (pathProbe > 0) {
                     bool near = false;
                     for (int k = 0; k < 8 && !near; ++k) {

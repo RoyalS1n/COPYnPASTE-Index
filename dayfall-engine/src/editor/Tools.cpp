@@ -36,7 +36,8 @@ json object(json props, std::vector<std::string> req = {}) {
 }
 const char* kAreaDoc =
     "Area: {\"circle\": {\"center\": [x,y], \"radius\": r}} | {\"rect\": {\"center\": [x,y], \"size\": [w,h], \"yaw_deg\": a}} | "
-    "{\"polygon\": [[x,y],...]} | {\"line\": [[x,y],...], \"width\": w} | \"all\"; optional \"falloff\": metres of soft edge.";
+    "{\"polygon\": [[x,y],...]} | {\"line\": [[x,y],...], \"width\": w} | {\"union\": [area, ...]} | \"all\"; optional \"falloff\": "
+    "metres of soft edge.";
 json areaSchema() { return {{"description", kAreaDoc}}; }
 
 vec2 xy(const json& p) {
@@ -509,6 +510,26 @@ void Editor::registerTools() {
                  return r;
              }});
 
+    addTool({"terrain_import",
+             "Replace the terrain with a heightmap image (porting a level from Unreal, World Machine, Gaea...): file (.png 16-bit, "
+             ".r16 / .raw), size_m (world size of the image), height_range_m [lo, hi] (black..white), origin [x, y] (default: "
+             "centred), flip_x, flip_y. Unreal landscape exports: height_range_m = [-2.56 * z_scale, 2.56 * z_scale], flip_y: true.",
+             ToolCategory::Terrain,
+             object({{"file", str("heightmap path")}, {"size_m", num("")}, {"height_range_m", arr(num(""), "[lo, hi]")}, {"origin", point("")},
+                     {"flip_x", boolean("")}, {"flip_y", boolean("")}}, {"file"}),
+             [&E](const json& a) {
+                 E.world.beginEdit("terrain_import", true);
+                 json summary;
+                 try {
+                     summary = E.world.terrain.importHeightmap(a.at("file").get<std::string>(), a);
+                     E.world.terrainToDoc();
+                 } catch (...) { E.world.cancelEdit(); throw; }
+                 E.world.endEdit();
+                 ToolResult r;
+                 r.data = {{"terrain", summary}};
+                 return r;
+             }});
+
     addTool({"terrain_sculpt",
              "Brush edits of the base terrain. op: raise|lower (amount_m) | flatten (height_m, default: average in the area) | set "
              "(height_m) | smooth (iterations, kernel_m) | noise (amplitude_m, scale_m) | ramp (from [x,y,z], to [x,y,z]: straight "
@@ -550,14 +571,13 @@ void Editor::registerTools() {
 
     addTool({"terrain_settings",
              "Automatic layer rules: snowline_m, rock_slope_deg (slopes steeper than this show rock), dry_amount (0..1 dry grass "
-             "patches), material (terrain material name), lod_distances_m.",
-             ToolCategory::Terrain, object({{"snowline_m", num("")}, {"rock_slope_deg", num("")}, {"dry_amount", num("")}, {"material", str("")},
-                                            {"lod_distances_m", arr(num(""), "")}}),
+             "patches), material (terrain material name).",
+             ToolCategory::Terrain, object({{"snowline_m", num("")}, {"rock_slope_deg", num("")}, {"dry_amount", num("")}, {"material", str("")}}),
              [&E, requireTerrain](const json& a) {
                  requireTerrain();
                  E.world.beginEdit("terrain_settings", false);
                  json& t = E.world.doc["terrain"];
-                 for (const char* k : {"snowline_m", "rock_slope_deg", "dry_amount", "material", "lod_distances_m"})
+                 for (const char* k : {"snowline_m", "rock_slope_deg", "dry_amount", "material"})
                      if (a.contains(k)) t[k] = a[k];
                  E.world.docToTerrain();
                  E.world.terrain.touch();
@@ -839,7 +859,7 @@ void Editor::registerTools() {
     addTool({"scatter_set",
              "Create or replace a procedural scatter rule (forests, grass, rocks, flowers). id (replace if exists), mesh or meshes "
              "[{mesh, weight}], area, density_per_100m2, min_spacing_m, clumping 0..1, clump_scale_m, scale [min,max], "
-             "slope_deg [min,max], height_m [min,max], tilt_deg, align_to_slope 0..1, avoid_paths_m, avoid_objects_m, avoid_water, "
+             "slope_deg [min,max], height_m [min,max], tilt_deg, align_to_slope 0..1, avoid_paths_m, avoid_objects_m, avoid_water, avoid_ruts, "
              "max_rock, max_path, sink_m, seed, shadow, collision (none|cylinder {radius, height}), cull_distance_m, max_instances.",
              ToolCategory::Foliage,
              object({{"id", str("rule id")}, {"mesh", {{"description", "mesh name or primitive spec"}}}, {"meshes", arr(anyObj(""), "variants")},

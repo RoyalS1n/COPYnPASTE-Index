@@ -24,8 +24,6 @@ void World::docToTerrain() {
     terrain.snowline = t.value("snowline_m", terrain.snowline);
     terrain.rockSlopeDeg = t.value("rock_slope_deg", terrain.rockSlopeDeg);
     terrain.dryAmount = t.value("dry_amount", terrain.dryAmount);
-    terrain.chunkQuads = std::clamp(t.value("chunk_quads", terrain.chunkQuads), 8u, 256u);
-    if (t.contains("lod_distances_m")) terrain.lodDistances = t["lod_distances_m"].get<std::vector<float>>();
     const json& env = doc.value("environment", json::object());
     const json& water = env.value("water", json::object());
     terrain.waterLevel = water.value("enabled", false) ? water.value("level_m", 0.0f) : -1000.0f;
@@ -42,9 +40,13 @@ void World::terrainToDoc() {
     t["snowline_m"] = terrain.snowline;
     t["rock_slope_deg"] = terrain.rockSlopeDeg;
     t["dry_amount"] = terrain.dryAmount;
-    t["chunk_quads"] = terrain.chunkQuads;
-    if (!t.contains("height_file")) t["height_file"] = "terrain/height.f32";
-    if (!t.contains("paint_file")) t["paint_file"] = "terrain/paint.u8";
+    t.erase("chunk_quads");
+    t.erase("height_flip_x");
+    t.erase("height_flip_y");
+    // new maps and old raw files both end up as PNGs: compact in git and viewable
+    if (!t.contains("height_file") || t["height_file"] == "terrain/height.f32") t["height_file"] = "terrain/height.png";
+    if (!t.contains("paint_files")) t["paint_files"] = {"terrain/paint_a.png", "terrain/paint_b.png"};
+    t.erase("paint_file");
     if (!t.contains("material")) t["material"] = "terrain";
 }
 
@@ -67,7 +69,15 @@ void World::load(const fs::path& mapDir) {
         float sp = t.value("spacing_m", 1.0f);
         vec2 org(t["origin"][0].get<float>(), t["origin"][1].get<float>());
         docToTerrain();
-        terrain.load(dir / t.value("height_file", "terrain/height.f32"), dir / t.value("paint_file", "terrain/paint.u8"), n, sp, org);
+        std::vector<fs::path> paints;
+        if (t.contains("paint_files")) for (auto& f : t["paint_files"]) paints.push_back(dir / f.get<std::string>());
+        else paints.push_back(dir / t.value("paint_file", "terrain/paint.u8"));
+        vec2 range(0, 1);
+        if (t.contains("height_range_m")) range = vec2(t["height_range_m"][0].get<float>(), t["height_range_m"][1].get<float>());
+        terrain.load(dir / t.value("height_file", "terrain/height.f32"), paints, n, sp, org, range,
+                     t.value("png_rows", "south_first") == "north_first");
+        // maps exported by other tools may store mirrored heightmaps; normalised on the next save
+        terrain.flip(t.value("height_flip_x", false), t.value("height_flip_y", false));
         docToTerrain();
     }
     undo_.clear();
@@ -82,8 +92,14 @@ void World::save() {
     fs::create_directories(dir);
     terrainToDoc();
     if (!terrain.empty()) {
-        const json& t = doc["terrain"];
-        terrain.save(dir / t["height_file"].get<std::string>(), dir / t["paint_file"].get<std::string>());
+        json& t = doc["terrain"];
+        std::vector<fs::path> paints;
+        for (auto& f : t["paint_files"]) paints.push_back(dir / f.get<std::string>());
+        vec2 range = terrain.save(dir / t["height_file"].get<std::string>(), paints);
+        if (fs::path(t["height_file"].get<std::string>()).extension() == ".png") {
+            t["height_range_m"] = {range.x, range.y};
+            t["png_rows"] = "north_first";
+        }
     }
     fs::path tmp = dir / "map.json.tmp";
     if (!writeText(tmp, dumpReadable(doc) + "\n")) throw Error("cannot write " + tmp.string());

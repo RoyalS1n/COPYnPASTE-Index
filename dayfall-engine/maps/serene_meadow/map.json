@@ -1,0 +1,386 @@
+{
+  "cameras": {
+    "barn": {"position": [-100.7, -178.95, 7.73], "target": [-70.72, -180.0, 7.86], "vfov_deg": 45},
+    "chapel": {"position": [-100.5, 357.49, 5.8], "target": [-90.56, 390.0, 9.04], "vfov_deg": 45},
+    "cottage": {"position": [-16.57, -456.0, 5.24], "target": [-7.1, -430.0, 6.02], "vfov_deg": 45},
+    "marsh": {"position": [-75.95, 244.34, 7.72], "target": [-45.0, 225.0, -0.1], "vfov_deg": 45},
+    "marsh_close": {"position": [-29.8, 225.0, 0.04], "target": [-34.8, 223.9, -0.67], "vfov_deg": 45},
+    "overview": {"position": [51.72, -760.0, 46.27], "target": [-21.68, -120.0, 2.35], "vfov_deg": 45},
+    "path_0": {"position": [37.82, -660.0, 6.92], "target": [44.59, -610.46, 7.36], "vfov_deg": 45},
+    "path_1": {"position": [48.06, -585.0, 5.77], "target": [41.55, -535.43, 6.03], "vfov_deg": 45},
+    "path_2": {"position": [18.11, -510.0, 6.84], "target": [-0.43, -463.57, 6.84], "vfov_deg": 45}
+  },
+  "entities": [],
+  "environment": {
+    "clouds": {"color": [1.0, 0.7, 0.5], "coverage": 0.5, "enabled": true},
+    "haze": {
+      "amount": 0.6,
+      "color_far": [0.55, 0.495, 0.46],
+      "color_near": [0.62, 0.52, 0.42],
+      "depth_m": 6500.0,
+      "start_m": 30.0
+    },
+    "shadow_distance_m": 300,
+    "sky": {"aerosol_density": 1.6, "air_density": 1.0, "ozone_density": 1.0, "strength": 0.1},
+    "sun": {
+      "angle_deg": 0.6,
+      "azimuth_deg": -128.0,
+      "color": [1.0, 0.76, 0.52],
+      "elevation_deg": 16.0,
+      "strength": 5.0
+    },
+    "tonemap": {"contrast": 1.15, "exposure_ev": 0.85, "saturation": 1.05, "vignette": 0.25},
+    "water": {"enabled": true, "level_m": -0.7, "plane": false}
+  },
+  "format": "dayfall-map",
+  "instance_files": [
+    {
+      "collision": {"height": 6, "radius": 0.4, "type": "cylinder"},
+      "file": "instances/conifer_a.bin",
+      "id": "trees_conifer_a",
+      "mesh": "conifer_a",
+      "shadow": true
+    },
+    {
+      "collision": {"height": 6, "radius": 0.4, "type": "cylinder"},
+      "file": "instances/conifer_b.bin",
+      "id": "trees_conifer_b",
+      "mesh": "conifer_b",
+      "shadow": true
+    },
+    {
+      "collision": {"height": 6, "radius": 0.4, "type": "cylinder"},
+      "file": "instances/conifer_c.bin",
+      "id": "trees_conifer_c",
+      "mesh": "conifer_c",
+      "shadow": true
+    },
+    {
+      "collision": {"height": 6, "radius": 0.4, "type": "cylinder"},
+      "file": "instances/conifer_d.bin",
+      "id": "trees_conifer_d",
+      "mesh": "conifer_d",
+      "shadow": true
+    },
+    {
+      "collision": {"height": 6, "radius": 0.4, "type": "cylinder"},
+      "file": "instances/broadleaf_a.bin",
+      "id": "trees_broadleaf_a",
+      "mesh": "broadleaf_a",
+      "shadow": true
+    },
+    {
+      "collision": {"height": 6, "radius": 0.4, "type": "cylinder"},
+      "file": "instances/broadleaf_b.bin",
+      "id": "trees_broadleaf_b",
+      "mesh": "broadleaf_b",
+      "shadow": true
+    },
+    {
+      "collision": {"height": 6, "radius": 0.4, "type": "cylinder"},
+      "file": "instances/broadleaf_c.bin",
+      "id": "trees_broadleaf_c",
+      "mesh": "broadleaf_c",
+      "shadow": true
+    },
+    {"file": "instances/bush_a.bin", "id": "bushes_bush_a", "mesh": "bush_a", "shadow": true},
+    {"file": "instances/bush_b.bin", "id": "bushes_bush_b", "mesh": "bush_b", "shadow": true},
+    {"file": "instances/bush_c.bin", "id": "bushes_bush_c", "mesh": "bush_c", "shadow": true},
+    {
+      "collision": "convex",
+      "file": "instances/rock_a.bin",
+      "id": "rocks_rock_a",
+      "mesh": "rock_a",
+      "shadow": true
+    },
+    {
+      "collision": "convex",
+      "file": "instances/rock_b.bin",
+      "id": "rocks_rock_b",
+      "mesh": "rock_b",
+      "shadow": true
+    },
+    {
+      "collision": "convex",
+      "file": "instances/rock_c.bin",
+      "id": "rocks_rock_c",
+      "mesh": "rock_c",
+      "shadow": true
+    },
+    {
+      "collision": "convex",
+      "file": "instances/rock_d.bin",
+      "id": "rocks_rock_d",
+      "mesh": "rock_d",
+      "shadow": true
+    },
+    {
+      "collision": "convex",
+      "file": "instances/rock_e.bin",
+      "id": "rocks_rock_e",
+      "mesh": "rock_e",
+      "shadow": true
+    },
+    {"file": "instances/fern_a.bin", "id": "ferns_fern_a", "mesh": "fern_a", "shadow": true},
+    {"file": "instances/fern_b.bin", "id": "ferns_fern_b", "mesh": "fern_b", "shadow": true},
+    {"file": "instances/fern_c.bin", "id": "ferns_fern_c", "mesh": "fern_c", "shadow": true},
+    {
+      "file": "instances/pebble_a.bin",
+      "id": "pebbles_pebble_a",
+      "mesh": "pebble_a",
+      "shadow": false
+    },
+    {
+      "file": "instances/pebble_b.bin",
+      "id": "pebbles_pebble_b",
+      "mesh": "pebble_b",
+      "shadow": false
+    },
+    {
+      "file": "instances/pebble_c.bin",
+      "id": "pebbles_pebble_c",
+      "mesh": "pebble_c",
+      "shadow": false
+    },
+    {
+      "file": "instances/pebble_d.bin",
+      "id": "pebbles_pebble_d",
+      "mesh": "pebble_d",
+      "shadow": false
+    },
+    {
+      "collision": "mesh",
+      "file": "instances/outcrop_a.bin",
+      "id": "outcrops_outcrop_a",
+      "mesh": "outcrop_a",
+      "shadow": true
+    },
+    {
+      "collision": "mesh",
+      "file": "instances/outcrop_b.bin",
+      "id": "outcrops_outcrop_b",
+      "mesh": "outcrop_b",
+      "shadow": true
+    },
+    {
+      "collision": "mesh",
+      "file": "instances/outcrop_c.bin",
+      "id": "outcrops_outcrop_c",
+      "mesh": "outcrop_c",
+      "shadow": true
+    },
+    {
+      "file": "instances/cattail_a.bin",
+      "id": "reeds_cattail_a",
+      "mesh": "cattail_a",
+      "shadow": true
+    },
+    {
+      "file": "instances/cattail_b.bin",
+      "id": "reeds_cattail_b",
+      "mesh": "cattail_b",
+      "shadow": true
+    },
+    {
+      "file": "instances/cattail_c.bin",
+      "id": "reeds_cattail_c",
+      "mesh": "cattail_c",
+      "shadow": true
+    },
+    {"file": "instances/reed_a.bin", "id": "reeds_reed_a", "mesh": "reed_a", "shadow": true},
+    {"file": "instances/reed_b.bin", "id": "reeds_reed_b", "mesh": "reed_b", "shadow": true},
+    {"file": "instances/sedge_a.bin", "id": "sedges_sedge_a", "mesh": "sedge_a", "shadow": false},
+    {"file": "instances/sedge_b.bin", "id": "sedges_sedge_b", "mesh": "sedge_b", "shadow": false},
+    {"file": "instances/sedge_c.bin", "id": "sedges_sedge_c", "mesh": "sedge_c", "shadow": false},
+    {"file": "instances/lily_a.bin", "id": "lilies_lily_a", "mesh": "lily_a", "shadow": false},
+    {"file": "instances/lily_b.bin", "id": "lilies_lily_b", "mesh": "lily_b", "shadow": false},
+    {"file": "instances/lily_c.bin", "id": "lilies_lily_c", "mesh": "lily_c", "shadow": false}
+  ],
+  "lights": [],
+  "materials": {
+    "RW_PondWater": {
+      "absorption": 2.2,
+      "color": [0.45, 0.5, 0.36],
+      "duckweed": true,
+      "duckweed_color": [0.08, 0.17, 0.025],
+      "model": "water",
+      "ripple_strength": 0.5,
+      "roughness": 0.03
+    }
+  },
+  "meshes": {
+    "meadow_props": {"category": "structures", "collision": "mesh", "file": "assets/meadow_props.glb"},
+    "pond_water": {"category": "water", "collision": "none", "file": "assets/pond_water.glb"}
+  },
+  "name": "Serene Meadow",
+  "objects": [
+    {
+      "collision": "mesh",
+      "cull_distance_m": 1000000.0,
+      "id": "meadow_props",
+      "mesh": "meadow_props",
+      "position": [0, 0, 0]
+    },
+    {
+      "collision": "none",
+      "cull_distance_m": 1000000.0,
+      "id": "pond_water",
+      "mesh": "pond_water",
+      "position": [0, 0, 0],
+      "shadow": false
+    }
+  ],
+  "paths": [
+    {
+      "carve_m": 0.0,
+      "falloff_m": 1.5,
+      "flatten": 0.25,
+      "id": "lane",
+      "points": [
+        [-54.64, -1015.0], [-52.5, -980.6], [-39.69, -946.2], [-19.66, -911.8], [1.33, -877.4],
+        [17.24, -843.0], [25.28, -808.6], [26.91, -774.2], [26.58, -739.7], [28.8, -705.3],
+        [35.2, -670.9], [43.45, -636.5], [48.44, -602.1], [45.17, -567.7], [31.78, -533.3],
+        [10.87, -498.9], [-11.57, -464.5], [-29.06, -430.1], [-37.76, -395.7], [-38.19, -361.3],
+        [-34.46, -326.9], [-31.64, -292.5], [-32.65, -258.1], [-36.54, -223.6], [-38.99, -189.2],
+        [-34.98, -154.8], [-21.88, -120.4], [-1.33, -86.0], [21.26, -51.6], [39.19, -17.2],
+        [47.83, 17.2], [46.73, 51.6], [39.54, 86.0], [31.72, 120.4], [27.34, 154.8], [26.83, 189.2],
+        [26.91, 223.6], [22.66, 258.1], [10.78, 292.5], [-8.17, 326.9], [-29.58, 361.3],
+        [-46.88, 395.7], [-54.8, 430.1], [-52.0, 464.5], [-41.53, 498.9], [-29.04, 533.3],
+        [-19.59, 567.7], [-14.97, 602.1], [-13.0, 636.5], [-9.11, 670.9], [0.64, 705.3],
+        [16.8, 739.7], [35.86, 774.2], [51.52, 808.6], [58.2, 843.0], [53.7, 877.4], [40.38, 911.8],
+        [23.85, 946.2], [9.94, 980.6], [1.74, 1015.0]
+      ],
+      "smooth_m": 4,
+      "style": "lane",
+      "width_m": 3.4
+    }
+  ],
+  "player": {},
+  "player_start": {"position": [18.27, -840.0], "yaw_deg": 72.6},
+  "routes": {
+    "lane": {
+      "points": [
+        [1.33, -877.4], [26.91, -774.2], [35.2, -670.9], [45.17, -567.7], [-11.57, -464.5],
+        [-38.19, -361.3], [-32.65, -258.1], [-34.98, -154.8], [21.26, -51.6], [46.73, 51.6],
+        [27.34, 154.8], [22.66, 258.1], [-29.58, 361.3], [-52.0, 464.5], [-19.59, 567.7],
+        [-9.11, 670.9], [35.86, 774.2], [53.7, 877.4]
+      ]
+    }
+  },
+  "scatter": [
+    {
+      "area": {"circle": {"center": [0, 0], "radius": 735.0}, "falloff": 70.0},
+      "avoid_objects_m": 0.5,
+      "avoid_paths_m": 0.0,
+      "avoid_ruts": true,
+      "clump_scale_m": 25,
+      "clumping": 0.35,
+      "density_per_100m2": 45,
+      "id": "grass_meadow",
+      "max_path": 1.0,
+      "max_rock": 0.45,
+      "meshes": [
+        {"mesh": "grass_clump_a", "weight": 3},
+        {"mesh": "grass_clump_b", "weight": 3},
+        {"mesh": "grass_clump_c", "weight": 3},
+        {"mesh": "grass_tall_a", "weight": 1.2},
+        {"mesh": "grass_tall_b", "weight": 1.2},
+        {"mesh": "grass_short_a", "weight": 1.5},
+        {"mesh": "flowers_a", "weight": 0.6},
+        {"mesh": "flowers_b", "weight": 0.6}
+      ],
+      "scale": [0.7, 1.4],
+      "seed": 21,
+      "shadow": false,
+      "slope_deg": [0, 38],
+      "tilt_deg": 7
+    },
+    {
+      "area": {
+        "falloff": 20,
+        "union": [
+          {"circle": {"center": [-16.6, -456.0], "radius": 97.5}},
+          {"circle": {"center": [-100.7, -179.0], "radius": 97.5}},
+          {"circle": {"center": [-100.5, 357.5], "radius": 97.5}},
+          {"circle": {"center": [-76.0, 244.3], "radius": 97.5}},
+          {"circle": {"center": [-29.8, 225.0], "radius": 97.5}},
+          {"circle": {"center": [-7.1, -430.0], "radius": 40.5}},
+          {"circle": {"center": [-0.1, -418.0], "radius": 36.0}},
+          {"circle": {"center": [-70.7, -180.0], "radius": 42.0}},
+          {"circle": {"center": [78.6, 90.0], "radius": 39.8}},
+          {"circle": {"center": [27.0, 105.0], "radius": 36.8}},
+          {"circle": {"center": [-90.6, 390.0], "radius": 42.8}},
+          {"circle": {"center": [-45.0, 225.0], "radius": 56.2}}
+        ]
+      },
+      "avoid_objects_m": 0.5,
+      "avoid_paths_m": 0.0,
+      "avoid_ruts": true,
+      "clump_scale_m": 25,
+      "clumping": 0.35,
+      "density_per_100m2": 280,
+      "id": "grass_hotspots",
+      "max_path": 1.0,
+      "max_rock": 0.45,
+      "meshes": [
+        {"mesh": "grass_clump_a", "weight": 3},
+        {"mesh": "grass_clump_b", "weight": 3},
+        {"mesh": "grass_clump_c", "weight": 3},
+        {"mesh": "grass_tall_a", "weight": 1.2},
+        {"mesh": "grass_tall_b", "weight": 1.2},
+        {"mesh": "grass_short_a", "weight": 1.5},
+        {"mesh": "flowers_a", "weight": 0.6},
+        {"mesh": "flowers_b", "weight": 0.6}
+      ],
+      "scale": [0.7, 1.4],
+      "seed": 22,
+      "shadow": false,
+      "slope_deg": [0, 38],
+      "tilt_deg": 7
+    },
+    {
+      "area": {"falloff": 156.0, "line": [[37.8, -660.0], [48.1, -585.0], [18.1, -510.0]], "width": 312.0},
+      "avoid_objects_m": 0.5,
+      "avoid_paths_m": 0.0,
+      "avoid_ruts": true,
+      "clump_scale_m": 25,
+      "clumping": 0.35,
+      "density_per_100m2": 330,
+      "id": "grass_route",
+      "max_path": 1.0,
+      "max_rock": 0.45,
+      "meshes": [
+        {"mesh": "grass_clump_a", "weight": 3},
+        {"mesh": "grass_clump_b", "weight": 3},
+        {"mesh": "grass_clump_c", "weight": 3},
+        {"mesh": "grass_tall_a", "weight": 1.2},
+        {"mesh": "grass_tall_b", "weight": 1.2},
+        {"mesh": "grass_short_a", "weight": 1.5},
+        {"mesh": "flowers_a", "weight": 0.6},
+        {"mesh": "flowers_b", "weight": 0.6}
+      ],
+      "scale": [0.7, 1.4],
+      "seed": 23,
+      "shadow": false,
+      "slope_deg": [0, 38],
+      "tilt_deg": 7
+    }
+  ],
+  "source": "reference-world preset 'serene_meadow' via reference-world/blender/export_dayfall_map.py",
+  "terrain": {
+    "dry_amount": 0.5,
+    "height_file": "terrain/height.png",
+    "height_range_m": [-2.22903, 152.703],
+    "horizon": {"enabled": true, "height_m": 780.0, "radius_m": 8000, "roughness": 0.8},
+    "material": "terrain",
+    "origin": [-1200.0, -1200.0],
+    "paint_files": ["terrain/paint_a.png", "terrain/paint_b.png"],
+    "png_rows": "north_first",
+    "rock_slope_deg": 40.0,
+    "samples_per_side": 2017,
+    "seed": 31,
+    "snowline_m": 900.0,
+    "spacing_m": 1.19048
+  },
+  "version": 2
+}

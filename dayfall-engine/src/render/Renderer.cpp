@@ -380,8 +380,11 @@ void Renderer::setScene(const Scene& scene) {
                 pending.push_back({m, l, sm, scene.materials[scene.submeshes[sm].material].group});
     std::stable_sort(pending.begin(), pending.end(), [](const Pending& a, const Pending& b) { return a.group < b.group; });
 
-    std::vector<uint32_t> perMesh(scene.meshes.size(), 0);
-    for (const GpuInstance& i : scene.instances) perMesh[i.mesh]++;
+    std::vector<uint32_t> perMesh(scene.meshes.size(), 0), perMeshShadow(scene.meshes.size(), 0);
+    for (const GpuInstance& i : scene.instances) {
+        perMesh[i.mesh]++;
+        if (i.flags & InstShadow) perMeshShadow[i.mesh]++;
+    }
 
     std::vector<GpuBatch> batches(pending.size());
     std::vector<std::vector<std::vector<uint32_t>>> refs(scene.meshes.size());
@@ -401,7 +404,7 @@ void Renderer::setScene(const Scene& scene) {
         b.mainOffset = mainTotal_;
         mainTotal_ += perMesh[p.mesh];
         b.shadowOffset = shadowTotal_;
-        if (p.group < GroupWater) shadowTotal_ += perMesh[p.mesh];
+        if (p.group < GroupWater) shadowTotal_ += perMeshShadow[p.mesh];
         if (groupCount_[p.group]++ == 0) groupStart_[p.group] = i;
         refs[p.mesh][p.lod].push_back(i);
     }
