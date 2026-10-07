@@ -217,11 +217,12 @@ vec3 lightSurface(Surface s, vec3 p, vec3 v, float viewDepth) {
         spec = sunE * shadow * NoL * D_GGX(max(dot(s.n, h), 0.0), a) * V_Smith(NoV, NoL, a) * F_Schlick(f0, max(dot(v, h), 0.0));
     }
     pointLights(p, s.n, v, a, f0, t, diffuseE, spec);
-    vec3 amb = (shIrradiance(s.n) * (1.0 - t) + shIrradiance(-s.n) * t) * s.ao;
+    SkyOcc occ = skyOcclusion(p, s.n);   // walls and roofs of static structures hide the sky
+    vec3 amb = (shIrradiance(s.n) * (1.0 - t) * skyVisibility(occ, s.n) + shIrradiance(-s.n) * t * skyVisibility(occ, -s.n)) * s.ao;
     vec3 R = reflect(-v, s.n);
     vec3 envR = mix(skyRadiance(normalize(vec3(R.xy, max(R.z, 0.02)))), shIrradiance(R) / PI, s.rough);
     envR *= smoothrange(R.z, -0.3, 0.1) * 0.8 + 0.2;   // the ground occludes reflections from below
-    vec3 specAmb = envR * envBRDFApprox(f0, s.rough, NoV) * s.ao;
+    vec3 specAmb = envR * envBRDFApprox(f0, s.rough, NoV) * s.ao * skyVisibility(occ, R);
     vec3 diff = s.albedo * (1.0 - s.metal) / PI;
     return diff * (diffuseE + amb) + (spec + specAmb) * (1.0 - t * 0.5) + s.emissive;
 }

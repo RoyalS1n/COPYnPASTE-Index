@@ -4,6 +4,7 @@
 // after an edit only redoes what the edit touched.
 #include "scene/Scene.h"
 #include "world/Scatter.h"
+#include "world/SkyOcclusion.h"
 #include "world/World.h"
 #include <filesystem>
 #include <memory>
@@ -26,6 +27,7 @@ struct BuildInfo {
     double ms = 0;
     size_t instances = 0, meshes = 0, triangles = 0;
     std::vector<std::string> warnings;
+    nlohmann::json skyOcclusion;   // volumes, cells, rays, build time
     nlohmann::json toJson() const;
 };
 
@@ -65,5 +67,6 @@ private:
     struct ScatterCache { std::string key; std::vector<ScatterPoint> points; };
     std::unordered_map<std::string, ScatterCache> scatter_;
     std::unordered_map<std::string, Texture> textureCache_;
+    SkyOcclusionBuilder skyOcclusion_;
 };
 }  // namespace df

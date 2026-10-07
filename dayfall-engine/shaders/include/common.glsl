@@ -3,6 +3,7 @@
 #extension GL_ARB_shader_draw_parameters : require
 
 #define MAX_VIEWS 5          // main view + up to 4 shadow cascades
+#define MAX_SKY_REGIONS 16   // sky occlusion volumes (binding 23)
 #define GROUP_OPAQUE 0u
 #define GROUP_TWOSIDED 1u
 #define GROUP_MASKED 2u
@@ -115,6 +116,8 @@ layout(set = 0, binding = 0) uniform Frame {
     vec4 terrainA;           // origin xy, sample spacing (m), samples per side
     vec4 terrainB;           // height min, height range, snowline, rock slope (deg)
     vec4 terrainC;           // dry amount, enabled, material index (bits), unused
+    vec4 skyOcc;             // sky occlusion: region count, strength, sample offset along the normal (cells), unused
+    vec4 skyOccRegions[MAX_SKY_REGIONS * 2];   // per region: min corner xyz, cell size (m); size in cells xyz, unused
 } frame;
 
 layout(std430, set = 0, binding = 1) readonly buffer Vertices { Vertex vertices[]; };
@@ -137,7 +140,8 @@ layout(set = 0, binding = 19) uniform sampler2D terrainPaint1;   // dry, grass, 
 layout(set = 0, binding = 20) uniform sampler2D terrainPaths;    // path mask, lane mask, lane signed distance (m), -
 // binding 21: terrain patches (terrain.vert)
 layout(std430, set = 0, binding = 22) readonly buffer InstanceScales { vec4 instanceScales[]; };   // per-axis scales
-layout(set = 0, binding = 23) uniform sampler2D textures[];      // must stay the last binding (variable count)
+layout(set = 0, binding = 23) uniform sampler3D skyVolumes[MAX_SKY_REGIONS];   // sky occlusion: ambient cube, 2 texels a cell
+layout(set = 0, binding = 24) uniform sampler2D textures[];      // must stay the last binding (variable count)
 
 vec3 instanceScale(Instance inst) {
     return (inst.flags & INST_AXIS_SCALE) != 0u ? instanceScales[inst.flags >> 8].xyz : vec3(inst.posScale.w);

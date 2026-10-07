@@ -6,6 +6,7 @@
 #include "render/GpuTypes.h"
 #include "scene/MeshAsset.h"
 #include <map>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -61,7 +62,11 @@ struct Environment {
     float windStrength = 1.0f;
     float waterLevel = -1000.0f;
     float shadowDistance = 250.0f;
+    bool skyOcclusion = true;                // environment.sky_occlusion (world/SkyOcclusion.h)
+    float skyOccCell = 0.5f, skyOccStrength = 1.0f;
+    uint32_t skyOccRays = 48;
 };
+struct SkyVolume;
 struct PlayerStart { vec3 position{0, 0, 2}; float yawDeg = 90.0f; };
 
 struct Scene {
@@ -85,6 +90,7 @@ struct Scene {
     bool hasTerrain = false;                 // the heightfield itself is drawn by the renderer's terrain pass
     uint32_t terrainMaterial = 0;
     vec3 terrainMin{0}, terrainMax{0};
+    std::shared_ptr<const SkyVolume> skyVolume;   // sky occlusion around static structures (null: none)
 
     uint32_t addMaterial(MaterialDef m);
     uint32_t findOrAddMaterial(const std::string& name);

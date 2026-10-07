@@ -75,6 +75,19 @@ void apply(const json& e, Environment& env) {
         env.waterLevel = w.value("enabled", false) ? f(w, "level_m", 0.0f) : -1000.0f;
     }
     env.shadowDistance = f(e, "shadow_distance_m", env.shadowDistance);
+    if (e.contains("sky_occlusion")) {
+        const json& o = e["sky_occlusion"];
+        if (o.is_boolean()) env.skyOcclusion = o.get<bool>();
+        else if (o.is_object()) {
+            env.skyOcclusion = o.value("enabled", env.skyOcclusion);
+            env.skyOccCell = f(o, "cell_m", env.skyOccCell);
+            env.skyOccRays = (uint32_t)f(o, "rays", (float)env.skyOccRays);
+            env.skyOccStrength = f(o, "strength", env.skyOccStrength);
+            if (!(env.skyOccCell >= 0.25f && env.skyOccCell <= 4.0f)) throw Error("sky_occlusion.cell_m must be 0.25 to 4");
+            if (env.skyOccRays < 8 || env.skyOccRays > 256) throw Error("sky_occlusion.rays must be 8 to 256");
+            if (!(env.skyOccStrength >= 0.0f && env.skyOccStrength <= 1.0f)) throw Error("sky_occlusion.strength must be 0 to 1");
+        } else throw Error("sky_occlusion must be true, false or {enabled, cell_m, rays, strength}");
+    }
 }
 }  // namespace
 

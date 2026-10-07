@@ -39,7 +39,9 @@ float autoCull(const MeshAsset& a, float scale) {
 json BuildInfo::toJson() const {
     json w = json::array();
     for (auto& s : warnings) w.push_back(s);
-    return {{"build_ms", std::round(ms * 10) / 10}, {"instances", instances}, {"meshes", meshes}, {"triangles_lod0", triangles}, {"warnings", w}};
+    json j = {{"build_ms", std::round(ms * 10) / 10}, {"instances", instances}, {"meshes", meshes}, {"triangles_lod0", triangles}, {"warnings", w}};
+    if (!skyOcclusion.is_null()) j["sky_occlusion"] = skyOcclusion;
+    return j;
 }
 
 void SceneBuilder::init(const fs::path& dir) {
@@ -561,6 +563,14 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
     if (s.hasTerrain) {
         s.boundsMin = glm::min(s.boundsMin, s.terrainMin);
         s.boundsMax = glm::max(s.boundsMax, s.terrainMax);
+    }
+    // sky occlusion around static structures (cached: retraced only when they or the ground under them change)
+    s.skyVolume = skyOcclusion_.build(s, T);
+    if (s.skyVolume) {
+        json cells = json::array();
+        for (auto& r : s.skyVolume->regions) cells.push_back(std::round(r->cell * 100) / 100);
+        info.skyOcclusion = {{"volumes", s.skyVolume->regions.size()}, {"cells", s.skyVolume->cells}, {"cell_m", cells},
+                             {"rays", s.skyVolume->rays}, {"trace_ms", std::round(s.skyVolume->ms)}};
     }
     info.instances = s.instances.size();
     info.meshes = s.meshes.size();

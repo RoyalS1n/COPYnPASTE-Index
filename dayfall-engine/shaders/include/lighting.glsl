@@ -1,4 +1,4 @@
-// Shading helpers: GGX, sky irradiance (SH), cascaded shadows, point lights, haze.
+// Shading helpers: GGX, sky irradiance (SH), sky occlusion, cascaded shadows, point lights, haze.
 float D_GGX(float NoH, float a) { float a2 = a * a; float f = (NoH * a2 - NoH) * NoH + 1.0; return a2 / (PI * f * f); }
 float V_Smith(float NoV, float NoL, float a) {
     float a2 = a * a;
@@ -19,6 +19,34 @@ vec3 shIrradiance(vec3 n) {
     float x = n.x, y = n.y, z = n.z;
     return max(c1 * L22 * (x * x - y * y) + c3 * L20 * z * z + c4 * L00 - c5 * L20 + 2.0 * c1 * (L2m2 * x * y + L21 * x * z + L2m1 * y * z)
                + 2.0 * c2 * (L11 * x + L1m1 * y + L10 * z), vec3(0.0));
+}
+
+// Sky occlusion around static structures (world/SkyOcclusion.h): an ambient cube, the open fraction of
+// the hemisphere around +x -x +y -y (h) and +z -z (v), blended by strength and by the fade at the
+// volume's edge. Sampled a little off the surface along n so the cells inside walls are not read.
+struct SkyOcc { vec4 h; vec2 v; };
+SkyOcc skyOcclusion(vec3 p, vec3 n) {
+    SkyOcc o = SkyOcc(vec4(1.0), vec2(1.0));
+    uint count = uint(frame.skyOcc.x);
+    for (uint i = 0u; i < count; ++i) {
+        vec4 org = frame.skyOccRegions[i * 2u], size = frame.skyOccRegions[i * 2u + 1u];
+        vec3 g = (p - org.xyz) / org.w + n * frame.skyOcc.z;   // in cells
+        if (any(lessThan(g, vec3(0.0))) || any(greaterThan(g, size.xyz))) continue;
+        vec3 uvw = vec3(clamp(g.x, 0.5, size.x - 0.5) / (2.0 * size.x), g.yz / size.yz);   // the two halves sit side by side in x
+        vec4 h = textureLod(skyVolumes[nonuniformEXT(i)], uvw, 0.0);
+        vec2 v = textureLod(skyVolumes[nonuniformEXT(i)], uvw + vec3(0.5, 0.0, 0.0), 0.0).xy;
+        vec3 edge = min(g, size.xyz - g);
+        float w = frame.skyOcc.y * clamp(min(edge.x, min(edge.y, edge.z)) * 0.5 - 0.5, 0.0, 1.0);
+        o.h = mix(vec4(1.0), h, w);
+        o.v = mix(vec2(1.0), v, w);
+        break;
+    }
+    return o;
+}
+// cosine-weighted open fraction of the hemisphere around dir (unit)
+float skyVisibility(SkyOcc o, vec3 dir) {
+    vec3 d2 = dir * dir;
+    return d2.x * (dir.x >= 0.0 ? o.h.x : o.h.y) + d2.y * (dir.y >= 0.0 ? o.h.z : o.h.w) + d2.z * (dir.z >= 0.0 ? o.v.x : o.v.y);
 }
 
 float sampleShadow(vec3 p, vec3 n, float viewDepth) {

@@ -120,5 +120,10 @@ private:
     uint32_t maxTextures_ = 4096;
     VkBuffer curCmds_ = VK_NULL_HANDLE;
     bool sceneReady_ = false;
+    // sky occlusion volumes (binding 23; unused slots show skyDummy_)
+    void uploadSkyOcclusion(const Scene& scene);
+    std::vector<Image> skyVolumes_;
+    Image skyDummy_;
+    std::shared_ptr<const SkyVolume> skyUploaded_;
 };
 }  // namespace df
