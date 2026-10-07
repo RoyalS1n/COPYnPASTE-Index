@@ -132,6 +132,7 @@ std::shared_ptr<const MeshAsset> SceneBuilder::loadFileAsset(const fs::path& fil
         collect(builtinMaterials());
         collect(lib_.value("materials", json::object()));
         generateLods(a, entry.value("lod0_distance_m", 1e9f), specs, foliage);
+        a.computeBounds();   // thinned foliage LODs grow their cards a little past LOD0
     }
     auto ptr = std::make_shared<const MeshAsset>(std::move(a));
     assets_[key] = ptr;

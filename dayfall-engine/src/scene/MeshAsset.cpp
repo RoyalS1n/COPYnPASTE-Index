@@ -85,7 +85,11 @@ MeshAsset MeshBuilder::build(const std::string& name) {
 
 namespace {
 // keeps whole connected pieces (leaf cards, grass blades): a hash of each piece picks `ratio` of them
-std::vector<uint32_t> dropComponents(const uint32_t* idx, size_t count, float ratio) {
+// Thins foliage for a far LOD: keeps whole cards (connected pieces) with probability `ratio` and grows each kept
+// card about its centre by 1/sqrt(ratio), so the canopy covers about the same area from afar instead of turning
+// into bare sticks. Kept cards get their own vertices (appended to m.vertices).
+std::vector<uint32_t> thinCards(MeshAsset& m, size_t first, size_t count, float ratio) {
+    const uint32_t* idx = &m.indices[first];
     std::unordered_map<uint32_t, uint32_t> parent;
     std::function<uint32_t(uint32_t)> find = [&](uint32_t v) {
         auto it = parent.find(v);
@@ -100,12 +104,38 @@ std::vector<uint32_t> dropComponents(const uint32_t* idx, size_t count, float ra
         parent[b] = a;
         parent[find(c)] = a;
     }
+    auto keep = [&](uint32_t r) {
+        uint32_t h = r * 2654435761u;
+        h ^= h >> 15;
+        return (h & 0xFFFF) < (uint32_t)(ratio * 65536.0f);
+    };
+    std::unordered_map<uint32_t, vec4> centre;   // xyz sum, count
+    for (size_t t = 0; t + 2 < count; t += 3) {
+        uint32_t r = find(idx[t]);
+        if (!keep(r)) continue;
+        vec4& c = centre[r];
+        for (int k = 0; k < 3; ++k) c += vec4(vec3(m.vertices[idx[t + k]].p0), 1.0f);
+    }
+    float grow = std::min(1.0f / std::sqrt(std::max(ratio, 0.05f)), 3.5f);
+    std::unordered_map<uint32_t, uint32_t> remap;
     std::vector<uint32_t> out;
     for (size_t t = 0; t + 2 < count; t += 3) {
         uint32_t r = find(idx[t]);
-        uint32_t h = r * 2654435761u;
-        h ^= h >> 15;
-        if ((h & 0xFFFF) < (uint32_t)(ratio * 65536.0f)) out.insert(out.end(), {idx[t], idx[t + 1], idx[t + 2]});
+        if (!keep(r)) continue;
+        vec4 c4 = centre[r];
+        vec3 c = vec3(c4) / c4.w;
+        for (int k = 0; k < 3; ++k) {
+            uint32_t v = idx[t + k];
+            auto it = remap.find(v);
+            if (it == remap.end()) {
+                GpuVertex nv = m.vertices[v];
+                vec3 p = c + (vec3(nv.p0) - c) * grow;
+                nv.p0 = vec4(p, nv.p0.w);
+                it = remap.emplace(v, (uint32_t)m.vertices.size()).first;
+                m.vertices.push_back(nv);
+            }
+            out.push_back(it->second);
+        }
     }
     return out;
 }
@@ -120,7 +150,7 @@ void generateLods(MeshAsset& m, float lod0Distance, const std::vector<LodSpec>& 
         std::vector<MeshPart> lod;
         for (const MeshPart& src : base) {
             if (l.dropFoliage && std::find(foliage.begin(), foliage.end(), src.material) != foliage.end()) {
-                std::vector<uint32_t> kept = dropComponents(&m.indices[src.firstIndex], src.indexCount, l.ratio);
+                std::vector<uint32_t> kept = thinCards(m, src.firstIndex, src.indexCount, l.ratio);
                 if (kept.empty()) continue;
                 MeshPart p = src;
                 p.firstIndex = (uint32_t)m.indices.size();

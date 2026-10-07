@@ -846,6 +846,12 @@
       "collision": "mesh",
       "file": "assets/castle_cliff.glb",
       "lod0_distance_m": 1000000000.0
+    },
+    "far_ranges": {
+      "category": "terrain",
+      "collision": "none",
+      "description": "Distant mountain ranges around the map (Blender skirt)",
+      "file": "assets/far_ranges.glb"
     }
   },
   "name": "Golden Valley",
@@ -863,6 +869,16 @@
       "id": "castle_cliff",
       "mesh": "castle_cliff",
       "position": [0, 0, 0]
+    },
+    {
+      "collision": "none",
+      "cull_distance_m": 100000,
+      "footprint_m": false,
+      "id": "far_ranges",
+      "mesh": "far_ranges",
+      "position": [0, 0, 0],
+      "shadow": false,
+      "tags": ["backdrop"]
     }
   ],
   "paths": [],
@@ -903,7 +919,7 @@
     "dry_amount": 0.5,
     "height_file": "terrain/height.png",
     "height_range_m": [-2.2, 737.441],
-    "horizon": {"enabled": true, "height_m": 900.0, "radius_m": 8000, "roughness": 0.8},
+    "horizon": {"enabled": false},
     "material": "terrain",
     "origin": [-1200.0, -1200.0],
     "paint_files": ["terrain/paint_a.png", "terrain/paint_b.png"],

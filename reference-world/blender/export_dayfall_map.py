@@ -109,11 +109,71 @@ def environment(cfg):
     }
 
 
+def write_skirt(T, out):
+    """The Blender world's distant ranges (Terrain.build_skirt, a 16 km square around the map) as
+    assets/far_ranges.glb. It is shaded by the engine's terrain material from vertex colours, exactly as the
+    engine's own horizon ring: COLOR_0 = grass, rock, snow, wet; COLOR_1 = path, dry, lane, -."""
+    X, Y, H, masks, size = T.build_skirt()
+    ny, nx = H.shape
+    sp_s = size / (nx - 1)
+    gy, gx = np.gradient(H, sp_s)
+    nrm = np.dstack([-gx, -gy, np.ones_like(gx)])
+    nrm /= np.linalg.norm(nrm, axis=2, keepdims=True)
+    inside = (np.abs(X) < T.half - 2 * sp_s) & (np.abs(Y) < T.half - 2 * sp_s)   # under the main terrain
+    idx = np.arange(ny * nx).reshape(ny, nx)
+    a, b, c, d = idx[:-1, :-1], idx[:-1, 1:], idx[1:, 1:], idx[1:, :-1]
+    keep = ~(inside[:-1, :-1] & inside[:-1, 1:] & inside[1:, 1:] & inside[1:, :-1])
+    tri = np.concatenate([np.stack([a[keep], b[keep], c[keep]], 1), np.stack([a[keep], c[keep], d[keep]], 1)]).astype("<u4")
+    # glTF is Y up: (x, y, z) -> (x, z, -y); the engine turns it back
+    pos = np.stack([X.ravel(), H.ravel(), -Y.ravel()], 1).astype("<f4")
+    nor = np.stack([nrm[..., 0].ravel(), nrm[..., 2].ravel(), -nrm[..., 1].ravel()], 1).astype("<f4")
+    z = np.zeros(X.size)
+    to8 = lambda a: np.clip(np.round(a * 255.0), 0, 255).astype(np.uint8)   # normalised byte colours: 4 B a vertex
+    c0 = to8(np.stack([masks["grass"].ravel(), masks["rock"].ravel(), masks["snow"].ravel(), masks["wet"].ravel()], 1))
+    c1 = to8(np.stack([z, masks.get("dry", z.reshape(X.shape)).ravel() * 0.6, z, z], 1))
+    blobs = [pos.tobytes(), nor.tobytes(), c0.tobytes(), c1.tobytes(), tri.tobytes()]
+    views, off = [], 0
+    for bl in blobs:
+        views.append({"buffer": 0, "byteOffset": off, "byteLength": len(bl)})
+        off += len(bl)
+    acc = [{"bufferView": 0, "componentType": 5126, "count": len(pos), "type": "VEC3",
+            "min": pos.min(0).tolist(), "max": pos.max(0).tolist()},
+           {"bufferView": 1, "componentType": 5126, "count": len(pos), "type": "VEC3"},
+           {"bufferView": 2, "componentType": 5121, "normalized": True, "count": len(pos), "type": "VEC4"},
+           {"bufferView": 3, "componentType": 5121, "normalized": True, "count": len(pos), "type": "VEC4"},
+           {"bufferView": 4, "componentType": 5125, "count": tri.size, "type": "SCALAR"}]
+    gl = {"asset": {"version": "2.0", "generator": "export_dayfall_map.py"}, "scene": 0, "scenes": [{"nodes": [0]}],
+          "nodes": [{"mesh": 0, "name": "far_ranges"}], "materials": [{"name": "terrain"}],
+          "meshes": [{"name": "far_ranges", "primitives": [{"attributes": {"POSITION": 0, "NORMAL": 1, "COLOR_0": 2, "COLOR_1": 3},
+                                                             "indices": 4, "material": 0}]}],
+          "buffers": [{"byteLength": off}], "bufferViews": views, "accessors": acc}
+    js = json.dumps(gl).encode()
+    js += b" " * (-len(js) % 4)
+    binbuf = b"".join(blobs)
+    binbuf += b"\0" * (-len(binbuf) % 4)
+    with open(out / "assets" / "far_ranges.glb", "wb") as f:
+        f.write(struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(js) + 8 + len(binbuf)))
+        f.write(struct.pack("<II", len(js), 0x4E4F534A) + js + struct.pack("<II", len(binbuf), 0x004E4942) + binbuf)
+    print(f"far ranges: {len(pos)} vertices, {len(tri)} triangles, peak {H.max():.0f} m")
+
+
+def add_skirt(doc):
+    """Map entries for assets/far_ranges.glb; the engine's generic horizon ring is switched off."""
+    doc["terrain"]["horizon"] = {"enabled": False}
+    doc.setdefault("meshes", {})["far_ranges"] = {"file": "assets/far_ranges.glb", "category": "terrain",
+                                                  "description": "Distant mountain ranges around the map (Blender skirt)",
+                                                  "collision": "none"}
+    doc["objects"] = [o for o in doc.get("objects", []) if o.get("id") != "far_ranges"]
+    doc["objects"].append({"id": "far_ranges", "mesh": "far_ranges", "position": [0, 0, 0], "collision": "none",
+                           "shadow": False, "cull_distance_m": 100000, "footprint_m": False, "tags": ["backdrop"]})
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--preset", default="serene_meadow")
     p.add_argument("--out", default=str(HERE.parent.parent / "dayfall-engine" / "maps"))
     p.add_argument("--name", default=None)
+    p.add_argument("--skirt-only", action="store_true", help="only (re)write the distant ranges into an existing map")
     args = p.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:])
     cfg = load_preset(args.preset)
     name = args.name or cfg["name"]
@@ -125,6 +185,12 @@ def main():
     coll = bpy.context.scene.collection
     print("terrain")
     T = Terrain(cfg).build()
+    if args.skirt_only:
+        write_skirt(T, out)
+        doc = json.loads((out / "map.json").read_text())
+        add_skirt(doc)
+        (out / "map.json").write_text(json.dumps(doc, indent=1))
+        return
     mats = materials.build_all(cfg)
     res, half, sp = T.res, T.half, T.spacing
     H = np.array(T.height, dtype=np.float64)
@@ -259,6 +325,8 @@ def main():
                                density_per_100m2=330, seed=23))
     if not meadow_mode:
         doc["routes"]["camera_path"] = {"points": route}
+    write_skirt(T, out)
+    add_skirt(doc)
     (out / "map.json").write_text(json.dumps(doc, indent=1) + "\n")
     print(f"wrote {out}")
 

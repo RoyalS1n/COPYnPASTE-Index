@@ -1476,9 +1476,15 @@
      "distance_m": 320,
      "foliage": "drop",
      "sloppy": true
+    },
+    {
+     "ratio": 0.08,
+     "distance_m": 900,
+     "foliage": "drop",
+     "sloppy": true
     }
    ],
-   "cull_distance_m": 1500,
+   "cull_distance_m": 3000,
    "front": "-y",
    "description": "Broadleaf tree (oak / beech), 10-15 m",
    "collision": {
@@ -1510,9 +1516,15 @@
      "distance_m": 320,
      "foliage": "drop",
      "sloppy": true
+    },
+    {
+     "ratio": 0.08,
+     "distance_m": 900,
+     "foliage": "drop",
+     "sloppy": true
     }
    ],
-   "cull_distance_m": 1500,
+   "cull_distance_m": 3000,
    "front": "-y",
    "description": "Broadleaf tree (oak / beech), 10-15 m",
    "collision": {
@@ -1544,9 +1556,15 @@
      "distance_m": 320,
      "foliage": "drop",
      "sloppy": true
+    },
+    {
+     "ratio": 0.08,
+     "distance_m": 900,
+     "foliage": "drop",
+     "sloppy": true
     }
    ],
-   "cull_distance_m": 1500,
+   "cull_distance_m": 3000,
    "front": "-y",
    "description": "Broadleaf tree (oak / beech), 10-15 m",
    "collision": {
@@ -1578,9 +1596,15 @@
      "distance_m": 320,
      "foliage": "drop",
      "sloppy": true
+    },
+    {
+     "ratio": 0.08,
+     "distance_m": 900,
+     "foliage": "drop",
+     "sloppy": true
     }
    ],
-   "cull_distance_m": 1500,
+   "cull_distance_m": 3000,
    "front": "-y",
    "description": "Conifer (spruce / fir), 14-23 m",
    "collision": {
@@ -1612,9 +1636,15 @@
      "distance_m": 320,
      "foliage": "drop",
      "sloppy": true
+    },
+    {
+     "ratio": 0.08,
+     "distance_m": 900,
+     "foliage": "drop",
+     "sloppy": true
     }
    ],
-   "cull_distance_m": 1500,
+   "cull_distance_m": 3000,
    "front": "-y",
    "description": "Conifer (spruce / fir), 14-23 m",
    "collision": {
@@ -1646,9 +1676,15 @@
      "distance_m": 320,
      "foliage": "drop",
      "sloppy": true
+    },
+    {
+     "ratio": 0.08,
+     "distance_m": 900,
+     "foliage": "drop",
+     "sloppy": true
     }
    ],
-   "cull_distance_m": 1500,
+   "cull_distance_m": 3000,
    "front": "-y",
    "description": "Conifer (spruce / fir), 14-23 m",
    "collision": {
@@ -1680,9 +1716,15 @@
      "distance_m": 320,
      "foliage": "drop",
      "sloppy": true
+    },
+    {
+     "ratio": 0.08,
+     "distance_m": 900,
+     "foliage": "drop",
+     "sloppy": true
     }
    ],
-   "cull_distance_m": 1500,
+   "cull_distance_m": 3000,
    "front": "-y",
    "description": "Conifer (spruce / fir), 14-23 m",
    "collision": {

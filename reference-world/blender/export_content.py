@@ -120,9 +120,12 @@ def kit(mats):
             out.append((cat, f"{base}_{LETTERS[i]}", ob, dict(meta)))
 
     trees = [bpy.data.objects[o] if isinstance(o, str) else o for o in lib["trees"][1]]
+    # far LODs thin the leaf cards and grow the rest (the engine keeps canopy coverage), so forests still read
+    # as forests on hills 2-3 km away
     tree_lods = {"lod0_distance_m": 45, "lods": [{"ratio": 0.45, "distance_m": 110, "foliage": "drop"},
-                                                 {"ratio": 0.18, "distance_m": 320, "foliage": "drop", "sloppy": True}],
-                 "cull_distance_m": 1500, "front": "-y"}
+                                                 {"ratio": 0.18, "distance_m": 320, "foliage": "drop", "sloppy": True},
+                                                 {"ratio": 0.08, "distance_m": 900, "foliage": "drop", "sloppy": True}],
+                 "cull_distance_m": 3000, "front": "-y"}
     add("trees", trees[:4], "conifer", dict(tree_lods, description="Conifer (spruce / fir), 14-23 m",
                                              collision={"type": "cylinder", "radius": 0.35, "height": 8}, footprint_m=2.5))
     add("trees", trees[4:], "broadleaf", dict(tree_lods, description="Broadleaf tree (oak / beech), 10-15 m",
