@@ -109,15 +109,20 @@ const std::vector<Prompt>& prompts() {
              return "Build this level in the live DAYFALL editor: " + arg(a, "description") + "\n" +
                     (map.empty() ? "" : "Create it as a new map with map_new {\"dir\": \"" + map + "\"}.\n") +
                     "\nFollow the agent workflow (resource dayfall://docs/agent-workflow):\n"
-                    "1. Read first: project_info, then world_get, catalog and terrain_info. Change nothing until you know the map.\n"
+"1. Read first: project_info, then world_get, catalog and terrain_info. Change nothing until you know the map. "
+                    "When the human points at something (\"this\", \"here\"), editor_state says what they selected.\n"
                     "2. One theme per batch: batch_begin {title} -> a few related edits -> capture -> look at the images -> fix -> "
                     "batch_end. Never change terrain, lighting and the character in one batch (the engine refuses).\n"
-                    "3. Order: terrain (terrain_generate, terrain_sculpt, terrain_paint) -> paths (path_set) -> blockout with "
-                    "primitives (object_add, place_along_path) -> gameplay (entity_add; player_set start for the player start) -> "
-                    "route_set and walk_test until passed is true, play_sim for jumps -> art (catalog meshes, asset_import, "
-                    "object_update, scatter_set) -> lighting (environment_set, light_set).\n"
+"3. Order: terrain (terrain_generate, terrain_sculpt, terrain_paint; water_set for lakes and rivers) -> paths "
+                    "(path_set) -> name the places (area_set) -> blockout with primitives (find_space for level sites, object_add "
+                    "with place {on / next_to / relative_to} instead of guessed coordinates, place_along_path) -> gameplay "
+                    "(entity_add; player_set start for the player start) -> route_set and walk_test until passed is true, play_sim "
+                    "for jumps -> art (catalog meshes, asset_import, object_update, scatter_set; prefab_save a dressed group once "
+                    "and prefab_place it at each site) -> lighting (environment_set, light_set).\n"
                     "4. A successful tool call does not mean the level is right. In every capture look for floating or buried "
-                    "objects, gaps, scale against the 1.8 m mannequin, broken paths, empty or cluttered areas and exposure.\n\n"
+"objects, gaps, scale against the 1.8 m mannequin, broken paths, empty or cluttered areas and exposure. Before "
+                    "batch_end run world_check (it finds floating, buried and duplicate objects, objects on paths, entities inside "
+                    "walls) and fix what it reports; world_diff lists the batch's changes for its notes.\n\n"
                     "Finish with a short report: what you built, the walk_test result, and what the final captures show.";
          }},
         {"review_level", "Review the level", "Capture and walk-test the open map and report its problems, without changing it.",
@@ -133,7 +138,8 @@ const std::vector<Prompt>& prompts() {
                     (route.empty() ? std::string("every route listed by project_info (with no routes: walk_test {path_id} along the main path)")
                                    : "the route " + route) +
                     ", and look at the capture of each problem spot.\n"
-                    "4. play_sim a short run from the player start (forward 3 s, a jump, turn 90 degrees, forward 2 s; captures each).\n\n"
+"4. play_sim a short run from the player start (forward 3 s, a jump, turn 90 degrees, forward 2 s; captures each).\n"
+                    "5. world_check {min_severity: info} and include its errors and warnings.\n\n"
                     "Report what each capture shows, every walk_test problem with its position, and a prioritised list of fixes. "
                     "Do not edit the map.";
          }},
@@ -142,11 +148,13 @@ const std::vector<Prompt>& prompts() {
           {"goal", "What should change, e.g. \"more lived-in: market props, lanterns, grass\"", true}},
          [](const json& a) {
              return "Refine an area of the open DAYFALL map.\nArea: " + arg(a, "area") + "\nGoal: " + arg(a, "goal") +
-                    "\n\n1. Read the area: world_get with near {position, radius_m}, ground_query for the ground, and capture an "
-                    "orbit view of it (keep the view to repeat it).\n"
+"\n\n1. Read the area: name it with area_set (then every area argument takes the name), world_get with near "
+                    "{position, radius_m}, ground_query for the ground, world_check {area}, and capture an orbit view of it (keep "
+                    "the view to repeat it).\n"
                     "2. Plan small batches with one theme each (layout, foliage, lighting, gameplay); terrain, lighting and "
                     "character changes never share a batch.\n"
-                    "3. Each batch: batch_begin -> edits -> capture the same orbit view -> compare with the one before -> fix -> batch_end.\n"
+"3. Each batch: batch_begin -> edits -> capture the same orbit view -> compare with the one before -> world_check "
+                    "{area} -> fix -> batch_end.\n"
                     "4. If a route crosses the area, walk_test it at the end.\n\n"
                     "Report what changed, with the before and after captures.";
          }},
