@@ -57,7 +57,8 @@ except `format`.
   "tonemap": {"exposure_ev": 0.9, "contrast": 1.15, "saturation": 1.05, "vignette": 0.25},
   "wind": {"direction": [0.6, 0.8], "strength": 1},
   "water": {"enabled": true, "level_m": 2.0, "plane": true},
-  "shadow_distance_m": 250
+  "shadow_distance_m": 250,
+  "sky_occlusion": {"enabled": true, "cell_m": 0.5, "rays": 48, "strength": 1.0}
 }
 ```
 
@@ -65,6 +66,16 @@ except `format`.
 use it when ponds and rivers are their own meshes. The preset applies first; any field given overrides it.
 Presets: `golden_hour`, `serene`, `noon`, `misty_morning`, `dusk`, `overcast`. `time_of_day` (hours) moves the sun along a simple day arc. Sun azimuth:
 0 = the sun is north, 90 = east.
+
+`sky_occlusion` (on by default; `false` turns it off) darkens the sky light under roofs, inside walls and near
+structures: the engine bakes how much of the sky every point around buildings, ruins and cliffs can see into
+small 3D volumes (at most 16, 4 M cells and 32 MB together) when the scene is built, and lighting scales the
+ambient sky light and sky reflections by it. The sun keeps its shadows; point lights are not affected. Open terrain
+has no volume. `cell_m` (0.25-4, default 0.5) is the preferred cell size: large structures get coarser cells to
+fit the budget, `rays` (8-256, default 48) the directions traced from every cell over the whole sphere,
+`strength` (0-1) scales the effect. Static instances with opaque surfaces at least 1.5 m across occlude
+(vegetation, grass and water do not); the volumes are retraced only when they or the ground under them change.
+`project_info` reports the volumes under `build.sky_occlusion`.
 
 ## terrain
 

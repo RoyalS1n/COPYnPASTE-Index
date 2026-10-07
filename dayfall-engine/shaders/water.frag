@@ -52,7 +52,7 @@ void main() {
     vec3 R = reflect(-v, n);
     vec3 refl = skyRadiance(normalize(vec3(R.xy, max(R.z, 0.01))));
     vec4 cl = cloudLayer(p, normalize(vec3(R.xy, max(R.z, 0.01))));
-    refl = refl * (1.0 - cl.a) + cl.rgb;
+    refl = (refl * (1.0 - cl.a) + cl.rgb) * skyVisibility(skyOcclusion(p, vec3(0, 0, 1)), R);
     float fx = clamp(1.0 - NoV, 0.0, 1.0);
     float F = 0.02 + 0.98 * fx * fx * fx * fx * fx;
     vec3 L = frame.sunDir.xyz;

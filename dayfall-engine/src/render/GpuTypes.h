@@ -6,6 +6,7 @@
 namespace df {
 constexpr uint32_t kMaxViews = 5;     // camera + 4 shadow cascades
 constexpr uint32_t kNoTexture = 0xFFFFFFFFu;
+constexpr uint32_t kMaxSkyRegions = 16;   // sky occlusion volumes (world/SkyOcclusion.h), a sampler3D array at binding 23
 
 enum Group : uint32_t { GroupOpaque = 0, GroupTwoSided = 1, GroupMasked = 2, GroupWater = 3, GroupBlend = 4, GroupCount = 5 };
 enum Model : uint32_t { ModelLit = 0, ModelTerrain = 1, ModelFoliage = 2, ModelCourses = 3, ModelWater = 4,
@@ -58,5 +59,7 @@ struct GpuFrame {
     uvec4 totals;
     vec4 post;
     vec4 terrainA, terrainB, terrainC;
+    vec4 skyOcc;                              // region count, strength, sample offset along the normal (cells), -
+    vec4 skyOccRegions[kMaxSkyRegions * 2];   // per region: min corner, cell size (m); size in cells, -
 };
 }  // namespace df

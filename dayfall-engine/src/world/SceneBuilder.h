@@ -5,6 +5,7 @@
 #include "scene/Scene.h"
 #include "scene/Skin.h"
 #include "world/Scatter.h"
+#include "world/SkyOcclusion.h"
 #include "world/World.h"
 #include <filesystem>
 #include <memory>
@@ -27,6 +28,7 @@ struct BuildInfo {
     double ms = 0;
     size_t instances = 0, meshes = 0, triangles = 0;
     std::vector<std::string> warnings;
+    nlohmann::json skyOcclusion;   // volumes, cells, rays, build time
     nlohmann::json toJson() const;
 };
 
@@ -71,5 +73,6 @@ private:
     std::unordered_map<std::string, Texture> textureCache_;
     std::string characterKey_;
     std::shared_ptr<const CharacterAsset> characterCache_;
+    SkyOcclusionBuilder skyOcclusion_;
 };
 }  // namespace df

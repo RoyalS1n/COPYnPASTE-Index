@@ -2,6 +2,7 @@
 #include "gfx/Pipeline.h"
 #include "render/LightGrid.h"
 #include "render/SkyModel.h"
+#include "world/SkyOcclusion.h"
 #include "world/Terrain.h"
 #include <glm/gtc/packing.hpp>
 #include <algorithm>
@@ -14,7 +15,8 @@ constexpr VkFormat kHdrFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 constexpr VkFormat kDepthFormat = VK_FORMAT_D32_SFLOAT;
 constexpr VkFormat kShadowFormat = VK_FORMAT_D32_SFLOAT;
 constexpr VkBufferUsageFlags kSsbo = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-constexpr uint32_t kBindingCount = 24;   // 0 UBO, 1-11 buffers, 12-20 images, 21 terrain patches, 22 instance scales, 23 bindless textures
+// 0 UBO, 1-11 buffers, 12-20 images, 21 terrain patches, 22 instance scales, 23 sky occlusion volumes, 24 bindless textures
+constexpr uint32_t kBindingCount = 25;
 
 struct Push { uint32_t batchBase, view, flags, pad; };
 
@@ -25,7 +27,7 @@ template <typename T> Buffer upload(Device& d, const std::vector<T>& v, VkBuffer
     return createBufferWithData(d, v.data(), v.size() * sizeof(T), usage);
 }
 
-void uploadImage(Device& d, Image& img, const void* data, VkDeviceSize size) {
+void uploadImage(Device& d, Image& img, const void* data, VkDeviceSize size, uint32_t depth = 1) {
     Buffer staging = createBuffer(d, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, MemUsage::Upload);
     std::memcpy(staging.mapped, data, size);
     vmaFlushAllocation(d.allocator, staging.alloc, 0, size);
@@ -34,13 +36,39 @@ void uploadImage(Device& d, Image& img, const void* data, VkDeviceSize size) {
                      VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
         VkBufferImageCopy c{};
         c.imageSubresource = {aspectOf(img.format), 0, 0, 1};
-        c.imageExtent = {img.extent.width, img.extent.height, 1};
+        c.imageExtent = {img.extent.width, img.extent.height, depth};
         vkCmdCopyBufferToImage(cmd, staging.buffer, img.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &c);
         imageBarrier(cmd, img.image, aspectOf(img.format), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
                      VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     });
     destroyBuffer(d, staging);
+}
+
+// RGBA8 3D texture (sky occlusion)
+Image createVolume(Device& d, uvec3 dims, const uint8_t* rgba) {
+    Image img;
+    img.format = VK_FORMAT_R8G8B8A8_UNORM;
+    img.extent = {dims.x, dims.y};
+    VkImageCreateInfo ici{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    ici.imageType = VK_IMAGE_TYPE_3D;
+    ici.format = img.format;
+    ici.extent = {dims.x, dims.y, dims.z};
+    ici.mipLevels = ici.arrayLayers = 1;
+    ici.samples = VK_SAMPLE_COUNT_1_BIT;
+    ici.tiling = VK_IMAGE_TILING_OPTIMAL;
+    ici.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    VmaAllocationCreateInfo aci{};
+    aci.usage = VMA_MEMORY_USAGE_AUTO;
+    VK_CHECK(vmaCreateImage(d.allocator, &ici, &aci, &img.image, &img.alloc, nullptr));
+    VkImageViewCreateInfo vci{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    vci.image = img.image;
+    vci.viewType = VK_IMAGE_VIEW_TYPE_3D;
+    vci.format = img.format;
+    vci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    VK_CHECK(vkCreateImageView(d.device, &vci, nullptr, &img.view));
+    uploadImage(d, img, rgba, (VkDeviceSize)dims.x * dims.y * dims.z * 4, dims.z);
+    return img;
 }
 
 vec4 normalizePlane(vec4 p) {
@@ -133,8 +161,9 @@ void Renderer::init(Device& dev, const RenderSettings& s, const std::string& sha
                               : (i <= 11 || i == 21 || i == 22) ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
                                                      : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     }
-    b[23].descriptorCount = maxTextures_;
-    flags[23] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
+    b[23].descriptorCount = kMaxSkyRegions;
+    b[24].descriptorCount = maxTextures_;
+    flags[24] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
     VkDescriptorSetLayoutBindingFlagsCreateInfo bf{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO};
     bf.bindingCount = kBindingCount;
     bf.pBindingFlags = flags;
@@ -145,7 +174,7 @@ void Renderer::init(Device& dev, const RenderSettings& s, const std::string& sha
 
     VkDescriptorPoolSize sizes[] = {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, kFrames},
                                     {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 13 * kFrames},
-                                    {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (9 + maxTextures_) * kFrames}};
+                                    {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (9 + kMaxSkyRegions + maxTextures_) * kFrames}};
     VkDescriptorPoolCreateInfo pci{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     pci.maxSets = kFrames;
     pci.poolSizeCount = 3;
@@ -174,6 +203,8 @@ void Renderer::init(Device& dev, const RenderSettings& s, const std::string& sha
         terrainIndices_ = createBufferWithData(dev, idx.data(), idx.size() * 4, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
     }
     createTerrainDummies();
+    const uint8_t open[4] = {255, 255, 255, 255};
+    skyDummy_ = createVolume(dev, uvec3(1), open);
 
     if (dev.timestamps) {
         VkQueryPoolCreateInfo qci{VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};
@@ -483,6 +514,7 @@ void Renderer::setScene(const Scene& scene) {
         textures_.push_back(createTexture(d, white, 1, 1, false));
     }
 
+    uploadSkyOcclusion(scene);
     sceneMin_ = scene.boundsMin;
     sceneMax_ = scene.boundsMax;
     if (sceneMin_.x > sceneMax_.x) sceneMin_ = sceneMax_ = vec3(0);
@@ -491,6 +523,32 @@ void Renderer::setScene(const Scene& scene) {
     double mb = (double)(vertices_.size + indices_.size + instances_.size + visibleBytes * kFrames) / (1 << 20);
     logInfo("renderer: {} batches, {} instances, visible list {} + {} x {}, {:.0f} MB geometry and lists", numBatches_,
             numInstances_, mainTotal_, s_.cascades, shadowTotal_, mb);
+}
+
+void Renderer::uploadSkyOcclusion(const Scene& scene) {
+    Device& d = *d_;
+    const SkyVolume* v = scene.skyVolume.get();
+    if (scene.skyVolume != skyUploaded_) {   // rebuilt (or removed): new textures
+        for (auto& img : skyVolumes_) destroyImage(d, img);
+        skyVolumes_.clear();
+        if (v)
+            for (auto& r : v->regions) {
+                uvec3 dims(r->dims.x * 2, r->dims.y, r->dims.z);   // two texels per cell (world/SkyOcclusion.h)
+                if (std::max({dims.x, dims.y, dims.z}) > d.props.limits.maxImageDimension3D) {
+                    logWarn("sky occlusion volume {} x {} x {} exceeds the device limit", dims.x, dims.y, dims.z);
+                    break;
+                }
+                skyVolumes_.push_back(createVolume(d, dims, r->rgba.data()));
+            }
+        skyUploaded_ = scene.skyVolume;
+    }
+    GpuFrame& f = frameData_;
+    f.skyOcc = vec4((float)skyVolumes_.size(), std::clamp(scene.env.skyOccStrength, 0.0f, 1.0f), 1.0f, 0.0f);
+    for (size_t i = 0; i < skyVolumes_.size(); ++i) {
+        const SkyRegion& r = *v->regions[i];
+        f.skyOccRegions[i * 2] = vec4(r.origin, r.cell);
+        f.skyOccRegions[i * 2 + 1] = vec4(vec3(r.dims), 0.0f);
+    }
 }
 
 void Renderer::updateLights(const Scene& scene) {
@@ -567,10 +625,20 @@ void Renderer::writeDescriptors() {
         sw.dstBinding = 22;
         sw.pBufferInfo = &sbi;
         w.push_back(sw);
+        VkDescriptorImageInfo vi[kMaxSkyRegions];
+        for (uint32_t i = 0; i < kMaxSkyRegions; ++i)
+            vi[i] = {linearClamp_, (i < skyVolumes_.size() ? skyVolumes_[i] : skyDummy_).view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkWriteDescriptorSet vw{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        vw.dstSet = sets_[f];
+        vw.dstBinding = 23;
+        vw.descriptorCount = kMaxSkyRegions;
+        vw.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        vw.pImageInfo = vi;
+        w.push_back(vw);
         for (uint32_t i = 0; i < texCount; ++i) ti[i] = {linearRepeat_, textures_[i].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkWriteDescriptorSet x{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
         x.dstSet = sets_[f];
-        x.dstBinding = 23;
+        x.dstBinding = 24;
         x.descriptorCount = texCount;
         x.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         x.pImageInfo = ti.data();
@@ -1107,6 +1175,10 @@ void Renderer::shutdown() {
             if (b->buffer) destroyBuffer(d, *b);
     for (auto& t : textures_) destroyImage(d, t);
     if (skyLut_.image) destroyImage(d, skyLut_);
+    for (auto& v : skyVolumes_) destroyImage(d, v);
+    skyVolumes_.clear();
+    skyUploaded_.reset();
+    if (skyDummy_.image) destroyImage(d, skyDummy_);
     for (Image* i : {&terrain_.height, &terrain_.paint0, &terrain_.paint1, &terrain_.paths})
         if (i->image) destroyImage(d, *i);
     if (terrainIndices_.buffer) destroyBuffer(d, terrainIndices_);
