@@ -35,6 +35,12 @@ void apply(const json& e, Environment& env) {
         env.airDensity = f(s, "air_density", env.airDensity);
         env.aerosolDensity = f(s, "aerosol_density", env.aerosolDensity);
         env.ozoneDensity = f(s, "ozone_density", env.ozoneDensity);
+        env.groundAlbedo = f(s, "ground_albedo", env.groundAlbedo);
+        if (s.contains("model")) {
+            std::string m = s["model"].get<std::string>();
+            if (m != "multiple" && m != "single") throw Error("sky.model must be multiple (default) or single");
+            env.skyMultipleScattering = m == "multiple";
+        }
     }
     if (e.contains("haze")) {
         const json& h = e["haze"];

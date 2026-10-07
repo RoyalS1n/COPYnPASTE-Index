@@ -49,11 +49,13 @@ struct Environment {
     float sunAngleDeg = 0.6f;
     float skyStrength = 0.1f;
     float airDensity = 1.0f, aerosolDensity = 1.6f, ozoneDensity = 1.0f;
+    bool skyMultipleScattering = true;   // false: the older single-scattering sky
+    float groundAlbedo = 0.3f;
     vec3 hazeNear{0.62f, 0.52f, 0.42f}, hazeFar{0.48f, 0.47f, 0.5f};
     float hazeAmount = 0.6f, mistStart = 30.0f, mistDepth = 6500.0f;
     float heightFogDensity = 0.0f, heightFogFalloff = 0.3f, heightFogBase = 0.0f;
     bool clouds = true;
-    float cloudCoverage = 0.5f, cloudHeight = 1500.0f, cloudScale = 0.0004f;
+    float cloudCoverage = 0.5f, cloudHeight = 1500.0f, cloudScale = 0.00032f;   // the Blender worlds' noise scale
     vec3 cloudColor{1.0f, 0.75f, 0.55f};
     float exposureEv = 0.85f;
     float lookPower = 1.15f, lookSaturation = 1.05f, lookSlope = 1.0f;   // AgX look

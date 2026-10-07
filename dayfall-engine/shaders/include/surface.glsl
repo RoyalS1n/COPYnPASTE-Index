@@ -96,6 +96,9 @@ Surface shadeTerrain(Material m, vec3 p, vec3 n, vec4 c0, vec4 c1, vec2 uv1) {
     earth = mix(earth, soil, smoothrange(mid, 0.4, 0.65) * 0.5);
     col = mix(col, earth, smoothrange(earthF, 0.2, 0.7));
     s.albedo = col;
+    // grass-covered ground stands for a grass canopy, which hides much of the sky from itself (as the grass
+    // blades' own occlusion does up close)
+    s.ao = mix(1.0, 0.4, clamp(grassM, 0.0, 1.0) * (1.0 - rockF) * (1.0 - snowF) * (1.0 - wet));
     float puddle = wet * wet * smoothrange(fbm(p * 0.8, 3), 0.48, 0.66);
     s.rough = max(0.92 - wet * 0.42 - puddle * 0.4, 0.07);
     s.spec = 0.24 + wet * 0.66;
@@ -119,6 +122,7 @@ Surface shadeFoliage(Material m, vec3 n, vec2 uv, vec4 c0, float seed) {
     s.rough = m.p[0].x;
     s.translucency = m.p[0].y;
     s.spec = 0.4;
+    s.ao = 0.55;   // a canopy hides much of the sky from its own leaves (cyan conifers without it)
     return s;
 }
 
@@ -135,6 +139,9 @@ Surface shadeGrass(Material m, vec3 n, vec2 uv, vec4 inst) {
     s.rough = 0.55;
     s.translucency = 0.4;
     s.spec = 0.45;
+    // dense grass hides most of the sky from its lower blades (the path-traced references show it): without this
+    // the sky light washes the meadow blue-grey instead of golden
+    s.ao = mix(0.12, 1.0, pow(clamp(uv.y, 0.0, 1.0), 1.4));
     return s;
 }
 

@@ -64,7 +64,9 @@ except `format`.
 
 `water.plane: false` keeps the water level (wet ground, the walk test's water events) but draws no sea plane;
 use it when ponds and rivers are their own meshes. The preset applies first; any field given overrides it.
-Presets: `golden_hour`, `serene`, `noon`, `misty_morning`, `dusk`, `overcast`. `time_of_day` (hours) moves the sun along a simple day arc. Sun azimuth:
+Presets: `golden_hour`, `serene`, `noon`, `misty_morning`, `dusk`, `overcast`. `sky` also takes `model`
+(`multiple`, the default: multiple scattering like Blender's MULTIPLE_SCATTERING sky; `single` for the older sky)
+and `ground_albedo` (0.3). Clouds follow the Blender worlds' cloud plane: lit through by the sun, hazed with distance. `time_of_day` (hours) moves the sun along a simple day arc. Sun azimuth:
 0 = the sun is north, 90 = east.
 
 `sky_occlusion` (on by default; `false` turns it off) darkens the sky light under roofs, inside walls and near
