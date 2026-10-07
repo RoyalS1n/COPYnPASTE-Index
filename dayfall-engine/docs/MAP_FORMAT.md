@@ -216,3 +216,37 @@ piece; split it into `meshes` + `objects` / `instance_files` when agents need to
            "jump_height_m": 1.25, "height_m": 1.8, "radius_m": 0.32, "max_slope_deg": 48,
            "step_height_m": 0.4, "camera_distance_m": 4.2}
 ```
+
+`character` is `"mannequin"` (the default jointed figure, animated procedurally) or the name of a rigged mesh: a
+map `meshes` entry or a content-library mesh whose glTF has a skin (`JOINTS_0` / `WEIGHTS_0`, inverse bind
+matrices, a joint hierarchy). A rigged character plays its animation clips:
+
+```json
+"player": {"character": "hero",
+           "animations": {"idle": "Idle", "walk": "Walk", "run": {"clip": "Run", "speed_mps": 5.2},
+                          "jump": "Jump", "fall": "Fall", "land": "Land"},
+           "animation_files": ["assets/hero_anims.glb"], "character_scale": 1.0, "character_yaw_offset_deg": 0,
+           "root_motion": "keep", "animation_blend_s": 0.2}
+```
+
+| key | meaning |
+|---|---|
+| `animations` | state -> clip name, or `{"clip", "speed_mps"}`. States: `idle`, `walk`, `run`, `jump` (once from the take-off, then holds), `fall` (loops while falling), `land` (once on touch-down). A state left out takes the clip whose name contains it (the shortest such name), so clips named Idle, Walk, Run ... map themselves. Missing clips fall back: walk and run use each other, jump and fall each other, land is skipped, idle holds the rest pose. |
+| `animation_files` | more GLBs with clips for the same skeleton, relative to the map (Mixamo style, one clip per file). Joints match by name, ignoring a `prefix:` and case; a clip named `mixamo.com` takes the file name. Only the root bone's translation is taken from these files, so the character keeps its own bone lengths. |
+| `character_scale` | model scale (default 1). The physics capsule stays `height_m` / `radius_m`. |
+| `character_yaw_offset_deg` | turns the model about Z when it does not look where it walks (default 0) |
+| `root_motion` | `keep` (default, for in-place clips) or `strip`: remove the root bone's horizontal travel over each clip, so a clip that walks forward plays in place (sway and bob stay) |
+| `animation_blend_s` | crossfade between states, seconds (default 0.2; jump and land use at most 0.12, fall at least 0.25) |
+
+Walk and run play at the ground speed divided by the clip's `speed_mps` (0.5x to 2x). `speed_mps` comes from
+`animations`, else from the glTF animation's `extras` (`{"speed_mps": 1.7}`: in Blender a custom property on the
+action, exported with custom properties on), else from the root bone's travel per second, else `walk_speed` /
+`run_speed`. The run clip takes over above halfway between the walk and run clip speeds, so the clip follows the
+actual speed rather than the Shift key.
+
+The character's mesh entry: `front` (default `-y`, the glTF convention: the model looks along glTF +Z, as Blender
+and Mixamo export) is turned to the walking direction; `import_scale`, `import_yaw_deg` and `ground_origin` work as
+for other meshes (the model's origin belongs between its feet); `animation_files` lists clip files relative to the
+entry (how a content-library character carries its clips); with `"category": "characters"` the `catalog` lists the
+clips. Skinning runs on the CPU every frame (the 4 strongest influences per vertex) into the character's own range
+of the vertex buffer; non-skinned meshes in the file follow their nearest joint.

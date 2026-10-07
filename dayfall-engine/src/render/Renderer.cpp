@@ -293,6 +293,13 @@ VkPipeline Renderer::postPipeline(VkFormat format) {
 void Renderer::updateDynamicInstances(const Scene& scene) {
     dynamicFirst_ = scene.dynamicFirst;
     dynamic_.assign(scene.instances.begin() + std::min<size_t>(scene.dynamicFirst, scene.instances.size()), scene.instances.end());
+    dynamicVerts_.clear();
+    if (scene.dynamicVertexCount && scene.dynamicVertexFirst + scene.dynamicVertexCount <= scene.vertices.size() &&
+        (VkDeviceSize)scene.dynamicVertexCount * sizeof(GpuVertex) <= vertexStaging_[0].size) {
+        dynamicVertFirst_ = scene.dynamicVertexFirst;
+        dynamicVerts_.assign(scene.vertices.begin() + scene.dynamicVertexFirst,
+                             scene.vertices.begin() + scene.dynamicVertexFirst + scene.dynamicVertexCount);
+    }
 }
 
 void Renderer::createTargets() {
@@ -365,7 +372,9 @@ void Renderer::setScene(const Scene& scene) {
     for (uint32_t f = 0; f < kFrames; ++f) {
         if (visible_[f].buffer) destroyBuffer(d, visible_[f]);
         if (cmds_[f].buffer) destroyBuffer(d, cmds_[f]);
+        if (vertexStaging_[f].buffer) destroyBuffer(d, vertexStaging_[f]);
     }
+    dynamicVerts_.clear();
     for (auto& t : textures_) destroyImage(d, t);
     textures_.clear();
     if (skyLut_.image) destroyImage(d, skyLut_);
@@ -430,7 +439,12 @@ void Renderer::setScene(const Scene& scene) {
     numBatches_ = (uint32_t)batches.size();
     numInstances_ = (uint32_t)scene.instances.size();
     views_ = 1 + s_.cascades;
-    vertices_ = upload(d, scene.vertices, kSsbo);
+    vertices_ = upload(d, scene.vertices, kSsbo);   // (TRANSFER_DST: skinned vertices are copied in every frame)
+    numVertices_ = (uint32_t)scene.vertices.size();
+    if (scene.dynamicVertexCount)
+        for (uint32_t f = 0; f < kFrames; ++f)
+            vertexStaging_[f] = createBuffer(d, (VkDeviceSize)scene.dynamicVertexCount * sizeof(GpuVertex), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                             MemUsage::Upload);
     indices_ = upload(d, scene.indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
     instances_ = upload(d, scene.instances, kSsbo);
     std::vector<vec4> scales = scene.instanceScales;
@@ -683,6 +697,18 @@ void Renderer::record(VkCommandBuffer cmd, uint32_t frame, const Camera& cam, fl
         }
         memoryBarrier(cmd, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
                       VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+    }
+    // 0b. CPU-skinned vertices (rigged characters) into their range of the vertex buffer
+    if (!dynamicVerts_.empty() && vertexStaging_[frame].buffer && dynamicVertFirst_ + dynamicVerts_.size() <= numVertices_) {
+        VkDeviceSize bytes = dynamicVerts_.size() * sizeof(GpuVertex);
+        std::memcpy(vertexStaging_[frame].mapped, dynamicVerts_.data(), bytes);
+        vmaFlushAllocation(d_->allocator, vertexStaging_[frame].alloc, 0, bytes);
+        memoryBarrier(cmd, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                      VK_ACCESS_2_TRANSFER_WRITE_BIT);
+        VkBufferCopy c{0, (VkDeviceSize)dynamicVertFirst_ * sizeof(GpuVertex), bytes};
+        vkCmdCopyBuffer(cmd, vertexStaging_[frame].buffer, vertices_.buffer, 1, &c);
+        memoryBarrier(cmd, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT,
+                      VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
     }
 
     // 1. GPU culling into indirect draws
@@ -1077,7 +1103,7 @@ void Renderer::shutdown() {
     for (Buffer* b : {&vertices_, &indices_, &instances_, &instanceScales_, &meshInfos_, &lods_, &batchRefs_, &batches_, &materials_, &lights_, &lightGrid_})
         if (b->buffer) destroyBuffer(d, *b);
     for (uint32_t f = 0; f < kFrames; ++f)
-        for (Buffer* b : {&ubo_[f], &visible_[f], &cmds_[f]})
+        for (Buffer* b : {&ubo_[f], &visible_[f], &cmds_[f], &vertexStaging_[f]})
             if (b->buffer) destroyBuffer(d, *b);
     for (auto& t : textures_) destroyImage(d, t);
     if (skyLut_.image) destroyImage(d, skyLut_);

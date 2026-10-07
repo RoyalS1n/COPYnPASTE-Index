@@ -60,13 +60,23 @@ through the real player controller: use it for jumps, ledges and stairs. A route
 
 ### 6. Bring in a rigged character
 
-Export the character as glTF / GLB with its skeleton and its walk, run, idle and jump clips (a humanoid rig
-such as the UE5 Mannequin or Mixamo works). Then:
+Export the character as GLB with its skeleton (a skin) and its clips: idle, walk, run, jump, fall and land
+(Blender, Mixamo or any rig; the clips may also come as separate GLBs for the same skeleton, one clip per file,
+joints matched by name). Then:
 
-> Import Characters/Ranger.glb as the player character and wire walk, run and jump to its clips.
+> Import Characters/Ranger.glb as the player character and wire idle, walk, run and jump to its clips.
 
-The agent uses `asset_import`, then `player_set` (a character batch on its own). Until a rigged character is
-assigned, the default jointed mannequin is used, animated procedurally.
+The agent calls `asset_import` (a rigged model becomes category `characters` and the result lists its clips; a GLB
+with clips but no mesh is only copied, for `animation_files`), then, in a character batch on its own,
+`player_set {"character": "ranger", "animations": {"idle": "Idle", "walk": "Walk", ...}}`. The result shows the
+clip each state plays and rejects clip names the file does not have; `catalog` and `project_info` list the clips
+too. Then it checks the moves with `play_sim` and `"camera": "side"`: every step of the timeline reports the
+animation state (idle, walk, run, jump, fall, land) and the captures show the pose; `expect_animation` on a step
+turns that into a test (see `tests/character.json`). Walk and run play at a rate matched to the speed (clip
+`speed_mps`); `root_motion: "strip"` keeps clips that walk forward in place; `character_scale` and
+`character_yaw_offset_deg` fix a model that is too big or faces sideways. The physics capsule (and `walk_test`)
+stays the same whatever the model. `rigged_dummy` in the content library is a test character with all six clips.
+Until a rigged character is assigned, the default jointed mannequin is used, animated procedurally.
 
 ### 7. Import your forest and town assets and place them along the route
 

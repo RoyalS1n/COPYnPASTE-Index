@@ -7,6 +7,8 @@
 #include "core/Error.h"
 #include <algorithm>
 #include <cstring>
+#include <functional>
+#include <nlohmann/json.hpp>
 #include <unordered_map>
 
 namespace df {
@@ -17,6 +19,10 @@ struct FileCtx {
     MeshAsset* out;
     std::unordered_map<const cgltf_image*, uint32_t> srgbTex, linTex;
     std::unordered_map<const cgltf_material*, std::string> mats;
+    // skinned loads: 4 bone influences per vertex (JOINTS_n / WEIGHTS_n offset by boneBase, or all on rigidBone)
+    CharacterAsset* skin = nullptr;
+    uint32_t boneBase = 0;
+    int rigidBone = -1;
 };
 
 uint32_t textureFromImage(FileCtx& ctx, const cgltf_texture_view& view, bool srgb) {
@@ -158,6 +164,37 @@ void appendPrimitive(FileCtx& ctx, const cgltf_primitive& prim, const mat4& xf) 
         }
     }
     part.material = materialFor(ctx, prim.material);
+    if (ctx.skin) {   // the 4 strongest of all JOINTS_n / WEIGHTS_n influences, renormalised
+        std::vector<std::pair<const cgltf_accessor*, const cgltf_accessor*>> sets(4, {nullptr, nullptr});
+        for (size_t i = 0; i < prim.attributes_count; ++i) {
+            const auto& a = prim.attributes[i];
+            if (a.index < 0 || a.index >= 4) continue;
+            if (a.type == cgltf_attribute_type_joints) sets[a.index].first = a.data;
+            if (a.type == cgltf_attribute_type_weights) sets[a.index].second = a.data;
+        }
+        for (size_t i = 0; i < n; ++i) {
+            std::pair<float, uint32_t> inf[16]{};
+            int count = 0;
+            if (ctx.rigidBone < 0)
+                for (auto& [ja, wa] : sets) {
+                    if (!ja || !wa) continue;
+                    cgltf_uint j[4]{};
+                    float w[4]{};
+                    cgltf_accessor_read_uint(ja, i, j, 4);
+                    cgltf_accessor_read_float(wa, i, w, 4);
+                    for (int k = 0; k < 4; ++k) if (w[k] > 0 && count < 16) inf[count++] = {w[k], ctx.boneBase + j[k]};
+                }
+            std::sort(inf, inf + count, [](auto& a, auto& b) { return a.first > b.first; });
+            uvec4 jv(0);
+            vec4 wv(0);
+            float sum = 0;
+            for (int k = 0; k < std::min(count, 4); ++k) { jv[k] = inf[k].second; wv[k] = inf[k].first; sum += inf[k].first; }
+            if (sum > 1e-6f) wv /= sum;
+            else { jv = uvec4((uint32_t)std::max(ctx.rigidBone, 0), 0, 0, 0); wv = vec4(1, 0, 0, 0); }
+            ctx.skin->joints.push_back(jv);
+            ctx.skin->weights.push_back(wv);
+        }
+    }
     // tangents for normal-mapped materials without them
     bool normalMapped = false;
     for (auto& m : out.materials) if (m.name == part.material && m.gpu.h0.w != kNoTexture) normalMapped = true;
@@ -319,6 +356,229 @@ GltfScene loadGltfScene(const std::filesystem::path& file) {
     logInfo("{}: {} meshes, {} placements, {} lights", file.filename().string(), gs.meshes.size(), gs.placements.size(), gs.lights.size());
     cgltf_free(data);
     return gs;
+}
+
+// ------------------------------------------------------------------------------------------ rigged characters
+namespace {
+std::string nodeName(const cgltf_data* data, const cgltf_node* n) {
+    return n->name ? n->name : std::format("node_{}", (size_t)(n - data->nodes));
+}
+
+// Every animation of a file whose channels target skeleton nodes. nodeOf maps a
+// file node to a skeleton node (-1: not in the skeleton). retarget (clips from
+// another file): translation is kept only on the root-motion node, the rest
+// of the skeleton keeps the character's own bone lengths.
+void readClips(cgltf_data* data, CharacterAsset& c, const std::function<int(const cgltf_node*)>& nodeOf,
+               const std::filesystem::path& file, bool retarget) {
+    for (size_t ai = 0; ai < data->animations_count; ++ai) {
+        const cgltf_animation& a = data->animations[ai];
+        AnimClip clip;
+        clip.source = file.filename().string();
+        clip.name = a.name ? a.name : "";
+        if (retarget && (clip.name.empty() || clip.name.find("mixamo.com") != std::string::npos))   // Mixamo: one clip per file
+            clip.name = file.stem().string() + (data->animations_count > 1 ? std::format("_{}", ai + 1) : "");
+        if (clip.name.empty()) clip.name = std::format("clip_{}", ai + 1);
+        std::string base = clip.name;
+        for (int k = 2; std::any_of(c.clips.begin(), c.clips.end(), [&](const AnimClip& x) { return x.name == clip.name; }); ++k)
+            clip.name = std::format("{}_{}", base, k);
+        std::vector<std::string> missing;
+        float start = 1e30f, end = 0;
+        for (size_t ci = 0; ci < a.channels_count; ++ci) {
+            const cgltf_animation_channel& ch = a.channels[ci];
+            if (!ch.target_node || !ch.sampler || !ch.sampler->input || !ch.sampler->output) continue;
+            uint8_t path = ch.target_path == cgltf_animation_path_type_translation ? 0
+                           : ch.target_path == cgltf_animation_path_type_rotation  ? 1
+                           : ch.target_path == cgltf_animation_path_type_scale     ? 2 : 255;
+            if (path == 255) continue;   // morph weights
+            int node = nodeOf(ch.target_node);
+            if (node < 0) {
+                if (missing.size() < 8) missing.push_back(nodeName(data, ch.target_node));
+                continue;
+            }
+            AnimTrack tr;
+            tr.node = (uint32_t)node;
+            tr.path = path;
+            tr.interp = ch.sampler->interpolation == cgltf_interpolation_type_step ? 1
+                        : ch.sampler->interpolation == cgltf_interpolation_type_cubic_spline ? 2 : 0;
+            size_t keys = ch.sampler->input->count;
+            tr.times.resize(keys);
+            cgltf_accessor_unpack_floats(ch.sampler->input, tr.times.data(), keys);
+            size_t comps = path == 1 ? 4 : 3, per = tr.interp == 2 ? 3 : 1;   // cubic spline: in-tangent, value, out-tangent
+            std::vector<float> raw(ch.sampler->output->count * cgltf_num_components(ch.sampler->output->type));
+            cgltf_accessor_unpack_floats(ch.sampler->output, raw.data(), raw.size());
+            if (keys == 0 || raw.size() < keys * per * comps) continue;
+            tr.values.resize(keys);
+            for (size_t k = 0; k < keys; ++k) {
+                const float* v = &raw[(k * per + (per == 3 ? 1 : 0)) * comps];
+                vec4 q(v[0], v[1], v[2], comps == 4 ? v[3] : 0.0f);
+                tr.values[k] = comps == 3 ? q : glm::length(q) > 1e-8f ? glm::normalize(q) : vec4(0, 0, 0, 1);
+            }
+            start = std::min(start, tr.times.front());
+            end = std::max(end, tr.times.back());
+            clip.tracks.push_back(std::move(tr));
+        }
+        if (clip.tracks.empty()) {
+            c.warnings.push_back(std::format("{}: clip '{}' animates no node of the skeleton", clip.source, clip.name));
+            continue;
+        }
+        for (auto& tr : clip.tracks) for (float& t : tr.times) t -= start;
+        clip.duration = std::max(end - start, 0.0f);
+        if (!missing.empty()) {
+            std::string list;
+            for (auto& m : missing) list += (list.empty() ? "" : ", ") + m;
+            c.warnings.push_back(std::format("{}: clip '{}' targets nodes the character lacks: {}", clip.source, clip.name, list));
+        }
+        if (a.extras.data) {
+            nlohmann::json ex = nlohmann::json::parse(a.extras.data, nullptr, false);
+            if (ex.is_object() && ex.contains("speed_mps") && ex["speed_mps"].is_number()) clip.speed = ex["speed_mps"].get<float>();
+        }
+        measureTravel(c.skeleton, clip);
+        if (retarget)
+            std::erase_if(clip.tracks, [&](const AnimTrack& t) { return t.path == 0 && (int)t.node != clip.rootNode; });
+        c.clips.push_back(std::move(clip));
+    }
+}
+}  // namespace
+
+CharacterAsset loadGltfCharacter(const std::filesystem::path& file, const std::string& name, const CharacterImport& imp) {
+    cgltf_data* data = parse(file);
+    CharacterAsset c;
+    try {
+        if (data->skins_count == 0) throw Error(std::format("{} has no skin (no JOINTS_0 / WEIGHTS_0): it is not rigged", file.filename().string()));
+        // skeleton: every joint and its ancestors, parents first
+        std::unordered_map<const cgltf_node*, int> idx;
+        std::vector<bool> needed(data->nodes_count, false);
+        for (size_t s = 0; s < data->skins_count; ++s)
+            for (size_t j = 0; j < data->skins[s].joints_count; ++j)
+                for (const cgltf_node* n = data->skins[s].joints[j]; n; n = n->parent) needed[n - data->nodes] = true;
+        Skeleton& sk = c.skeleton;
+        std::function<void(const cgltf_node*)> add = [&](const cgltf_node* n) {
+            if (idx.count(n) || !needed[n - data->nodes]) return;
+            if (n->parent) add(n->parent);
+            idx[n] = (int)sk.names.size();
+            sk.names.push_back(nodeName(data, n));
+            sk.parent.push_back(n->parent ? idx.at(n->parent) : -1);
+            vec3 t(0), s(1);
+            quat r(1, 0, 0, 0);
+            if (n->has_matrix) {
+                vec3 skew;
+                vec4 persp;
+                glm::decompose(glm::make_mat4(n->matrix), s, r, t, skew, persp);
+            } else {
+                if (n->has_translation) t = glm::make_vec3(n->translation);
+                if (n->has_rotation) r = glm::normalize(quat(n->rotation[3], n->rotation[0], n->rotation[1], n->rotation[2]));
+                if (n->has_scale) s = glm::make_vec3(n->scale);
+            }
+            sk.restT.push_back(t);
+            sk.restR.push_back(r);
+            sk.restS.push_back(s);
+        };
+        for (size_t i = 0; i < data->nodes_count; ++i) add(&data->nodes[i]);
+
+        // mesh: skinned primitives in their bind space; other meshes ride on their nearest skeleton ancestor
+        c.mesh.name = name;
+        c.mesh.lods.resize(1);
+        c.bones.push_back({-1, mat4(1)});   // bone 0: static (unrigged parts, missing weights)
+        FileCtx ctx{file.parent_path(), data, &c.mesh};
+        ctx.skin = &c;
+        std::unordered_map<const cgltf_skin*, uint32_t> skinBase;
+        const cgltf_scene* sc = data->scene ? data->scene : (data->scenes_count ? &data->scenes[0] : nullptr);
+        std::vector<const cgltf_node*> stack;
+        if (sc) for (size_t i = 0; i < sc->nodes_count; ++i) stack.push_back(sc->nodes[i]);
+        else for (size_t i = 0; i < data->nodes_count; ++i) if (!data->nodes[i].parent) stack.push_back(&data->nodes[i]);
+        while (!stack.empty()) {
+            const cgltf_node* node = stack.back();
+            stack.pop_back();
+            for (size_t i = 0; i < node->children_count; ++i) stack.push_back(node->children[i]);
+            if (!node->mesh) continue;
+            mat4 xf(1);
+            if (node->skin) {   // the skinned node's own transform is ignored (glTF spec)
+                auto it = skinBase.find(node->skin);
+                if (it == skinBase.end()) {
+                    it = skinBase.emplace(node->skin, (uint32_t)c.bones.size()).first;
+                    const cgltf_skin& s = *node->skin;
+                    for (size_t j = 0; j < s.joints_count; ++j) {
+                        float m[16];
+                        mat4 ibm(1);
+                        if (s.inverse_bind_matrices && cgltf_accessor_read_float(s.inverse_bind_matrices, j, m, 16)) ibm = glm::make_mat4(m);
+                        c.bones.push_back({idx.at(s.joints[j]), ibm});
+                    }
+                }
+                ctx.boneBase = it->second;
+                ctx.rigidBone = -1;
+            } else {
+                xf = nodeMatrix(node);
+                const cgltf_node* anc = node;
+                while (anc && !idx.count(anc)) anc = anc->parent;
+                ctx.rigidBone = 0;
+                if (anc) {
+                    ctx.rigidBone = (int)c.bones.size();
+                    c.bones.push_back({idx.at(anc), glm::inverse(sk.restGlobal(idx.at(anc)))});
+                }
+            }
+            for (size_t p = 0; p < node->mesh->primitives_count; ++p) appendPrimitive(ctx, node->mesh->primitives[p], xf);
+        }
+        if (c.mesh.vertices.empty()) throw Error(std::format("{} has no triangle meshes", file.filename().string()));
+
+        // model space: Z up (appendPrimitive converted the vertices), import scale, turned to face +Y, origin at the feet
+        mat4 C(1);
+        C[1] = vec4(0, 0, 1, 0);
+        C[2] = vec4(0, -1, 0, 0);
+        mat4 R = glm::rotate(mat4(1), glm::radians(imp.yawDeg), vec3(0, 0, 1)), A = R * glm::scale(mat4(1), vec3(imp.scale));
+        for (auto& v : c.mesh.vertices) {
+            v.p0 = vec4(vec3(A * vec4(vec3(v.p0), 1.0f)), v.p0.w);
+            v.p1 = vec4(mat3(R) * vec3(v.p1), v.p1.w);
+            v.tangent = vec4(mat3(R) * vec3(v.tangent), v.tangent.w);
+        }
+        c.mesh.computeBounds();
+        if (imp.groundOrigin) {
+            vec3 off(-(c.mesh.aabbMin.x + c.mesh.aabbMax.x) * 0.5f, -(c.mesh.aabbMin.y + c.mesh.aabbMax.y) * 0.5f, -c.mesh.aabbMin.z);
+            mat4 T = glm::translate(mat4(1), off);
+            for (auto& v : c.mesh.vertices) v.p0 = vec4(vec3(v.p0) + off, v.p0.w);
+            A = T * A;
+        }
+        sk.base = A * C;
+        mat4 inv = glm::inverse(sk.base);
+        for (auto& b : c.bones) if (b.node >= 0) b.offset = b.offset * inv;
+        finish(c.mesh);
+        readClips(data, c, [&](const cgltf_node* n) { auto it = idx.find(n); return it == idx.end() ? -1 : it->second; }, file, false);
+    } catch (...) {
+        cgltf_free(data);
+        throw;
+    }
+    cgltf_free(data);
+    logInfo("{}: rigged character, {} vertices, {} joints, {} clips", file.filename().string(), c.mesh.vertices.size(),
+            c.skeleton.names.size(), c.clips.size());
+    return c;
+}
+
+void loadGltfClips(const std::filesystem::path& file, CharacterAsset& c) {
+    cgltf_data* data = parse(file);
+    size_t before = c.clips.size();
+    readClips(data, c, [&](const cgltf_node* n) { return n->name ? c.skeleton.find(n->name) : -1; }, file, true);
+    if (data->animations_count == 0) c.warnings.push_back(std::format("{} has no animations", file.filename().string()));
+    cgltf_free(data);
+    logInfo("{}: {} clips for {}", file.filename().string(), c.clips.size() - before, c.mesh.name);
+}
+
+GltfRigInfo inspectGltfRig(const std::filesystem::path& file) {
+    cgltf_options opt{};
+    cgltf_data* data = nullptr;
+    if (cgltf_parse_file(&opt, file.string().c_str(), &data) != cgltf_result_success) throw Error(std::format("cannot parse {}", file.string()));
+    GltfRigInfo info;
+    info.meshes = data->meshes_count;
+    for (size_t s = 0; s < data->skins_count; ++s) info.joints += data->skins[s].joints_count;
+    for (size_t a = 0; a < data->animations_count; ++a) {
+        const cgltf_animation& an = data->animations[a];
+        float lo = 1e30f, hi = 0;
+        for (size_t ch = 0; ch < an.channels_count; ++ch) {
+            const cgltf_accessor* in = an.channels[ch].sampler ? an.channels[ch].sampler->input : nullptr;
+            if (in && in->has_min && in->has_max) { lo = std::min(lo, in->min[0]); hi = std::max(hi, in->max[0]); }
+        }
+        info.clips.push_back({an.name ? an.name : std::format("clip_{}", a + 1), hi > lo ? hi - lo : 0.0f});
+    }
+    cgltf_free(data);
+    return info;
 }
 
 Texture loadTextureFile(const std::filesystem::path& file, bool srgb) {

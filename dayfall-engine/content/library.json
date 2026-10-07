@@ -1692,6 +1692,19 @@
    },
    "footprint_m": 2.5,
    "note": "base at z = -0.60"
+  },
+  "rigged_dummy": {
+   "file": "characters/rigged_dummy.glb",
+   "category": "characters",
+   "size_m": [
+    0.62,
+    0.33,
+    1.81
+   ],
+   "triangles": 3324,
+   "description": "Rigged test humanoid (17 joints) with Idle, Walk, Run, Jump, Fall and Land clips; made by tools/make_rigged_dummy.py",
+   "collision": "none",
+   "front": "-y"
   }
  }
 }

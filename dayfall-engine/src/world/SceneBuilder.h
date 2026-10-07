@@ -3,6 +3,7 @@
 // Mesh assets, terrain chunks and scatter results are cached, so rebuilding
 // after an edit only redoes what the edit touched.
 #include "scene/Scene.h"
+#include "scene/Skin.h"
 #include "world/Scatter.h"
 #include "world/World.h"
 #include <filesystem>
@@ -43,9 +44,12 @@ public:
     // Everything an agent can place: built-in primitives, content library, map meshes, materials.
     nlohmann::json catalog(const World& w) const;
     static CollisionDesc parseCollision(const nlohmann::json& j, CollisionDesc def);
+    // The rigged character a map "player" section names (a skinned mesh entry, plus its animation_files); cached
+    std::shared_ptr<const CharacterAsset> resolveCharacter(const World& w, const nlohmann::json& player);   // throws df::Error
 
     std::filesystem::path contentDir;
-    uint32_t playerFirst = 0, playerCount = 0;   // mannequin part instances in the last built scene
+    uint32_t playerFirst = 0, playerCount = 0;   // mannequin part instances (or the rigged character's one) in the last built scene
+    std::shared_ptr<const CharacterAsset> character;   // the player's rigged character in the last built scene (null: mannequin)
     // true once after the terrain heights / paint / paths changed (upload them to the GPU)
     bool takeTerrainChanged() { bool c = terrainChanged_; terrainChanged_ = false; return c; }
 
@@ -65,5 +69,7 @@ private:
     struct ScatterCache { std::string key; std::vector<ScatterPoint> points; };
     std::unordered_map<std::string, ScatterCache> scatter_;
     std::unordered_map<std::string, Texture> textureCache_;
+    std::string characterKey_;
+    std::shared_ptr<const CharacterAsset> characterCache_;
 };
 }  // namespace df

@@ -82,6 +82,7 @@ struct Scene {
     std::unordered_map<std::string, uint32_t> meshByName, materialByName;
     vec3 boundsMin{1e30f}, boundsMax{-1e30f};
     uint32_t dynamicFirst = 0;               // instances from here on move every frame (player, pickups)
+    uint32_t dynamicVertexFirst = 0, dynamicVertexCount = 0;   // vertices rewritten every frame (CPU-skinned characters)
     bool hasTerrain = false;                 // the heightfield itself is drawn by the renderer's terrain pass
     uint32_t terrainMaterial = 0;
     vec3 terrainMin{0}, terrainMax{0};

@@ -84,10 +84,10 @@ bin/dayfall --list-tools                             # the tool reference (docs/
 |---|---|
 | `src/gfx` | Vulkan device, swapchain, resources, pipelines |
 | `src/render` | the renderer, sky, light grid, camera, GPU data layout |
-| `src/scene` | meshes, materials, primitives, glTF loading, the render-ready scene |
+| `src/scene` | meshes, materials, primitives, glTF loading, skeletons and clips, the render-ready scene |
 | `src/world` | the map document, terrain, paths, scatter, environment, the scene builder |
 | `src/physics` | Jolt: static world, ray casts, the character controller |
-| `src/game` | the player, the mannequin, collectibles, the walk test |
+| `src/game` | the player, the mannequin, the rigged-character animation states, collectibles, the walk test |
 | `src/editor` | the editor, the agent tools, the MCP server |
 | `shaders` | GLSL, compiled to SPIR-V at build time |
 | `maps` | maps; `maps/starter` is the template |
