@@ -156,6 +156,29 @@ std::vector<ItemBox> allObjectBoxes(Editor& E) {
     return out;
 }
 
+namespace {
+bool mentions(const json& j, const std::string& name) {
+    if (j.is_string()) return j.get<std::string>() == name;
+    if (j.is_structured())
+        for (auto& v : j) if (mentions(v, name)) return true;
+    return false;
+}
+}  // namespace
+
+// scatter rules and water bodies that follow a named area, also through areas defined in terms of it
+std::vector<std::string> areaUsers(const json& doc, const std::string& name) {
+    std::vector<std::string> names{name}, ids;
+    const json areas = doc.value("areas", json::object());
+    for (size_t k = 0; k < names.size() && k < 64; ++k)
+        for (auto& [n, def] : areas.items())
+            if (mentions(def, names[k]) && std::find(names.begin(), names.end(), n) == names.end()) names.push_back(n);
+    for (const char* sec : {"scatter", "water"})
+        for (auto& it : doc.value(sec, json::array()))
+            for (auto& n : names)
+                if (it.contains("area") && mentions(it["area"], n)) { ids.push_back(it.value("id", "?")); break; }
+    return ids;
+}
+
 void applyRelativePlacement(Editor& E, json& o) {
     if (!o.contains("place")) return;
     json pl = o["place"];
@@ -772,7 +795,8 @@ void Editor::registerWorldTools() {
     // ------------------------------------------------------------------ named areas
     addTool({"area_set",
              "Name an area (town, forest_north, arena) so any tool argument \"area\" can use the name, and scatter rules follow later "
-             "changes to it: name, area (an area object); delete: true removes it. world_get section areas lists them.",
+             "changes to it: name, area (an area object); delete: true removes it. world_get section areas lists them. Changing "
+             "an area that scatter rules or water follow (followed_by) is an edit: capture before batch_end.",
              ToolCategory::Meta,
              object({{"name", str("area name")}, {"area", areaSchema("the region")}, {"delete", boolean("remove the name")}}, {"name"}),
              [&E](const json& a) {
@@ -783,8 +807,8 @@ void Editor::registerWorldTools() {
                  ToolResult r;
                  if (a.value("delete", false)) {
                      if (!areas.contains(name)) throw Error("no named area '" + name + "'");
-                     for (auto& sr : E.world.doc.value("scatter", json::array()))
-                         if (sr.value("area", json()) == json(name)) throw Error("scatter rule '" + sr.value("id", "?") + "' uses this area");
+                     auto users = areaUsers(E.world.doc, name);
+                     if (!users.empty()) throw Error("'" + users[0] + "' uses this area");
                      E.world.beginEdit("area_set", false);
                      areas.erase(name);
                      E.world.endEdit();
@@ -802,7 +826,13 @@ void Editor::registerWorldTools() {
                  vec2 lo, hi;
                  parsed.bounds(lo, hi);
                  r.data = {{"name", name}, {"area_m2", std::round(parsed.areaM2())}, {"bounds", {r2(lo), r2(hi)}}};
+                 auto users = areaUsers(E.world.doc, name);
+                 if (!users.empty()) r.data["followed_by"] = users;
                  return r;
+             },
+             // moving a region that scatter rules or water follow changes the world: an edit, verified like any other
+             [&E](const json& a) {
+                 return areaUsers(E.world.doc, a.value("name", "")).empty() ? ToolCategory::Meta : ToolCategory::Layout;
              }});
 
     // ------------------------------------------------------------------ duplicate

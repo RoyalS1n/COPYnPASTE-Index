@@ -172,7 +172,13 @@ void Area::bounds(vec2& lo, vec2& hi) const {
     switch (kind) {
         case Kind::All: lo = vec2(-1e9f); hi = vec2(1e9f); return;
         case Kind::Circle: lo = center - radius; hi = center + radius; break;
-        case Kind::Rect: { float r = glm::length(size) * 0.5f; lo = center - r; hi = center + r; break; }
+        case Kind::Rect: {   // the box around the turned rectangle
+            float c = std::abs(std::cos(yaw)), sn = std::abs(std::sin(yaw));
+            vec2 half(0.5f * (size.x * c + size.y * sn), 0.5f * (size.x * sn + size.y * c));
+            lo = center - half;
+            hi = center + half;
+            break;
+        }
         case Kind::Polygon:
         case Kind::Line:
             lo = vec2(1e30f); hi = vec2(-1e30f);

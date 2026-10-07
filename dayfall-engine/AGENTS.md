@@ -32,7 +32,8 @@ Check a change without a window:
 
 ```
 bin/dayfall maps/starter --exec tests/smoke.json        # run tool calls, prints JSON, exit 1 on failure
-bin/dayfall maps/starter --exec tests/world_tools.json  # the spatial tools (also prefabs, water, character, hud .json)
+bin/dayfall maps/starter --exec tests/world_tools.json  # the spatial tools (also terrain_tools, layout_tools, prefabs,
+                                                        # water, character, hud and regressions .json)
 bin/dayfall maps/starter --capture all --out <dir>      # render every saved view
 bin/dayfall maps/starter --walk-test loop               # exit 0 if the route passes
 bin/dayfall --list-tools > docs/TOOLS.md                # regenerate the tool reference

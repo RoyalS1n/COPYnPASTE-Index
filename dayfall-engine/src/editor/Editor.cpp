@@ -307,11 +307,19 @@ ToolResult Editor::runEdit(const Tool& t, const json& args) {
     }
     ToolResult r = t.run(args);
     if (r.error) return r;
+    try {
+        rebuildIfNeeded();
+    } catch (const std::exception& e) {
+        // the edit left a world that cannot be built (a field of the wrong type): take it back, or every later edit
+        // would fail on it
+        world.undo();
+        try { rebuildIfNeeded(); } catch (const std::exception& e2) { logError("rebuild after undo failed: {}", e2.what()); }
+        return ToolResult::fail(std::string("the edit was undone: ") + e.what());
+    }
     batch.touched.insert(cat);
     ++batch.edits;
     ++batch.editsSinceCapture;
     batch.calls.push_back(t.name);
-    rebuildIfNeeded();
     r.data["batch"] = batch.toJson();
     if (!lastBuild.warnings.empty()) r.data["build_warnings"] = lastBuild.warnings;
     r.data["next"] = "Not verified yet: call capture and look at the result before batch_end.";
@@ -327,7 +335,8 @@ ToolResult Editor::call(const std::string& name, const json& argsIn) {
         // named areas: "area": "town" means the map's areas.town (scatter_set keeps the name so the rule follows the area)
         static const std::set<std::string> keepNames = {"scatter_set", "area_set", "doc_patch", "water_set"};
         if (!keepNames.count(name) && world.doc.contains("areas")) args = Area::expandArgs(args, world.doc["areas"]);
-        if (t->edits()) return runEdit(*t, args);
+        ToolCategory cat = t->categoryFor ? t->categoryFor(args) : t->category;
+        if (cat != ToolCategory::Read && cat != ToolCategory::Meta) return runEdit(*t, args);
         return t->run(args);
     } catch (const Error& e) {
         return ToolResult::fail(e.what());

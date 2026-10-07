@@ -299,6 +299,7 @@ void Editor::registerTools() {
                      {"selection", boolean("draw the selection's boxes")}}),
              [&E](const json& a) {
                  ToolResult r;
+                 E.rebuildIfNeeded();   // cameras and areas set since the last edit
                  struct HudScope { Editor& e; int keep; ~HudScope() { e.hudForce = keep; } } hudScope{E, E.hudForce};
                  if (a.contains("hud")) E.hudForce = a["hud"].get<bool>() ? 1 : 0;
                  uint32_t w = std::clamp(a.value("width", E.options.captureWidth), 256u, 1920u);
@@ -832,8 +833,18 @@ void Editor::registerTools() {
                                      if (std::find(tags.begin(), tags.end(), a["tag"]) == tags.end()) continue;
                                  }
                                  if (a.contains("area")) {
-                                     if (!o.contains("position")) continue;
-                                     if (!area.contains(xy(o["position"]))) continue;
+                                     // where the item is: its position, any point of a path or river, the centre of a
+                                     // scatter rule's or lake's area
+                                     bool inside = false;
+                                     if (o.contains("position")) inside = area.contains(xy(o["position"]));
+                                     if (o.contains("points"))
+                                         for (auto& pt : o["points"]) inside = inside || area.contains(xy(pt));
+                                     if (o.contains("area") && !inside) {
+                                         vec2 lo, hi;
+                                         Area::parse(Area::expandNamed(o["area"], E.world.doc.value("areas", json::object()))).bounds(lo, hi);
+                                         inside = area.contains((lo + hi) * 0.5f);
+                                     }
+                                     if (!inside) continue;
                                  }
                                  removed.push_back(o.value("id", "?"));
                                  arr.erase(k);

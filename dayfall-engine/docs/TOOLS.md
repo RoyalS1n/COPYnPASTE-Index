@@ -554,9 +554,9 @@ Find free, level building sites: size [w, d] footprint (m), optional yaw_deg; in
 
 ## area_set
 
-*meta*
+*meta* (depends on the arguments)
 
-Name an area (town, forest_north, arena) so any tool argument "area" can use the name, and scatter rules follow later changes to it: name, area (an area object); delete: true removes it. world_get section areas lists them.
+Name an area (town, forest_north, arena) so any tool argument "area" can use the name, and scatter rules follow later changes to it: name, area (an area object); delete: true removes it. world_get section areas lists them. Changing an area that scatter rules or water follow (followed_by) is an edit: capture before batch_end.
 
 | argument | type | notes |
 |---|---|---|

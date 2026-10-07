@@ -323,9 +323,11 @@ planks), `terrain`, `foliage`, `grass`, `water`, `emissive`, `unlit`. Common key
 `normal_convention` (`opengl`, the default for glTF and Blender, or `directx` for textures from Unreal).
 Built-in materials: see `catalog`.
 
+Primitives have UVs in metres, with an image's top edge up on walls (`v` runs down the wall, as in glTF).
+
 `triplanar` (models `lit`, `emissive`, `unlit`) maps `textures.base` and `textures.normal` in world space along
 the three axes instead of by UV, so tiling textures stay the same size on any mesh, stretched kit pieces
-included. It is the Unreal fortress master material (`M_FT_Master`) ported. The texture is read as detail: it is
+included. Walls show the image's top edge up. It is the Unreal fortress master material (`M_FT_Master`) ported. The texture is read as detail: it is
 normalised to a mean luminance of 0.40 and scales the base colour's brightness and hue, then multiplies by the
 vertex tint (with `vertex_color`). `base_color` 0.4 with `albedo_strength` 1 and `chroma_mix` 1 shows the
 texture's own colours.

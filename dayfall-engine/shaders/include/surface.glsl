@@ -78,7 +78,8 @@ Surface shadeTriplanar(Material m, vec3 p, vec3 n, vec4 c0) {
     vec3 col = m.c[0].rgb * mix(c0.rgb * k3.x, vec3(1.0), ignoreVc);
     float l = 0.4;
     if (m.h0.z != NO_TEX) {
-        vec3 d = tex(m.h0.z, P.yz).rgb * b.x + tex(m.h0.z, P.xz).rgb * b.y + tex(m.h0.z, P.xy).rgb * b.z;
+        // walls sample with v = -z so the image's top is up (as Unreal's world-aligned textures)
+        vec3 d = tex(m.h0.z, vec2(P.y, -P.z)).rgb * b.x + tex(m.h0.z, vec2(P.x, -P.z)).rgb * b.y + tex(m.h0.z, P.xy).rgb * b.z;
         l = dot(d, LUMA);
         col *= max(1.0 + (l / 0.40 - 1.0) * k2.y, 0.15) * mix(vec3(1.0), d / max(l, 0.03), k2.z);
     }
@@ -108,12 +109,14 @@ Surface shadeTriplanar(Material m, vec3 p, vec3 n, vec4 c0) {
     s.metal = m.p[0].y;
     s.spec = m.p[0].z;
     if (m.h0.w != NO_TEX && k2.w > 0.0) {
-        // whiteout blend: each projection's (u, v) tilts the two world axes it was sampled along. With uv = world
-        // coordinates, a DirectX map (green = -dh/dv, v down the image) is already in that frame.
-        vec3 tx = tex(m.h0.w, P.yz).xyz * 2.0 - 1.0;
-        vec3 ty = tex(m.h0.w, P.xz).xyz * 2.0 - 1.0;
+        // whiteout blend: each projection's (u, v) tilts the two world axes it was sampled along. The top projection
+        // runs v north (image down = +y): a DirectX map (green = -dh/dv, v down the image) is already in that frame.
+        // Walls run v = -z (image down = world down): there an OpenGL map (green = dh/d up) is.
+        vec3 tx = tex(m.h0.w, vec2(P.y, -P.z)).xyz * 2.0 - 1.0;
+        vec3 ty = tex(m.h0.w, vec2(P.x, -P.z)).xyz * 2.0 - 1.0;
         vec3 tz = tex(m.h0.w, P.xy).xyz * 2.0 - 1.0;
-        if ((m.h0.y & MAT_NORMAL_DX) == 0u) { tx.y = -tx.y; ty.y = -ty.y; tz.y = -tz.y; }
+        if ((m.h0.y & MAT_NORMAL_DX) == 0u) tz.y = -tz.y;
+        else { tx.y = -tx.y; ty.y = -ty.y; }
         vec3 wn = vec3(abs(tx.z) * n.x, tx.x + n.y, tx.y + n.z) * b.x
                 + vec3(ty.x + n.x, abs(ty.z) * n.y, ty.y + n.z) * b.y
                 + vec3(tz.x + n.x, tz.y + n.y, abs(tz.z) * n.z) * b.z;
@@ -233,7 +236,7 @@ Surface shadeCourses(Material m, vec3 p, vec3 n, vec2 uv) {
     col *= mix(0.75, 1.1, fbm(p * 0.06, 4));
     col = mix(col, m.c[0].rgb * 0.6, smoothrange(fbm(vec3(uv.x * 2.5, uv.y * 0.08, 0.0), 3), 0.45, 0.72) * 0.6);
     col = mix(col, m.c[2].rgb, mortar);
-    float foot = clamp(1.0 - uv.y / 3.5, 0.0, 1.0);
+    float foot = clamp(1.0 + uv.y / 3.5, 0.0, 1.0);   // grime at the foot of the wall (primitives run v downward)
     col = mix(col, m.c[3].rgb, foot * m.p[1].x * smoothrange(fbm(p * 0.5, 3), 0.4, 0.65));
     s.albedo = col;
     s.rough = mix(m.p[1].y, 0.95, mortar);

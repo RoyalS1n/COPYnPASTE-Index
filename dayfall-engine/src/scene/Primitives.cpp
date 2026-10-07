@@ -31,6 +31,17 @@ void boxInto(MeshBuilder& b, vec3 lo, vec3 hi, const std::string& mat) {
     face(b, mat, {lo.x, hi.y, lo.z}, {s.x, 0, 0}, {0, -s.y, 0});           // bottom
 }
 
+// Generators lay v out upward (walls) and northward (floors); images are stored top row first, so the build flips
+// v (and the tangent frame's handedness with it) to show textures the right way up.
+MeshAsset finish(MeshBuilder& b, const std::string& name) {
+    for (uint32_t i = 0; i < b.vertexCount(); ++i) {
+        GpuVertex& v = b.at(i);
+        v.p1.w = -v.p1.w;
+        v.tangent.w = -v.tangent.w;
+    }
+    return b.build(name);
+}
+
 vec3 v3(const json& j, vec3 def) {
     if (j.is_number()) return vec3(j.get<float>());
     return j.is_array() && j.size() >= 3 ? vec3(j[0].get<float>(), j[1].get<float>(), j[2].get<float>()) : def;
@@ -48,7 +59,7 @@ void positive(float v, const char* what) {
 MeshAsset makeBox(vec3 size, const std::string& material) {
     MeshBuilder b;
     boxInto(b, vec3(-size.x * 0.5f, -size.y * 0.5f, 0.0f), vec3(size.x * 0.5f, size.y * 0.5f, size.z), material);
-    return b.build("box");
+    return finish(b, "box");
 }
 
 MeshAsset makePlane(vec2 size, const std::string& material, uint32_t sub) {
@@ -64,7 +75,7 @@ MeshAsset makePlane(vec2 size, const std::string& material, uint32_t sub) {
             uint32_t i = y * (sub + 1) + x;
             b.quad(material, i, i + 1, i + sub + 2, i + sub + 1);
         }
-    return b.build("plane");
+    return finish(b, "plane");
 }
 
 MeshAsset makeCylinder(float r, float h, uint32_t seg, const std::string& material, bool caps) {
@@ -96,7 +107,7 @@ MeshAsset makeCylinder(float r, float h, uint32_t seg, const std::string& materi
             }
         }
     }
-    return b.build("cylinder");
+    return finish(b, "cylinder");
 }
 
 MeshAsset makeCone(float r, float h, uint32_t seg, const std::string& material) {
@@ -119,7 +130,7 @@ MeshAsset makeCone(float r, float h, uint32_t seg, const std::string& material) 
         b.vertex(makeVertex(p, vec3(0, 0, -1), vec2(p)));
     }
     for (uint32_t i = 0; i < seg; ++i) b.tri(material, c, first + i + 1, first + i);
-    return b.build("cone");
+    return finish(b, "cone");
 }
 
 MeshAsset makeSphere(float r, uint32_t seg, const std::string& material) {
@@ -138,7 +149,7 @@ MeshAsset makeSphere(float r, uint32_t seg, const std::string& material) {
             uint32_t i = y * (seg + 1) + x;
             b.quad(material, i, i + 1, i + seg + 2, i + seg + 1);
         }
-    return b.build("sphere");
+    return finish(b, "sphere");
 }
 
 MeshAsset makeCapsule(float r, float h, uint32_t seg, const std::string& material) {
@@ -160,7 +171,7 @@ MeshAsset makeCapsule(float r, float h, uint32_t seg, const std::string& materia
             uint32_t i = y * (seg + 1) + x;
             b.quad(material, i, i + 1, i + seg + 2, i + seg + 1);
         }
-    return b.build("capsule");
+    return finish(b, "capsule");
 }
 
 MeshAsset makeRamp(vec3 s, const std::string& material) {
@@ -171,7 +182,7 @@ MeshAsset makeRamp(vec3 s, const std::string& material) {
     b.polygon(material, {{x0, y0, 0}, {x0, y1, s.z}, {x0, y1, 0}});                  // sides
     b.polygon(material, {{x1, y0, 0}, {x1, y1, 0}, {x1, y1, s.z}});
     b.polygon(material, {{x0, y0, 0}, {x0, y1, 0}, {x1, y1, 0}, {x1, y0, 0}});       // bottom
-    return b.build("ramp");
+    return finish(b, "ramp");
 }
 
 MeshAsset makeStairs(vec3 s, uint32_t steps, const std::string& material) {
@@ -180,7 +191,7 @@ MeshAsset makeStairs(vec3 s, uint32_t steps, const std::string& material) {
     float d = s.y / steps, h = s.z / steps;
     for (uint32_t i = 0; i < steps; ++i)
         boxInto(b, vec3(-s.x * 0.5f, -s.y * 0.5f + d * i, 0.0f), vec3(s.x * 0.5f, -s.y * 0.5f + d * (i + 1), h * (i + 1)), material);
-    return b.build("stairs");
+    return finish(b, "stairs");
 }
 
 MeshAsset makeGem(float size, const std::string& material) {
@@ -193,7 +204,7 @@ MeshAsset makeGem(float size, const std::string& material) {
         b.polygon(material, {p0, p1, vec3(0, 0, hz)});
         b.polygon(material, {p1, p0, vec3(0, 0, -hz)});
     }
-    return b.build("gem");
+    return finish(b, "gem");
 }
 
 std::string primitiveKey(const json& spec) { return "prim:" + spec.dump(); }

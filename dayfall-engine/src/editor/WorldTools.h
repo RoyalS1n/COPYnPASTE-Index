@@ -30,4 +30,6 @@ std::vector<ItemBox> allObjectBoxes(Editor& E);
 void applyRelativePlacement(Editor& E, nlohmann::json& o);
 // turns an object or entity about a vertical axis through pivot: moves its position and adds to its yaw
 void rotateItemAbout(nlohmann::json& o, vec2 pivot, float degrees);
+// ids of scatter rules and water bodies that follow a named area (also through areas built from it)
+std::vector<std::string> areaUsers(const nlohmann::json& doc, const std::string& name);
 }  // namespace df
