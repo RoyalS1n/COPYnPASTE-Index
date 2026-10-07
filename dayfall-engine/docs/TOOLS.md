@@ -58,7 +58,7 @@ Ground facts at points: height (top surface, including objects), terrain height,
 
 *read*
 
-Render views of the live world and return them as images (also saved under <map>/captures/). ALWAYS look at captures after edits: this is how you verify. views (max 6): {"overview": true} | {"camera": name} | {"position": [x,y,z], "target": [x,y,z] or [x,y], "vfov_deg"} | {"player": true} (third-person view at the player start, mannequin shown for scale) | {"top_down": {"center": [x,y], "size_m": s}} | {"orbit": {"target": [x,y(,z)], "distance_m", "yaw_deg", "pitch_deg"}} | {"editor": true}. Default: overview + player. The in-game HUD is drawn while playing; hud: true also previews it while editing (at the player start), false hides it.
+Render views of the live world and return them as images (also saved under <map>/captures/). ALWAYS look at captures after edits: this is how you verify. views (max 6): {"overview": true} | {"camera": name} | {"position": [x,y,z], "target": [x,y,z] or [x,y], "vfov_deg"} | {"player": true} (third-person view at the player start, mannequin shown for scale) | {"top_down": {"center": [x,y], "size_m": s}} | {"orbit": {"target": [x,y(,z)], "distance_m", "yaw_deg", "pitch_deg"}} | {"editor": true}. Default: overview + player. The in-game HUD is drawn while playing; hud: true also previews it while editing (at the player start), false hides it. selection: true draws the editor selection's boxes (what the human clicked, or editor_select) as the human sees them.
 
 | argument | type | notes |
 |---|---|---|
@@ -66,6 +66,7 @@ Render views of the live world and return them as images (also saved under <map>
 | height | integer | pixels (default 576) |
 | hud | boolean | draw the HUD: default only while playing; true also while editing; false never |
 | save | boolean | save to <map>/captures (default true) |
+| selection | boolean | draw the selection's boxes |
 | views | array | views to render |
 | width | integer | pixels (default 1024) |
 
@@ -498,6 +499,25 @@ Start or stop play mode in the live editor window (for the human to try the leve
 | argument | type | notes |
 |---|---|---|
 | action (required) | string | start/stop |
+
+## editor_state
+
+*read*
+
+What the human sees and has selected in the editor window: when they say "this", "that one" or "here", call this. selection: items they clicked (id, section, mesh, box, the point clicked; one instance of a scatter rule or instance file), camera (position, the point looked at), cursor_ground (the surface under the mouse), playing.
+
+## editor_select
+
+*meta*
+
+Show the human what you mean: highlight items in the editor window (ids; clear: true removes the highlight) and with frame: true move the editor camera to look at them. click: [u, v] (0..1 across a capture of {editor: true}, from the top-left) selects what is there, as a mouse click would. Ask "this one?" before big changes to something they pointed at.
+
+| argument | type | notes |
+|---|---|---|
+| clear | boolean | remove the highlight |
+| click | array | [u, v] in the editor view, 0..1 |
+| frame | boolean | move the editor camera to them |
+| ids | array | items to highlight |
 
 ## world_check
 

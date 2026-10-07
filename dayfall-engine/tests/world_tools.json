@@ -52,6 +52,12 @@
  {"tool": "world_diff", "args": {},
   "expect": {"contains": {"/sections/objects/added": "wt_shed", "/settings_changed": "areas"}, "at_least": {"/items_changed": 10}}},
  {"tool": "delete", "args": {"section": "objects", "area": "yard"}, "expect": {"at_least": {"/deleted": 6}}},
- {"tool": "capture", "args": {"views": [{"top_down": {"center": [-1, -8], "size_m": 40}}], "width": 320, "height": 180, "save": false}},
+ {"tool": "editor_select", "args": {"ids": ["ramp"], "frame": true}, "expect": {"equals": {"/selected": ["ramp"]}}},
+ {"tool": "editor_state", "args": {}, "expect": {"contains": {"/selection": {"id": "ramp", "section": "objects"}}, "at_least": {"/selection/0/box/size_m/2": 1.9}}},
+ {"tool": "editor_select", "args": {"ids": ["no_such_thing"]}, "expect": {"error_contains": "no item"}},
+ {"tool": "editor_select", "args": {"clear": true, "click": [0.5, 0.5]}, "expect": {"equals": {"/selected": ["ramp"]}}},
+ {"tool": "capture", "args": {"views": [{"editor": true}, {"top_down": {"center": [-1, -8], "size_m": 40}}], "selection": true,
+                              "width": 320, "height": 180, "save": false}},
+ {"tool": "editor_select", "args": {"clear": true}, "expect": {"equals": {"/selected": []}}},
  {"tool": "batch_end", "args": {"save": false, "notes": "world tools test"}}
 ]

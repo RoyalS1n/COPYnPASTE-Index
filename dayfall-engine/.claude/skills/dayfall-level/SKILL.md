@@ -10,6 +10,9 @@ editor window as you make it.
 
 ## Before changing anything
 
+When the human says "this", "that one" or "here", call `editor_state`: it returns what they clicked in the editor
+window and where they are looking. `editor_select {ids, frame: true}` highlights items for them ("this one?").
+
 1. `project_info`: map, rules, coordinates, what exists, the open batch, warnings.
 2. `world_get` (a section or ids; objects come with their world box), `catalog` (what you can place),
    `terrain_info` (height grid).

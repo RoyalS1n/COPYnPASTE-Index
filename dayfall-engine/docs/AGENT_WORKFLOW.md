@@ -132,6 +132,11 @@ DAYFALL enforces both:
   with an explanation, and the agent closes the batch and opens a new one.
 - Every edit can be undone (`undo`, Ctrl+Z in the editor), and `batch_end` saves the map.
 
+The human and the agent share a selection. Clicking an object in the editor window selects it (Shift adds, Esc
+clears) and draws its box; the agent reads it with `editor_state`, so "make this one bigger" or "put a lantern
+here" just works. The other way round, `editor_select {ids, frame: true}` highlights items and moves the editor
+camera to them, and `capture {selection: true}` shows the highlight in the agent's own images.
+
 `world_check` finds what is easy to miss in a capture: floating or buried objects, duplicates, objects standing on
 paths, collectibles inside walls, a player start inside a building, scatter rules that placed nothing. Run it
 before `batch_end`; `world_diff` lists what the batch changed for its notes.

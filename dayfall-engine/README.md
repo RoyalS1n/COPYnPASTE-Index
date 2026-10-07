@@ -47,6 +47,7 @@ bin\dayfall.exe --help               # every option
 ```
 
 Editor: hold the right mouse button and use WASD / Q / E to fly (Shift: faster, wheel: speed), F frames the map,
+click selects an object for the agent (Shift adds, Esc clears; the agent reads it with `editor_state`),
 P plays, Ctrl+S saves, Ctrl+Z / Ctrl+Y undo / redo, F12 saves a screenshot. Play: WASD, Shift to run, Space to
 jump, mouse to look, Esc to stop.
 

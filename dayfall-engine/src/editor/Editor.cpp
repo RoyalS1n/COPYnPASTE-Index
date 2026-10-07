@@ -2,6 +2,7 @@
 #include "core/Error.h"
 #include "core/Log.h"
 #include "world/Area.h"
+#include <algorithm>
 #include <chrono>
 #include <format>
 
@@ -43,7 +44,10 @@ void Editor::init(Engine& eng, const EditorOptions& opt) {
     builder.init(opt.contentDir);
     physics.init();
     registerTools();
-    engine->hudBuild = [this](HudCanvas& c) { drawHud(c); };
+    engine->hudBuild = [this](HudCanvas& c) {
+        drawHud(c);
+        if ((windowFrame_ || overlayCamera_) && !game.active()) drawEditorOverlay(c);
+    };
 }
 
 void Editor::shutdown() {
@@ -153,7 +157,49 @@ void Editor::update(float dt, const PlayerInput& input) {
 void Editor::render() {
     float aspect = (float)engine->renderer.settings().width / std::max(1u, engine->renderer.settings().height);
     Camera cam = game.active() ? game.camera(physics, aspect) : editCamera;
+    windowFrame_ = true;
     engine->renderFrame(cam, time);
+    windowFrame_ = false;
+}
+
+
+bool Editor::rayFromWindow(vec2 ndc, vec3& origin, vec3& dir) const {
+    float aspect = (float)engine->renderer.settings().width / std::max(1u, engine->renderer.settings().height);
+    const Camera& c = editCamera;
+    vec3 f = c.forward(), r = glm::normalize(glm::cross(f, vec3(0, 0, 1))), u = glm::cross(r, f);
+    float t = std::tan(c.vfov * 0.5f);
+    origin = c.position;
+    dir = glm::normalize(f + r * (ndc.x * t * aspect) + u * (ndc.y * t));
+    return true;
+}
+
+void Editor::hover(vec2 ndc) {
+    vec3 o, d;
+    hasCursorGround = false;
+    if (!rayFromWindow(ndc, o, d)) return;
+    RayHit h = physics.raycast(o, d, 20000.0f);
+    if (h.hit) { hasCursorGround = true; cursorGround = h.position; }
+}
+
+void Editor::pick(vec2 ndc, bool add) {
+    vec3 o, d;
+    if (!rayFromWindow(ndc, o, d)) return;
+    RayHit h = physics.raycast(o, d, 20000.0f);
+    if (!add) selection.clear();
+    if (!h.hit || h.instance == RayHit::kTerrain || h.instance >= scene.instances.size()) {
+        status = h.hit ? std::format("ground at ({:.1f}, {:.1f}, {:.1f})", h.position.x, h.position.y, h.position.z) : "nothing there";
+        return;
+    }
+    for (auto& s : scene.sets) {
+        if (h.instance < s.first || h.instance >= s.first + s.count) continue;
+        if (!world.find(s.name)) break;   // the player, water: not selectable
+        Selected sel{s.name, s.count > 1 ? h.instance : UINT32_MAX, h.position};
+        auto it = std::find_if(selection.begin(), selection.end(), [&](const Selected& x) { return x.id == sel.id && x.instance == sel.instance; });
+        if (it != selection.end()) selection.erase(it);   // shift-click again: deselect
+        else selection.push_back(sel);
+        status = std::format("selected {}", s.name);
+        break;
+    }
 }
 
 float Editor::groundHeight(vec2 p) const {
@@ -200,7 +246,9 @@ std::vector<uint8_t> Editor::captureRgba(const CaptureView& v, uint32_t w, uint3
     if (showIdle) game.showIdle(scene, builder, scene.playerStart.position, glm::radians(scene.playerStart.yawDeg - 90.0f), true);
     if (!game.active()) Game::animateEntities(t, scene, entities);
     engine->renderer.updateDynamicInstances(scene);
+    overlayCamera_ = v.selection ? &v.camera : nullptr;
     CaptureResult r = engine->capture(v.camera, t, w, h);
+    overlayCamera_ = nullptr;
     if (showIdle) {
         game.showIdle(scene, builder, scene.playerStart.position, 0.0f, false);
         engine->renderer.updateDynamicInstances(scene);
@@ -272,6 +320,7 @@ Workflow (follow it):
 5. Block out with primitives and test the whole route with walk_test (the default mannequin, real physics) before adding art. Fix every stuck / fall / water event it reports.
    Before batch_end, run world_check (floating / buried / duplicate objects, objects on paths, entities inside objects) and fix what it finds.
    Place precisely instead of guessing: find_space for building sites, object_add place {on / next_to / relative_to}, area_set to name regions.
+   When the human says "this", "that one" or "here", call editor_state: it returns what they clicked in the editor window.
 6. Then import or place library assets, then refine in small batches: vegetation, lighting, details.
 Use undo if a batch went wrong. Captures are saved under <map>/captures/ for the human to review.)";
 }

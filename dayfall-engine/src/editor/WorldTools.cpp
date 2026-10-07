@@ -233,9 +233,125 @@ void rotateItemAbout(json& o, vec2 pivot, float degrees) {
     }
 }
 
+namespace {
+void instanceBox(const Scene& sc, uint32_t k, vec3& lo, vec3& hi) {
+    const GpuInstance& in = sc.instances[k];
+    const Mesh& m = sc.meshes[in.mesh];
+    MeshAsset probe;
+    probe.aabbMin = m.aabbMin;
+    probe.aabbMax = m.aabbMax;
+    placedBounds(probe, Placement{vec3(in.posScale), quat(in.rot.w, in.rot.x, in.rot.y, in.rot.z), sc.axisScale(in)}, lo, hi);
+}
+}  // namespace
+
+bool Editor::selectionBox(const Selected& s, vec3& lo, vec3& hi) {
+    if (s.instance != UINT32_MAX && s.instance < scene.instances.size()) {
+        instanceBox(scene, s.instance, lo, hi);
+        return true;
+    }
+    try {
+        ItemBox b = itemBox(*this, s.id);
+        lo = b.lo;
+        hi = b.hi;
+        return true;
+    } catch (const Error&) {}
+    // scatter rules, instance files, glTF scenes: the union of their instances
+    lo = vec3(1e30f);
+    hi = vec3(-1e30f);
+    for (auto& set : scene.sets) {
+        if (set.name != s.id) continue;
+        for (uint32_t k = set.first; k < set.first + std::min(set.count, 4000u) && k < scene.instances.size(); ++k) {
+            vec3 a, b;
+            instanceBox(scene, k, a, b);
+            lo = glm::min(lo, a);
+            hi = glm::max(hi, b);
+        }
+    }
+    return lo.x <= hi.x;
+}
+
 // ================================================================== tools
 void Editor::registerWorldTools() {
     Editor& E = *this;
+
+    // ------------------------------------------------------------------ shared selection
+    addTool({"editor_state",
+             "What the human sees and has selected in the editor window: when they say \"this\", \"that one\" or \"here\", "
+             "call this. selection: items they clicked (id, section, mesh, box, the point clicked; one instance of a scatter "
+             "rule or instance file), camera (position, the point looked at), cursor_ground (the surface under the mouse), playing.",
+             ToolCategory::Read, object({}),
+             [&E](const json&) {
+                 json sel = json::array();
+                 for (auto& s : E.selection) {
+                     json j = {{"id", s.id}, {"picked_point", r3(s.point)}};
+                     std::string sec;
+                     if (json* o = E.world.find(s.id, &sec)) {
+                         j["section"] = sec;
+                         if (o->contains("mesh")) j["mesh"] = (*o)["mesh"];
+                         if (o->contains("position")) j["position"] = (*o)["position"];
+                         if (o->contains("tags")) j["tags"] = (*o)["tags"];
+                     }
+                     if (s.instance != UINT32_MAX) j["instance"] = s.instance;
+                     vec3 lo, hi;
+                     if (E.selectionBox(s, lo, hi)) j["box"] = {{"min", r3(lo)}, {"max", r3(hi)}, {"size_m", r3(hi - lo)}};
+                     sel.push_back(j);
+                 }
+                 const Camera& c = E.editCamera;
+                 RayHit h = E.physics.raycast(c.position, c.forward(), 20000.0f);
+                 vec3 look = h.hit ? h.position : c.position + c.forward() * 50.0f;
+                 ToolResult r;
+                 r.data = {{"selection", sel}, {"playing", E.playing()},
+                           {"camera", {{"position", r3(c.position)}, {"looking_at", r3(look)}, {"vfov_deg", rnd(glm::degrees(c.vfov))}}},
+                           {"cursor_ground", E.hasCursorGround ? r3(E.cursorGround) : json()}};
+                 if (sel.empty()) r.data["hint"] = "nothing selected: the human selects by clicking in the editor window (shift adds)";
+                 return r;
+             }});
+
+    addTool({"editor_select",
+             "Show the human what you mean: highlight items in the editor window (ids; clear: true removes the highlight) and "
+             "with frame: true move the editor camera to look at them. click: [u, v] (0..1 across a capture of {editor: true}, "
+             "from the top-left) selects what is there, as a mouse click would. Ask \"this one?\" before big changes to something "
+             "they pointed at.",
+             ToolCategory::Meta,
+             object({{"ids", arr(str(""), "items to highlight")}, {"clear", boolean("remove the highlight")},
+                     {"frame", boolean("move the editor camera to them")}, {"click", point("[u, v] in the editor view, 0..1")}}),
+             [&E](const json& a) {
+                 if (a.value("clear", false)) E.selection.clear();
+                 std::vector<Editor::Selected> add;
+                 for (auto& i : a.value("ids", json::array())) {
+                     std::string id = i.get<std::string>();
+                     bool known = E.world.find(id) != nullptr;
+                     for (auto& s : E.scene.sets) known = known || s.name == id;
+                     if (!known) throw Error("no item with id '" + id + "'");
+                     add.push_back({id, UINT32_MAX, vec3(0)});
+                 }
+                 if (!add.empty()) E.selection = add;
+                 if (a.contains("click")) {
+                     vec2 uv = xy(a["click"]);
+                     E.pick(vec2(uv.x * 2.0f - 1.0f, 1.0f - uv.y * 2.0f), !E.selection.empty() && !a.value("clear", false));
+                 }
+                 vec3 lo(1e30f), hi(-1e30f);
+                 for (auto& s : E.selection) {
+                     vec3 a0, b0;
+                     if (!E.selectionBox(s, a0, b0)) continue;
+                     lo = glm::min(lo, a0);
+                     hi = glm::max(hi, b0);
+                     if (s.point == vec3(0)) s.point = (a0 + b0) * 0.5f;
+                 }
+                 ToolResult r;
+                 if (a.value("frame", false) && lo.x <= hi.x) {
+                     vec3 c = (lo + hi) * 0.5f;
+                     float radius = std::max(2.0f, glm::length(hi - lo) * 0.5f);
+                     float dist = radius / std::tan(E.editCamera.vfov * 0.5f) * 1.15f;
+                     E.editCamera.position = c + glm::normalize(vec3(-0.55f, -0.75f, 0.5f)) * dist;
+                     E.editCamera.lookAt(c);
+                     r.data["camera"] = {{"position", r3(E.editCamera.position)}, {"target", r3(c)}};
+                 }
+                 json ids = json::array();
+                 for (auto& s : E.selection) ids.push_back(s.id);
+                 r.data["selected"] = ids;
+                 return r;
+             }});
 
     // ------------------------------------------------------------------ world_check
     addTool({"world_check",

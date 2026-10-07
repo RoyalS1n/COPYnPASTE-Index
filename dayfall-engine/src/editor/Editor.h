@@ -56,6 +56,7 @@ struct CaptureView {
     std::string label;
     Camera camera;
     bool showPlayer = false;
+    bool selection = false;              // draw the editor selection's boxes over it
 };
 
 class Editor {
@@ -87,6 +88,16 @@ public:
     void drawHud(HudCanvas& c);
     int hudForce = -1;                   // 1: also while editing (a preview at the player start), 0: never, -1: while playing
 
+    // selection shared between the human and agents: a click in the editor window picks an item (shift adds),
+    // editor_select highlights items for the human, editor_state tells an agent what "this" is
+    struct Selected { std::string id; uint32_t instance = UINT32_MAX; vec3 point{0}; };   // instance: one scatter / file instance
+    std::vector<Selected> selection;
+    bool hasCursorGround = false;        // the surface under the mouse in the editor window
+    vec3 cursorGround{0};
+    void pick(vec2 ndc, bool add);       // ndc: -1..1, y up; a click in the window
+    void hover(vec2 ndc);
+    bool selectionBox(const Selected& s, vec3& lo, vec3& hi);   // world box of a selected item (or its one instance)
+
     Engine* engine = nullptr;
     EditorOptions options;
     World world;
@@ -111,6 +122,10 @@ private:
     const Terrain* terrainUploaded_ = nullptr;
     int captureCounter_ = 0;
     void updateMinimap();
+    void drawEditorOverlay(HudCanvas& c);   // selection boxes and labels (EditorHud.cpp), window frames only
+    bool rayFromWindow(vec2 ndc, vec3& origin, vec3& dir) const;
+    bool windowFrame_ = false;
+    const Camera* overlayCamera_ = nullptr;   // a capture with the selection drawn: its camera
     uint64_t minimapBuilt_ = ~0ull, minimapKey_ = ~0ull;
     vec2 minimapOrigin_{0};
     float minimapSize_ = 0;

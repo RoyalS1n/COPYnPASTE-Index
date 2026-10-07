@@ -220,4 +220,75 @@ void Editor::updateMinimap() {
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count(), std::min(sum, budget) / 1e6,
             dots ? std::format(", {} instances over the budget as dots", dots) : "");
 }
+
+// ------------------------------------------------------------------------------------- editor overlay
+// The selection (a click in the window, or an agent's editor_select): each item's box as lines and a label, drawn
+// over window frames only (never in captures). Projected with the same basis as the click's ray.
+namespace {
+struct Projector {
+    vec3 pos, f, r, u;
+    float t, aspect, w, h;
+    bool project(vec3 p, vec2& s) const {
+        vec3 d = p - pos;
+        float z = glm::dot(d, f);
+        if (z < 0.05f) return false;
+        s = vec2((glm::dot(d, r) / (z * t * aspect) + 1.0f) * 0.5f * w, (1.0f - glm::dot(d, u) / (z * t)) * 0.5f * h);
+        return true;
+    }
+    // a segment, clipped to the space in front of the camera
+    bool segment(vec3 a, vec3 b, vec2& sa, vec2& sb) const {
+        float za = glm::dot(a - pos, f), zb = glm::dot(b - pos, f);
+        const float zn = 0.05f;
+        if (za < zn && zb < zn) return false;
+        if (za < zn) a = glm::mix(a, b, (zn - za) / (zb - za));
+        if (zb < zn) b = glm::mix(b, a, (zn - zb) / (za - zb));
+        return project(a, sa) && project(b, sb);
+    }
+};
+void line(HudCanvas& c, vec2 a, vec2 b, float width, uint32_t color) {
+    vec2 d = b - a;
+    float len = glm::length(d);
+    if (len < 0.5f) return;
+    vec2 n = vec2(-d.y, d.x) / len * (width * 0.5f);
+    c.tri(a + n, b + n, b - n, color);
+    c.tri(a + n, b - n, a - n, color);
+}
+}  // namespace
+
+void Editor::drawEditorOverlay(HudCanvas& c) {
+    if (selection.empty() || c.width == 0) return;
+    const Camera& cam = overlayCamera_ ? *overlayCamera_ : editCamera;
+    Projector P;
+    P.pos = cam.position;
+    P.f = cam.forward();
+    P.r = glm::normalize(glm::cross(P.f, vec3(0, 0, 1)));
+    P.u = glm::cross(P.r, P.f);
+    P.t = std::tan(cam.vfov * 0.5f);
+    P.w = (float)c.width;
+    P.h = (float)c.height;
+    P.aspect = P.w / std::max(1.0f, P.h);
+    uint32_t col = hudColor(1.0f, 0.78f, 0.2f, 0.95f), shadow = hudColor(0.0f, 0.0f, 0.0f, 0.55f);
+    std::string label;
+    for (const Selected& s : selection) {
+        vec3 lo, hi;
+        if (!selectionBox(s, lo, hi)) continue;
+        vec3 v[8];
+        for (int k = 0; k < 8; ++k) v[k] = vec3((k & 1) ? hi.x : lo.x, (k & 2) ? hi.y : lo.y, (k & 4) ? hi.z : lo.z);
+        static const int edges[12][2] = {{0, 1}, {2, 3}, {4, 5}, {6, 7}, {0, 2}, {1, 3}, {4, 6}, {5, 7}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
+        for (auto& e : edges) {
+            vec2 a, b;
+            if (!P.segment(v[e[0]], v[e[1]], a, b)) continue;
+            line(c, a + vec2(1), b + vec2(1), 3.0f * c.ui, shadow);
+            line(c, a, b, 2.0f * c.ui, col);
+        }
+        vec3 size = hi - lo;
+        label += std::format("{}{} ({:.1f} x {:.1f} x {:.1f} m)", label.empty() ? "" : ",  ", s.id, size.x, size.y, size.z);
+    }
+    if (label.empty()) return;
+    label = "Selected: " + label + "   -  agents see this (editor_state)";
+    float scale = 2.0f * c.ui;
+    float wText = HudCanvas::textWidth(label, scale);
+    c.rect(vec2(12, 10) * c.ui, vec2(12 * c.ui + wText + 16 * c.ui, 10 * c.ui + HudCanvas::kCapHeight * scale + 14 * c.ui), hudColor(0, 0, 0, 0.45f));
+    c.text(vec2(20, 17) * c.ui, label, scale, hudColor(1.0f, 0.92f, 0.7f), hudColor(0, 0, 0, 0.8f));
+}
 }  // namespace df

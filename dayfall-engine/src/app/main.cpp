@@ -45,7 +45,8 @@ usage: dayfall [MAP_DIR] [options]
   --validation            Vulkan validation layers
   --gpu N                 pick a GPU by index
 
-Editor controls: hold right mouse + WASD/QE to fly (Shift faster, wheel: speed), F frame the map,
+Editor controls: hold right mouse + WASD/QE to fly (Shift faster, wheel: speed), F frame the map, click to select
+(Shift adds, Esc clears; agents see the selection with editor_state),
 P play / stop, Ctrl+S save, Ctrl+Z undo, Ctrl+Y redo, F12 screenshot.
 Play: WASD move, Shift run, Space jump, mouse look, Esc back to the editor. Gamepads work too.
 )";
@@ -64,6 +65,7 @@ struct InputState {
     float flySpeed = 12.0f;
     double scroll = 0;
     bool keyPrev[GLFW_KEY_LAST + 1]{};
+    bool leftPrev = false;
 };
 InputState* g_input = nullptr;
 
@@ -375,6 +377,16 @@ int main(int argc, char** argv) {
                     if (key(GLFW_KEY_E)) c.position.z += sp;
                     if (key(GLFW_KEY_Q)) c.position.z -= sp;
                 }
+                // selection shared with agents (editor_state): click picks, shift-click adds, Esc clears
+                int ww = 1, wh = 1;
+                glfwGetWindowSize(w, &ww, &wh);
+                vec2 ndc((float)(mx / std::max(1, ww)) * 2.0f - 1.0f, 1.0f - (float)(my / std::max(1, wh)) * 2.0f);
+                ed.hover(ndc);
+                bool left = glfwGetMouseButton(w, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+                if (left && !input.leftPrev && glfwGetMouseButton(w, GLFW_MOUSE_BUTTON_RIGHT) != GLFW_PRESS)
+                    ed.pick(ndc, key(GLFW_KEY_LEFT_SHIFT) || key(GLFW_KEY_RIGHT_SHIFT));
+                input.leftPrev = left;
+                if (pressedOnce(w, GLFW_KEY_ESCAPE)) ed.selection.clear();
             }
             if (bench > 0) {
                 if (benchStart < 0) benchStart = 0;

@@ -287,12 +287,14 @@ void Editor::registerTools() {
              "{\"position\": [x,y,z], \"target\": [x,y,z] or [x,y], \"vfov_deg\"} | {\"player\": true} (third-person view at the "
              "player start, mannequin shown for scale) | {\"top_down\": {\"center\": [x,y], \"size_m\": s}} | {\"orbit\": "
              "{\"target\": [x,y(,z)], \"distance_m\", \"yaw_deg\", \"pitch_deg\"}} | {\"editor\": true}. Default: overview + player. "
-             "The in-game HUD is drawn while playing; hud: true also previews it while editing (at the player start), false hides it.",
+             "The in-game HUD is drawn while playing; hud: true also previews it while editing (at the player start), false hides it. "
+             "selection: true draws the editor selection's boxes (what the human clicked, or editor_select) as the human sees them.",
              ToolCategory::Read,
              object({{"views", arr(anyObj("a view"), "views to render")}, {"width", integer("pixels (default 1024)")},
                      {"height", integer("pixels (default 576)")}, {"format", str("jpeg (default) or png")},
                      {"save", boolean("save to <map>/captures (default true)")},
-                     {"hud", boolean("draw the HUD: default only while playing; true also while editing; false never")}}),
+                     {"hud", boolean("draw the HUD: default only while playing; true also while editing; false never")},
+                     {"selection", boolean("draw the selection's boxes")}}),
              [&E](const json& a) {
                  ToolResult r;
                  struct HudScope { Editor& e; int keep; ~HudScope() { e.hudForce = keep; } } hudScope{E, E.hudForce};
@@ -367,6 +369,7 @@ void Editor::registerTools() {
                          cv.label = "overview";
                      }
                      E.engine->renderer.shadowDistanceOverride = shadowOverride;
+                     cv.selection = a.value("selection", false);
                      std::vector<uint8_t> rgba = E.captureRgba(cv, w, h, E.time);
                      E.engine->renderer.shadowDistanceOverride = 0;
                      std::vector<uint8_t> enc = png ? encodePng(rgba.data(), w, h) : encodeJpeg(rgba.data(), w, h, 85);
