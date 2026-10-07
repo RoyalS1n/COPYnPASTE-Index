@@ -1,0 +1,2001 @@
+{
+ "format": "dayfall-content",
+ "source": "FloatingIslet fort_kit (ForgeBuilding/estate/fort_kit) built headless, tools/quantize_glb.py; materials: tools/unreal/fortress_materials.py",
+ "meshes": {
+  "fk_wall_outer": {
+   "file": "meshes/wall_outer.glb",
+   "category": "fortress",
+   "size_m": [
+    10.02,
+    7.8,
+    27.48
+   ],
+   "triangles": 1196,
+   "description": "Outer curtain wall bay, 10 m long, 13 m high, 4 m thick, crenellated wall-walk",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -10.0"
+  },
+  "fk_wall_inner": {
+   "file": "meshes/wall_inner.glb",
+   "category": "fortress",
+   "size_m": [
+    10.02,
+    7.3,
+    24.98
+   ],
+   "triangles": 1196,
+   "description": "Inner curtain wall bay, 10 m long, 10.5 m high, 3.5 m thick",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -10.0"
+  },
+  "fk_tower_round": {
+   "file": "meshes/tower_round.glb",
+   "category": "fortress",
+   "size_m": [
+    13.35,
+    13.35,
+    47.35
+   ],
+   "triangles": 10010,
+   "description": "Round flanking tower, r 5 m, 20 m, conical slate roof and pennant",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 4000,
+   "note": "foundations down to z = -10.0"
+  },
+  "fk_gate_block": {
+   "file": "meshes/gate_block.glb",
+   "category": "fortress",
+   "size_m": [
+    21.3,
+    15.3,
+    28.48
+   ],
+   "triangles": 3928,
+   "description": "Gatehouse block, 18 x 12 m, 16 m high, 6 m portal",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -8.0"
+  },
+  "fk_gate_hall": {
+   "file": "meshes/gate_hall.glb",
+   "category": "fortress",
+   "size_m": [
+    36.9,
+    20.5,
+    42.04
+   ],
+   "triangles": 22260,
+   "description": "Gate hall: vaulted passage with portcullis and towers",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 4000,
+   "note": "foundations down to z = -12.0"
+  },
+  "fk_keep_ref": {
+   "file": "meshes/keep_ref.glb",
+   "category": "fortress",
+   "size_m": [
+    62.49,
+    37.55,
+    58.6
+   ],
+   "triangles": 36712,
+   "description": "Great keep (reference build); origin at the great-door threshold",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 4000,
+   "note": "foundations down to z = -12.0; footprint centre at (3.1, 15.1)"
+  },
+  "fk_tower_cone_a": {
+   "file": "meshes/tower_cone_a.glb",
+   "category": "fortress",
+   "size_m": [
+    13.4,
+    13.4,
+    45.06
+   ],
+   "triangles": 2612,
+   "description": "Slender turret with cone roof, r 2.7 m, 8.6 m",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 4000,
+   "note": "foundations down to z = -12.0"
+  },
+  "fk_tower_cone_b": {
+   "file": "meshes/tower_cone_b.glb",
+   "category": "fortress",
+   "size_m": [
+    15.53,
+    15.53,
+    78.66
+   ],
+   "triangles": 2612,
+   "description": "Tall turret with cone roof, r 3.25 m, 23.9 m",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 4000,
+   "note": "foundations down to z = -12.0"
+  },
+  "fk_fountain_ref": {
+   "file": "meshes/fountain_ref.glb",
+   "category": "fortress",
+   "size_m": [
+    5.5,
+    5.5,
+    1.59
+   ],
+   "triangles": 2952,
+   "description": "Courtyard fountain (reference build)",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 700
+  },
+  "fk_planter": {
+   "file": "meshes/planter.glb",
+   "category": "fortress",
+   "size_m": [
+    7.25,
+    1.0,
+    1.25
+   ],
+   "triangles": 1168,
+   "description": "Stone planter box with greenery",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 700
+  },
+  "fk_fir_k": {
+   "file": "meshes/fir_k.glb",
+   "category": "fortress",
+   "size_m": [
+    3.54,
+    3.49,
+    10.0
+   ],
+   "triangles": 436,
+   "description": "Clipped fir / cypress tree",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000
+  },
+  "fk_pavilion_l": {
+   "file": "meshes/pavilion_l.glb",
+   "category": "fortress",
+   "size_m": [
+    12.6,
+    11.49,
+    7.78
+   ],
+   "triangles": 1776,
+   "description": "Pavilion, 10 x 8.8 m, slate roof",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000
+  },
+  "fk_pavilion_r": {
+   "file": "meshes/pavilion_r.glb",
+   "category": "fortress",
+   "size_m": [
+    18.6,
+    9.67,
+    6.18
+   ],
+   "triangles": 2828,
+   "description": "Pavilion, 16 x 7 m, three dormers",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000
+  },
+  "fk_hall_ref": {
+   "file": "meshes/hall_ref.glb",
+   "category": "fortress",
+   "size_m": [
+    12.4,
+    7.48,
+    10.5
+   ],
+   "triangles": 3600,
+   "description": "Stone hall (reference build)",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.5"
+  },
+  "fk_church": {
+   "file": "meshes/church.glb",
+   "category": "fortress",
+   "size_m": [
+    27.28,
+    11.51,
+    34.2
+   ],
+   "triangles": 10252,
+   "description": "Church with tower",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 4000,
+   "note": "foundations down to z = -4.0; footprint centre at (-2.4, 0.0)"
+  },
+  "fk_wall_t1": {
+   "file": "meshes/wall_t1.glb",
+   "category": "fortress",
+   "size_m": [
+    10.02,
+    2.18,
+    8.77
+   ],
+   "triangles": 352,
+   "description": "Low terrace wall, 10 m long, 3.5 m high",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -4.0"
+  },
+  "fk_wall_t2": {
+   "file": "meshes/wall_t2.glb",
+   "category": "fortress",
+   "size_m": [
+    10.02,
+    2.56,
+    16.67
+   ],
+   "triangles": 352,
+   "description": "Terrace wall, 10 m long, 7.3 m high",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -8.0"
+  },
+  "fk_keep_hub": {
+   "file": "meshes/keep_hub.glb",
+   "category": "fortress",
+   "size_m": [
+    64.0,
+    48.0,
+    59.68
+   ],
+   "triangles": 38484,
+   "description": "Keep, human-scale hub build",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 4000,
+   "note": "foundations down to z = -12.0; footprint centre at (0.0, 5.0)"
+  },
+  "fk_hoarding_outer": {
+   "file": "meshes/hoarding_outer.glb",
+   "category": "fortress",
+   "size_m": [
+    10.26,
+    8.35,
+    9.27
+   ],
+   "triangles": 662,
+   "description": "Timber hoarding for the outer wall-walk (mounts at z 10.3)",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "footprint centre at (0.0, -2.0)",
+   "footprint_m": false
+  },
+  "fk_hoarding_inner": {
+   "file": "meshes/hoarding_inner.glb",
+   "category": "fortress",
+   "size_m": [
+    10.26,
+    7.85,
+    9.27
+   ],
+   "triangles": 662,
+   "description": "Timber hoarding for the inner wall-walk (mounts at z 7.8)",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "footprint centre at (0.0, -2.0)",
+   "footprint_m": false
+  },
+  "fk_scaffold": {
+   "file": "meshes/scaffold.glb",
+   "category": "fortress",
+   "size_m": [
+    3.9,
+    5.95,
+    15.58
+   ],
+   "triangles": 1008,
+   "description": "Builders' scaffold, 13 m",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -0.1; footprint centre at (0.0, 1.0)"
+  },
+  "fk_bridge_stone": {
+   "file": "meshes/bridge_stone.glb",
+   "category": "fortress",
+   "size_m": [
+    64.0,
+    8.4,
+    11.35
+   ],
+   "triangles": 6488,
+   "description": "Arched stone bridge",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 4000,
+   "note": "foundations down to z = -4.5"
+  },
+  "fk_wall_terrace": {
+   "file": "meshes/wall_terrace.glb",
+   "category": "fortress",
+   "size_m": [
+    10.02,
+    3.52,
+    14.58
+   ],
+   "triangles": 296,
+   "description": "Terrace retaining wall, 10 m long, 9 m high",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -4.0"
+  },
+  "fk_wall_low_h": {
+   "file": "meshes/wall_low_h.glb",
+   "category": "fortress",
+   "size_m": [
+    8.02,
+    1.52,
+    6.46
+   ],
+   "triangles": 352,
+   "description": "Low garden wall, 8 m long, 2.4 m high",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -3.0"
+  },
+  "fk_wall_pier_h": {
+   "file": "meshes/wall_pier_h.glb",
+   "category": "fortress",
+   "size_m": [
+    1.68,
+    1.68,
+    10.06
+   ],
+   "triangles": 1092,
+   "description": "Wall pier / gate post, 3.4 m",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -6.0"
+  },
+  "fk_lamp": {
+   "file": "meshes/lamp.glb",
+   "category": "fortress",
+   "size_m": [
+    0.6,
+    0.6,
+    5.36
+   ],
+   "triangles": 320,
+   "description": "Street lamp with flame socket",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 700
+  },
+  "fk_well": {
+   "file": "meshes/well.glb",
+   "category": "fortress",
+   "size_m": [
+    3.9,
+    3.09,
+    3.97
+   ],
+   "triangles": 924,
+   "description": "Stone well with roof",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 700
+  },
+  "fk_fountain": {
+   "file": "meshes/fountain.glb",
+   "category": "fortress",
+   "size_m": [
+    27.58,
+    27.58,
+    5.67
+   ],
+   "triangles": 4316,
+   "description": "Fountain",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000
+  },
+  "fk_house_a": {
+   "file": "meshes/house_a.glb",
+   "category": "fortress",
+   "size_m": [
+    11.97,
+    10.05,
+    12.92
+   ],
+   "triangles": 3592,
+   "description": "Town house, 10 x 8 m, two storeys, slate roof, green shutters",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.5"
+  },
+  "fk_house_b": {
+   "file": "meshes/house_b.glb",
+   "category": "fortress",
+   "size_m": [
+    9.47,
+    10.55,
+    15.92
+   ],
+   "triangles": 3864,
+   "description": "Tall town house, 7.5 x 8.5 m, slate roof, red shutters",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.5"
+  },
+  "fk_house_c": {
+   "file": "meshes/house_c.glb",
+   "category": "fortress",
+   "size_m": [
+    10.07,
+    8.18,
+    9.75
+   ],
+   "triangles": 2384,
+   "description": "Cottage, 9 x 7 m, slate roof, green shutters",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.2"
+  },
+  "fk_house_d": {
+   "file": "meshes/house_d.glb",
+   "category": "fortress",
+   "size_m": [
+    13.07,
+    9.18,
+    10.95
+   ],
+   "triangles": 2408,
+   "description": "Long cottage, 12 x 8 m, slate roof, blue shutters",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.2"
+  },
+  "fk_house_a_w": {
+   "file": "meshes/house_a_w.glb",
+   "category": "fortress",
+   "size_m": [
+    11.97,
+    10.05,
+    12.92
+   ],
+   "triangles": 3592,
+   "description": "Town house, 10 x 8 m, shingle roof, warm plaster, blue shutters",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.5"
+  },
+  "fk_house_b_w": {
+   "file": "meshes/house_b_w.glb",
+   "category": "fortress",
+   "size_m": [
+    9.47,
+    10.55,
+    15.92
+   ],
+   "triangles": 3864,
+   "description": "Tall town house, shingle roof, green shutters",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.5"
+  },
+  "fk_house_c_w": {
+   "file": "meshes/house_c_w.glb",
+   "category": "fortress",
+   "size_m": [
+    10.07,
+    8.18,
+    9.75
+   ],
+   "triangles": 2384,
+   "description": "Cottage, 9 x 7 m, shingle roof, red shutters",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.2"
+  },
+  "fk_house_d_w": {
+   "file": "meshes/house_d_w.glb",
+   "category": "fortress",
+   "size_m": [
+    13.07,
+    9.18,
+    10.95
+   ],
+   "triangles": 2408,
+   "description": "Long cottage, 12 x 8 m, shingle roof, green shutters",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.2"
+  },
+  "fk_house_e": {
+   "file": "meshes/house_e.glb",
+   "category": "fortress",
+   "size_m": [
+    8.77,
+    10.33,
+    14.12
+   ],
+   "triangles": 3640,
+   "description": "Narrow townhouse, slate roof, blue shutters",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.5"
+  },
+  "fk_house_e_w": {
+   "file": "meshes/house_e_w.glb",
+   "category": "fortress",
+   "size_m": [
+    8.77,
+    10.33,
+    14.12
+   ],
+   "triangles": 3640,
+   "description": "Narrow townhouse, shingle roof, red shutters",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.5"
+  },
+  "fk_shop_a": {
+   "file": "meshes/shop_a.glb",
+   "category": "fortress",
+   "size_m": [
+    11.97,
+    10.94,
+    12.92
+   ],
+   "triangles": 4820,
+   "description": "Shop house with striped awning, slate roof",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.5"
+  },
+  "fk_shop_a_w": {
+   "file": "meshes/shop_a_w.glb",
+   "category": "fortress",
+   "size_m": [
+    11.97,
+    10.94,
+    12.92
+   ],
+   "triangles": 4820,
+   "description": "Shop house with striped awning, shingle roof",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.5"
+  },
+  "fk_hall_hub": {
+   "file": "meshes/hall_hub.glb",
+   "category": "fortress",
+   "size_m": [
+    26.4,
+    15.25,
+    20.5
+   ],
+   "triangles": 4808,
+   "description": "Market hall, hub build",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -4.0"
+  },
+  "fk_shed_s": {
+   "file": "meshes/shed_s.glb",
+   "category": "fortress",
+   "size_m": [
+    12.6,
+    8.68,
+    6.28
+   ],
+   "triangles": 1368,
+   "description": "Open shed on posts with goods, 10 x 6 m",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000
+  },
+  "fk_barn": {
+   "file": "meshes/barn.glb",
+   "category": "fortress",
+   "size_m": [
+    20.6,
+    11.68,
+    8.68
+   ],
+   "triangles": 856,
+   "description": "Stable / barn on posts with back wall, 18 x 9 m",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000
+  },
+  "fk_stall_s": {
+   "file": "meshes/stall_s.glb",
+   "category": "fortress",
+   "size_m": [
+    7.6,
+    6.25,
+    4.87
+   ],
+   "triangles": 1884,
+   "description": "Market stall, 5 x 3.6 m",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 700
+  },
+  "fk_keep": {
+   "file": "meshes/keep.glb",
+   "category": "fortress",
+   "size_m": [
+    137.3,
+    96.88,
+    135.78
+   ],
+   "triangles": 72976,
+   "description": "Keep, diorama scale (large)",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 4000,
+   "note": "foundations down to z = -12.0; footprint centre at (0.0, 3.0)"
+  },
+  "fk_hall_stone": {
+   "file": "meshes/hall_stone.glb",
+   "category": "fortress",
+   "size_m": [
+    42.4,
+    23.26,
+    37.2
+   ],
+   "triangles": 5444,
+   "description": "Stone hall, diorama scale",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 4000,
+   "note": "foundations down to z = -4.0"
+  },
+  "fk_hall_open": {
+   "file": "meshes/hall_open.glb",
+   "category": "fortress",
+   "size_m": [
+    42.6,
+    20.7,
+    22.5
+   ],
+   "triangles": 1772,
+   "description": "Open hall, diorama scale",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 4000
+  },
+  "fk_shed_open": {
+   "file": "meshes/shed_open.glb",
+   "category": "fortress",
+   "size_m": [
+    18.6,
+    12.68,
+    11.49
+   ],
+   "triangles": 1752,
+   "description": "Open shed, diorama scale",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000
+  },
+  "fk_stall": {
+   "file": "meshes/stall.glb",
+   "category": "fortress",
+   "size_m": [
+    10.6,
+    8.2,
+    6.87
+   ],
+   "triangles": 1884,
+   "description": "Market stall, diorama scale",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000
+  },
+  "fk_house": {
+   "file": "meshes/house.glb",
+   "category": "fortress",
+   "size_m": [
+    16.6,
+    12.72,
+    22.1
+   ],
+   "triangles": 1828,
+   "description": "House, diorama scale",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.5"
+  },
+  "fk_cottage": {
+   "file": "meshes/cottage.glb",
+   "category": "fortress",
+   "size_m": [
+    14.6,
+    10.72,
+    17.4
+   ],
+   "triangles": 2260,
+   "description": "Cottage, diorama scale",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -1.5"
+  },
+  "fk_wall_low": {
+   "file": "meshes/wall_low.glb",
+   "category": "fortress",
+   "size_m": [
+    10.02,
+    3.8,
+    14.71
+   ],
+   "triangles": 240,
+   "description": "Low wall, diorama scale",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -6.0"
+  },
+  "fk_wall_pier": {
+   "file": "meshes/wall_pier.glb",
+   "category": "fortress",
+   "size_m": [
+    4.4,
+    4.4,
+    16.73
+   ],
+   "triangles": 1092,
+   "description": "Wall pier, diorama scale",
+   "front": "-y",
+   "collision": "mesh",
+   "cull_distance_m": 2000,
+   "note": "foundations down to z = -6.0"
+  },
+  "fk_sky_isle_a": {
+   "file": "meshes/sky_isle_a.glb",
+   "category": "fortress",
+   "size_m": [
+    79.92,
+    79.2,
+    112.49
+   ],
+   "triangles": 9412,
+   "description": "Floating sky island, 40 x 70 m, trees and a tower (hangs ~86 m below its top)",
+   "front": "-y",
+   "collision": "none",
+   "cull_distance_m": 8000,
+   "note": "foundations down to z = -85.7",
+   "footprint_m": false
+  },
+  "fk_sky_isle_b": {
+   "file": "meshes/sky_isle_b.glb",
+   "category": "fortress",
+   "size_m": [
+    55.92,
+    55.44,
+    83.92
+   ],
+   "triangles": 6100,
+   "description": "Floating sky island, 28 x 55 m, trees",
+   "front": "-y",
+   "collision": "none",
+   "cull_distance_m": 8000,
+   "note": "foundations down to z = -67.5",
+   "footprint_m": false
+  },
+  "fk_sky_isle_c": {
+   "file": "meshes/sky_isle_c.glb",
+   "category": "fortress",
+   "size_m": [
+    109.92,
+    108.9,
+    131.22
+   ],
+   "triangles": 7732,
+   "description": "Floating sky island, 55 x 95 m, trees",
+   "front": "-y",
+   "collision": "none",
+   "cull_distance_m": 8000,
+   "note": "foundations down to z = -114.7",
+   "footprint_m": false
+  },
+  "fk_ivy_wall_a": {
+   "file": "meshes/ivy_wall_a.glb",
+   "category": "fortress",
+   "size_m": [
+    3.52,
+    0.22,
+    4.96
+   ],
+   "triangles": 4476,
+   "description": "Ivy sheet for an outer wall bay (sits on the wall face)",
+   "front": "-y",
+   "collision": "none",
+   "cull_distance_m": 700,
+   "footprint_m": false
+  },
+  "fk_ivy_wall_b": {
+   "file": "meshes/ivy_wall_b.glb",
+   "category": "fortress",
+   "size_m": [
+    3.57,
+    0.22,
+    6.23
+   ],
+   "triangles": 6284,
+   "description": "Ivy sheet for an inner wall bay",
+   "front": "-y",
+   "collision": "none",
+   "cull_distance_m": 700,
+   "footprint_m": false
+  },
+  "fk_ivy_tower": {
+   "file": "meshes/ivy_tower.glb",
+   "category": "fortress",
+   "size_m": [
+    5.29,
+    0.83,
+    7.45
+   ],
+   "triangles": 10636,
+   "description": "Curved ivy sheet for a round tower",
+   "front": "-y",
+   "collision": "none",
+   "cull_distance_m": 700,
+   "footprint_m": false
+  }
+ },
+ "materials": {
+  "FT_Sand": {
+   "model": "lit",
+   "base_color": [
+    0.215,
+    0.203,
+    0.198
+   ],
+   "roughness": 0.88,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.1,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 5.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 0.4,
+    "normal_strength": 0.9,
+    "top_only": 0.0,
+    "streaks": 0.55,
+    "moss": 0.55
+   },
+   "textures": {
+    "base": "textures/T_FT_Ashlar_A.jpg",
+    "normal": "textures/T_FT_Ashlar_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_SandDark": {
+   "model": "lit",
+   "base_color": [
+    0.15,
+    0.145,
+    0.145
+   ],
+   "roughness": 0.92,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.1,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 5.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 0.55,
+    "normal_strength": 0.9,
+    "top_only": 0.0,
+    "streaks": 0.5,
+    "moss": 0.6
+   },
+   "textures": {
+    "base": "textures/T_FT_Ashlar_A.jpg",
+    "normal": "textures/T_FT_Ashlar_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_SandLight": {
+   "model": "lit",
+   "base_color": [
+    0.25,
+    0.238,
+    0.23
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.08,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 5.5,
+    "albedo_strength": 0.8,
+    "chroma_mix": 0.4,
+    "normal_strength": 0.7,
+    "top_only": 0.0,
+    "streaks": 0.35,
+    "moss": 0.35
+   },
+   "textures": {
+    "base": "textures/T_FT_Ashlar_A.jpg",
+    "normal": "textures/T_FT_Ashlar_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_Mortar": {
+   "model": "lit",
+   "base_color": [
+    0.12,
+    0.1,
+    0.08
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.1,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Paving": {
+   "model": "lit",
+   "base_color": [
+    0.115,
+    0.106,
+    0.095
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.12,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 9.0,
+    "albedo_strength": 1.1,
+    "chroma_mix": 0.25,
+    "normal_strength": 1.0,
+    "top_only": 1.0
+   },
+   "textures": {
+    "base": "textures/T_FT_Flagstone_A.jpg",
+    "normal": "textures/T_FT_Flagstone_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_Gravel": {
+   "model": "lit",
+   "base_color": [
+    0.33,
+    0.25,
+    0.15
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.3,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Dirt": {
+   "model": "lit",
+   "base_color": [
+    0.24,
+    0.165,
+    0.09
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.3,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Slate": {
+   "model": "lit",
+   "base_color": [
+    0.075,
+    0.085,
+    0.14
+   ],
+   "roughness": 0.55,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.1,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 4.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.8,
+    "top_only": 0.0,
+    "streaks": 0.0,
+    "moss": 0.3
+   },
+   "textures": {
+    "base": "textures/T_FT_Slate_A.jpg",
+    "normal": "textures/T_FT_Slate_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_SlateDark": {
+   "model": "lit",
+   "base_color": [
+    0.2,
+    0.21,
+    0.26
+   ],
+   "roughness": 0.58,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.2,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Shingle": {
+   "model": "lit",
+   "base_color": [
+    0.09,
+    0.076,
+    0.066
+   ],
+   "roughness": 0.8,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.12,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 5.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 0.45,
+    "normal_strength": 0.8,
+    "top_only": 0.0,
+    "streaks": 0.0,
+    "moss": 0.4
+   },
+   "textures": {
+    "base": "textures/T_FT_Shingle_A.jpg",
+    "normal": "textures/T_FT_Shingle_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_Lead": {
+   "model": "lit",
+   "base_color": [
+    0.3,
+    0.28,
+    0.26
+   ],
+   "roughness": 0.6,
+   "metallic": 0.3,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.1,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Wood": {
+   "model": "lit",
+   "base_color": [
+    0.17,
+    0.11,
+    0.065
+   ],
+   "roughness": 0.8,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.12,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 1.3,
+    "albedo_strength": 0.9,
+    "chroma_mix": 0.2,
+    "normal_strength": 0.8,
+    "top_only": 0.0
+   },
+   "textures": {
+    "base": "textures/T_FT_Planks_A.jpg",
+    "normal": "textures/T_FT_Planks_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_WoodDark": {
+   "model": "lit",
+   "base_color": [
+    0.085,
+    0.058,
+    0.038
+   ],
+   "roughness": 0.82,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.1,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 1.6,
+    "albedo_strength": 0.9,
+    "chroma_mix": 0.15,
+    "normal_strength": 0.7,
+    "top_only": 0.0
+   },
+   "textures": {
+    "base": "textures/T_FT_Timber_A.jpg",
+    "normal": "textures/T_FT_Timber_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_Rubble": {
+   "model": "lit",
+   "base_color": [
+    0.34,
+    0.31,
+    0.27
+   ],
+   "roughness": 0.92,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.1,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 2.6,
+    "albedo_strength": 1.0,
+    "chroma_mix": 0.45,
+    "normal_strength": 0.9,
+    "top_only": 0.0,
+    "streaks": 0.4,
+    "moss": 0.5
+   },
+   "textures": {
+    "base": "textures/T_FT_Rubble_A.jpg",
+    "normal": "textures/T_FT_Rubble_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_PaintGreen": {
+   "model": "lit",
+   "base_color": [
+    0.07,
+    0.15,
+    0.08
+   ],
+   "roughness": 0.75,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.08,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 1.0,
+    "albedo_strength": 0.6,
+    "chroma_mix": 0.05,
+    "normal_strength": 0.6,
+    "top_only": 0.0
+   },
+   "textures": {
+    "base": "textures/T_FT_Planks_A.jpg",
+    "normal": "textures/T_FT_Planks_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_PaintBlue": {
+   "model": "lit",
+   "base_color": [
+    0.05,
+    0.09,
+    0.2
+   ],
+   "roughness": 0.75,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.08,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 1.0,
+    "albedo_strength": 0.6,
+    "chroma_mix": 0.05,
+    "normal_strength": 0.6,
+    "top_only": 0.0
+   },
+   "textures": {
+    "base": "textures/T_FT_Planks_A.jpg",
+    "normal": "textures/T_FT_Planks_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_PaintRed": {
+   "model": "lit",
+   "base_color": [
+    0.25,
+    0.045,
+    0.03
+   ],
+   "roughness": 0.75,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.08,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 1.0,
+    "albedo_strength": 0.6,
+    "chroma_mix": 0.05,
+    "normal_strength": 0.6,
+    "top_only": 0.0
+   },
+   "textures": {
+    "base": "textures/T_FT_Planks_A.jpg",
+    "normal": "textures/T_FT_Planks_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_Plaster": {
+   "model": "lit",
+   "base_color": [
+    0.62,
+    0.54,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.08,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 2.6,
+    "albedo_strength": 0.8,
+    "chroma_mix": 0.25,
+    "normal_strength": 0.6,
+    "top_only": 0.0,
+    "streaks": 0.35,
+    "moss": 0.0
+   },
+   "textures": {
+    "base": "textures/T_FT_Plaster_A.jpg",
+    "normal": "textures/T_FT_Plaster_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_Iron": {
+   "model": "lit",
+   "base_color": [
+    0.03,
+    0.03,
+    0.034
+   ],
+   "roughness": 0.45,
+   "metallic": 0.9,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.05,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Gold": {
+   "model": "lit",
+   "base_color": [
+    0.62,
+    0.42,
+    0.1
+   ],
+   "roughness": 0.35,
+   "metallic": 0.85,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.0,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Glass": {
+   "model": "lit",
+   "base_color": [
+    0.3,
+    0.17,
+    0.06
+   ],
+   "roughness": 0.3,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.0,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 0.9,
+    "albedo_strength": 1.0,
+    "chroma_mix": 0.5,
+    "normal_strength": 0.3,
+    "top_only": 0.0,
+    "emissive_detail": 1.0
+   },
+   "emissive": [
+    1.0,
+    0.52,
+    0.16
+   ],
+   "emissive_strength": 0.45,
+   "textures": {
+    "base": "textures/T_FT_Leaded_A.jpg",
+    "normal": "textures/T_FT_Leaded_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_Dome": {
+   "model": "lit",
+   "base_color": [
+    0.08,
+    0.22,
+    0.5
+   ],
+   "roughness": 0.08,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.0,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   },
+   "emissive": [
+    0.2,
+    0.5,
+    0.95
+   ],
+   "emissive_strength": 10.0
+  },
+  "FT_Glow": {
+   "model": "lit",
+   "base_color": [
+    1.0,
+    0.76,
+    0.42
+   ],
+   "roughness": 0.4,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.0,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   },
+   "emissive": [
+    1.0,
+    0.62,
+    0.25
+   ],
+   "emissive_strength": 90.0
+  },
+  "FT_Embers": {
+   "model": "lit",
+   "base_color": [
+    0.3,
+    0.06,
+    0.01
+   ],
+   "roughness": 0.7,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.0,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   },
+   "emissive": [
+    1.0,
+    0.3,
+    0.04
+   ],
+   "emissive_strength": 0.9
+  },
+  "FT_ClothBlue": {
+   "model": "lit",
+   "base_color": [
+    0.02,
+    0.055,
+    0.26
+   ],
+   "roughness": 0.82,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.12,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_ClothBlue2": {
+   "model": "lit",
+   "base_color": [
+    0.02,
+    0.055,
+    0.26
+   ],
+   "roughness": 0.82,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.12,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_ClothRed": {
+   "model": "lit",
+   "base_color": [
+    0.2,
+    0.02,
+    0.02
+   ],
+   "roughness": 0.82,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.12,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Canvas": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.35,
+    0.27
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.2,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Void": {
+   "model": "lit",
+   "base_color": [
+    0.012,
+    0.011,
+    0.01
+   ],
+   "roughness": 1.0,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.0,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Statue": {
+   "model": "lit",
+   "base_color": [
+    0.2,
+    0.19,
+    0.18
+   ],
+   "roughness": 0.8,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.15,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Hedge": {
+   "model": "lit",
+   "base_color": [
+    0.045,
+    0.14,
+    0.03
+   ],
+   "roughness": 0.94,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.4,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 2.8,
+    "albedo_strength": 1.0,
+    "chroma_mix": 0.35,
+    "normal_strength": 1.0,
+    "top_only": 0.0
+   },
+   "textures": {
+    "base": "textures/T_FT_Foliage_A.jpg",
+    "normal": "textures/T_FT_Foliage_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_Lawn": {
+   "model": "lit",
+   "base_color": [
+    0.035,
+    0.085,
+    0.02
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.35,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Leaf": {
+   "model": "lit",
+   "base_color": [
+    0.04,
+    0.12,
+    0.03
+   ],
+   "roughness": 0.92,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.5,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 2.2,
+    "albedo_strength": 1.0,
+    "chroma_mix": 0.35,
+    "normal_strength": 1.0,
+    "top_only": 0.0
+   },
+   "textures": {
+    "base": "textures/T_FT_Foliage_A.jpg",
+    "normal": "textures/T_FT_Foliage_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_Cypress": {
+   "model": "lit",
+   "base_color": [
+    0.016,
+    0.042,
+    0.018
+   ],
+   "roughness": 0.93,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.5,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Ivy": {
+   "model": "lit",
+   "base_color": [
+    0.035,
+    0.1,
+    0.025
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.5,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Bark": {
+   "model": "lit",
+   "base_color": [
+    0.06,
+    0.042,
+    0.025
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.4,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_BloomWhite": {
+   "model": "lit",
+   "base_color": [
+    0.78,
+    0.76,
+    0.69
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.15,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_BloomPink": {
+   "model": "lit",
+   "base_color": [
+    0.7,
+    0.17,
+    0.29
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.15,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_BloomYellow": {
+   "model": "lit",
+   "base_color": [
+    0.79,
+    0.52,
+    0.045
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.15,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_BloomViolet": {
+   "model": "lit",
+   "base_color": [
+    0.28,
+    0.14,
+    0.52
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.15,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Water": {
+   "model": "lit",
+   "base_color": [
+    0.035,
+    0.16,
+    0.17
+   ],
+   "roughness": 0.35,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.0,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Wheat": {
+   "model": "lit",
+   "base_color": [
+    0.46,
+    0.34,
+    0.1
+   ],
+   "roughness": 0.92,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.35,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Foam": {
+   "model": "lit",
+   "base_color": [
+    0.72,
+    0.84,
+    0.88
+   ],
+   "roughness": 0.35,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.05,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Blade": {
+   "model": "lit",
+   "base_color": [
+    0.022,
+    0.026,
+    0.038
+   ],
+   "roughness": 0.45,
+   "metallic": 0.3,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.05,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07
+   }
+  },
+  "FT_Rock": {
+   "model": "lit",
+   "base_color": [
+    0.36,
+    0.35,
+    0.34
+   ],
+   "roughness": 0.92,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.2,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 14.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 0.4,
+    "normal_strength": 0.9,
+    "top_only": 0.0,
+    "streaks": 0.0,
+    "moss": 0.6
+   }
+  },
+  "FT_GateStone": {
+   "model": "lit",
+   "base_color": [
+    0.44,
+    0.4,
+    0.35
+   ],
+   "roughness": 0.88,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.1,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 3.5,
+    "albedo_strength": 0.8,
+    "chroma_mix": 0.35,
+    "normal_strength": 1.0,
+    "top_only": 0.0,
+    "streaks": 0.4,
+    "moss": 0.3
+   },
+   "textures": {
+    "base": "textures/T_FT_GateStone_A.jpg",
+    "normal": "textures/T_FT_GateStone_N.png"
+   },
+   "normal_convention": "directx"
+  },
+  "FT_CragRock": {
+   "model": "lit",
+   "base_color": [
+    0.56,
+    0.55,
+    0.51
+   ],
+   "roughness": 0.92,
+   "metallic": 0.0,
+   "vertex_color": true,
+   "triplanar": {
+    "vertex_color_scale": 1.6,
+    "noise": 0.2,
+    "contact_dark": 0.55,
+    "top_light": 0.16,
+    "warm": 0.6,
+    "strokes": 0.07,
+    "tile_m": 14.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 0.05,
+    "normal_strength": 0.9,
+    "top_only": 0.0,
+    "ignore_vertex_color": 1.0
+   }
+  }
+ }
+}

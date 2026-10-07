@@ -1,0 +1,493 @@
+# Map format
+
+A map is a folder:
+
+```
+maps/<name>/
+  map.json             the world document (this page)
+  terrain/height.png   base heights: 16-bit greyscale PNG, samples_per_side square, north at the top;
+                       0 and 65535 map to terrain.height_range_m
+  terrain/paint_a.png  painted layers dirt, rock, snow, wet (RGBA8)
+  terrain/paint_b.png  painted layers dry, grass and 2 reserved (RGBA8)
+  assets/              models imported with asset_import
+  captures/            screenshots taken by agents and F12 (not committed)
+```
+
+World space: metres, Z up, X east, Y north. `yaw_deg` turns counter-clockwise seen from above (0 = east,
+90 = north). A position `[x, y]` means "on the ground" and follows later terrain edits; `[x, y, z]` is absolute.
+
+The editor writes `map.json` compactly and with sorted keys, so diffs stay small. Everything below is optional
+except `format`.
+
+## Top level
+
+| key | meaning |
+|---|---|
+| `format` | always `"dayfall-map"` |
+| `version` | 2 |
+| `name` | display name |
+| `environment` | sun, sky, haze, clouds, tone mapping and post (bloom, grade, painterly), wind, water: see below |
+| `terrain` | heightfield settings (the heights are in the binary files) |
+| `paths` | roads and trails that flatten and paint the terrain |
+| `objects` | placed meshes and primitives |
+| `scatter` | procedural placement rules (forests, grass, rocks) |
+| `entities` | gameplay objects: collectibles, goals, triggers |
+| `lights` | point lights |
+| `materials` | material definitions (override built-ins of the same name) |
+| `meshes` | the map's mesh library (imported models) |
+| `player` | character settings |
+| `player_start` | `{"position": [x, y(, z)], "yaw_deg": 90}` |
+| `hud` | the in-game HUD: minimap, counters, messages |
+| `cameras` | named viewpoints `{"position", "target", "vfov_deg"}` |
+| `routes` | named test routes `{"points": [[x, y], ...]}` |
+| `areas` | named areas `{"town": {"rect": {...}}}`: any `area` argument or scatter rule can use the name |
+| `prefabs` | reusable groups of objects, entities and lights (`prefab_save`, `prefab_place`) |
+| `water` | lakes and rivers (`water_set`); `environment.water` stays the sea level |
+| `instance_files` | large instance sets in binary files (ported maps) |
+| `gltf_scenes` | whole glTF scenes placed as they are (levels exported from Unreal or Blender) |
+
+## environment
+
+```json
+"environment": {
+  "preset": "golden_hour",
+  "time_of_day": 17.5,
+  "sun": {"elevation_deg": 14, "azimuth_deg": -163, "strength": 5.5, "color": [1, 0.7, 0.42], "angle_deg": 0.6},
+  "sky": {"strength": 0.1, "aerosol_density": 1.6},
+  "haze": {"color_near": [0.62, 0.52, 0.42], "color_far": [0.48, 0.47, 0.5], "amount": 0.72, "start_m": 30,
+           "depth_m": 6500, "height_fog_density": 0, "height_fog_falloff": 0.3, "height_fog_base_m": 0},
+  "clouds": {"enabled": true, "coverage": 0.55, "height_m": 1500, "color": [1, 0.7, 0.5]},
+  "tonemap": {"exposure_ev": 0.9, "contrast": 1.15, "saturation": 1.05, "vignette": 0.25},
+  "post": {"bloom": {"strength": 0.2, "threshold": 0.8, "size": 0.7}, "gain": [1.035, 1.0, 0.955],
+           "highlights_gain": [1, 1, 1], "shadows_gain": [1, 1, 1], "white_temp_k": 6500,
+           "painterly": {"enabled": false, "radius": 2, "blend": 0.6, "edge_strength": 0.25, "depth_k": 14,
+                         "normal_k": 1.2, "chroma": 1.08}},
+  "wind": {"direction": [0.6, 0.8], "strength": 1},
+  "water": {"enabled": true, "level_m": 2.0, "plane": true},
+  "shadow_distance_m": 250,
+  "sky_occlusion": {"enabled": true, "cell_m": 0.5, "rays": 48, "strength": 1.0}
+}
+```
+
+`water.plane: false` keeps the water level (wet ground, the walk test's water events) but draws no sea plane;
+use it when ponds and rivers are their own meshes. The preset applies first; any field given overrides it.
+Presets: `golden_hour`, `serene`, `noon`, `misty_morning`, `dusk`, `overcast`. `sky` also takes `model`
+(`multiple`, the default: multiple scattering like Blender's MULTIPLE_SCATTERING sky; `single` for the older sky)
+and `ground_albedo` (0.3). Clouds follow the Blender worlds' cloud plane: lit through by the sun, hazed with distance. `time_of_day` (hours) moves the sun along a simple day arc. Sun azimuth:
+0 = the sun is north, 90 = east.
+
+`tonemap` is the AgX view transform: `exposure_ev`, then the look's `contrast` (power) and `saturation`, and the
+`vignette`. `post` is the rest of the grade, all off or neutral when missing:
+
+- `bloom`: the glow of bright light, built like Blender's Glare node (Bloom) and matching its settings. `threshold`
+  is the scene-linear brightness (brightest channel, before exposure) where glow starts, with a soft knee;
+  `strength` (0-4, 0 = off) how much of it is added back; `size` (0-1) its reach relative to the image (1: the
+  whole frame). The Blender worlds use strength 0.2, threshold 0.8, size 0.7.
+- `gain`: a multiplicative rgb grade in scene-linear light (the Blender compositor's warm gain is
+  [1.035, 1, 0.955]). `highlights_gain` and `shadows_gain` multiply only the bright (exposed luminance above 0.5)
+  and dark (below 0.09) parts, like Unreal's colour grading. `white_temp_k` (1500-15000, 6500 = neutral) is a
+  camera white balance: the white of a light at that temperature turns neutral, so lower values cool the image and
+  higher values warm it (Unreal's White Temp).
+- `painterly` (`true` or an object; off by default): a stylised look for the whole frame. A generalised Kuwahara
+  filter of `radius` (pixels at 1080p, 0-8) flattens textures into strokes while keeping edges, mixed in by `blend`
+  (0-1), with saturation scaled by `chroma` (0-2); ink lines darken silhouettes and creases of solid shapes by up
+  to `edge_strength` (0-1). `depth_k` (0-100) scales the lines from depth steps (a 1 / depth_k relative step is a
+  full line), `normal_k` (0-20) those from bends (normals rebuilt from depth). Grass, leaves and other clutter,
+  distant ground and anything under the water level get no lines. It is one extra full-screen pass (an estimated
+  0.5-1 ms at 1080p on a GTX 1060 class GPU with the defaults; the cost grows with the radius squared).
+
+`sky_occlusion` (on by default; `false` turns it off) darkens the sky light under roofs, inside walls and near
+structures: the engine bakes how much of the sky every point around buildings, ruins and cliffs can see into
+small 3D volumes (at most 16, 4 M cells and 32 MB together) when the scene is built, and lighting scales the
+ambient sky light and sky reflections by it. The sun keeps its shadows; point lights are not affected. Open terrain
+has no volume. `cell_m` (0.25-4, default 0.5) is the preferred cell size: large structures get coarser cells to
+fit the budget, `rays` (8-256, default 48) the directions traced from every cell over the whole sphere,
+`strength` (0-1) scales the effect. Static instances with opaque surfaces at least 1.5 m across occlude
+(vegetation, grass and water do not); the volumes are retraced only when they or the ground under them change.
+`project_info` reports the volumes under `build.sky_occlusion`.
+
+## terrain
+
+```json
+"terrain": {"samples_per_side": 513, "spacing_m": 1.0, "origin": [-256, -256], "seed": 7,
+            "snowline_m": 380, "rock_slope_deg": 40, "dry_amount": 0.5, "material": "terrain",
+            "horizon": {"enabled": true, "radius_m": 6000, "height_m": 300, "roughness": 0.6},
+            "height_file": "terrain/height.png", "height_range_m": [-12.5, 140.2],
+            "paint_files": ["terrain/paint_a.png", "terrain/paint_b.png"], "png_rows": "north_first"}
+```
+
+The editor writes the file keys when it saves. `png_rows` says which way the image rows run: `north_first` (any
+image editor or exporter) or `south_first` (maps saved before it existed; the default when missing). Older maps
+with raw `height.f32` / `paint.u8` still load and are converted to PNG on the next save. Bring in an outside
+heightmap with the `terrain_import` tool rather than by hand.
+
+Rock appears on slopes steeper than `rock_slope_deg`, snow above `snowline_m`, wet ground near the water level;
+painted layers add to these. `horizon` is the distant land around the map.
+
+Shaping tools (they change the stored heights, so nothing extra is kept in map.json):
+
+- `terrain_erode` runs hydraulic erosion: rain droplets run downhill, cutting gullies where they speed up and laying
+  sediment fans where they slow (the droplet method of Beyer 2015, "Implementation of a method for hydraulic
+  erosion"; heights are scaled so the result looks alike at any relief). It paints deposits as dirt and deep cuts
+  as rock. `droplets_per_m2` (0.6) sets how far it goes; `mode: "thermal"` slumps slopes steeper than `talus_deg`.
+  `terrain_generate` takes `"erosion": 0.6` to erode a preset straight away.
+- `terrain_sculpt` ops `terrace` (`step_m`, `sharpness`) and `redistribute` (`exponent`: above 1 widens valley
+  floors and sharpens peaks, below 1 makes plateaus).
+- `rivers_generate` finds where water would run: Priority-Flood (Barnes et al. 2014) fills the pits, rain passes
+  downhill, and the channels with the biggest catchments are traced from their sources to the sea, the edge or the
+  river they join. They become ordinary rivers in `water` (ids `river_1`...; run it again to redo them), with a
+  width that grows with the catchment. Erode first: rivers follow the valleys erosion cuts.
+
+## paths
+
+```json
+{"id": "main_path", "points": [[0, -200], [8, -120], [0, 0]], "width_m": 3.5, "style": "dirt",
+ "carve_m": 0.12, "flatten": 0.85, "falloff_m": 3.6, "smooth_m": 16, "max_grade": 0.15}
+```
+
+The points are smoothed into a spline. Under the path the ground is levelled across its width, smoothed along
+its length (`smooth_m`), optionally limited to `max_grade`, carved by `carve_m` and painted as earth.
+`style: "lane"` draws two wheel ruts. Paths never change the stored heights: move or delete one and the ground
+comes back.
+
+## objects
+
+```json
+{"id": "house_1", "mesh": "cottage", "position": [-12, 150], "yaw_deg": 10, "scale": 1.0,
+ "collision": "auto", "shadow": true, "tags": ["town"]}
+{"id": "wall_1", "mesh": {"type": "box", "size": [8, 0.6, 3], "material": "stone"}, "position": [4, 140]}
+```
+
+| key | meaning |
+|---|---|
+| `mesh` | a mesh name (map `meshes`, the content library) or a primitive spec |
+| `position` | `[x, y]` on the ground (+ `offset_z`), or `[x, y, z]` |
+| `yaw_deg`, `pitch_deg`, `roll_deg` or `rotation` | orientation (`rotation` is a quaternion `[x, y, z, w]`) |
+| `align_to_ground` | tilt to the terrain normal |
+| `scale` | a number, or per-axis `[x, y, z]` in the mesh's own axes (stretched kit pieces) |
+| `materials` | swap materials on this object only: `{"mesh material": "replacement"}` |
+| `collision` | `auto`, `none`, `mesh`, `convex`, `box`, `cylinder` (`{"type": "cylinder", "radius", "height"}`), `sphere` |
+| `footprint_m` | radius kept clear of scatter (default: automatic for objects under 50 m; `false` for none) |
+| `shadow`, `cull_distance_m`, `hidden`, `tags` | `world_check` honours two tags: `floating` (may float: sky islands, birds) and `no_check` |
+
+Primitives: `box` (size), `plane` (size, subdivisions), `cylinder`, `cone`, `sphere`, `capsule` (radius,
+height), `ramp`, `stairs` (size, steps), `gem` (size); all take `material`. Their origin is the bottom centre.
+
+Procedural trees are a mesh type too: `{"type": "tree", "species": "oak", "seed": 3}`. Species `oak`, `birch`,
+`pine`, `bush` and `dead`; `height`, `crown_radius`, `trunk_radius` (species defaults otherwise), `seed` (each seed
+is a different tree), `leaves` (false: bare), `detail` (0.3 to 2), `bark_material`, `leaf_material`. Broadleaf
+crowns grow by space colonisation (Runions, Lane & Prusinkiewicz 2007) with pipe-model branch thickness; pines
+grow whorls of drooping branches. They get LODs like the library trees and a trunk collision cylinder (bushes
+none). A few seeds per species as scatter variants make a varied forest.
+
+## areas
+
+```json
+"areas": {"town": {"rect": {"center": [0, 140], "size": [80, 60]}, "falloff": 6},
+          "outskirts": {"union": ["town", {"circle": {"center": [40, 180], "radius": 30}}]}}
+```
+
+Named regions. Wherever a tool or scatter rule takes an `area`, a name can stand in for it (`"area": "town"`),
+and names can be used inside a `union`. A scatter rule that names an area follows later changes to it. Set
+them with `area_set`.
+
+## water
+
+```json
+"water": [
+  {"id": "pond", "type": "lake", "area": {"circle": {"center": [-30, -30], "radius": 10}, "falloff": 5},
+   "level_m": "auto", "carve_m": 1.6},
+  {"id": "brook", "type": "river", "points": [[-6, 70], [-20, 58], [-35, 40], [-48, -12]], "width_m": 4, "depth_m": 1.0}
+]
+```
+
+Lakes fill an `area` (or a named area) up to `level_m`: a height, or `"auto"` (the default), just below the lowest
+ground on the area's rim (`freeboard_m`, 0.1) so the water stays in. `carve_m` digs the area down to that depth
+below the level, deepening over a few metres from the shore, with a low beach that blends back to the ground over
+the area's `falloff`. Rivers follow `points` from upstream to downstream: the bed is carved like a path (`width_m`,
+6; `depth_m`, 1.2; `bank_m`, the width of the lowered banks) and the surface never rises downstream, so a river cuts
+through rises instead of flowing uphill; its ripples drift with a speed from its drop. Both take `material`
+(`water`). The carving is derived, like paths: deleting a body restores the ground. Walk tests, scatter
+`avoid_water`, `ground_query`, `find_space`, `world_check` and the minimap all see lakes, rivers and the sea.
+
+### Water materials
+
+The `water` model shades the surface as a layer of water over the scene: wind waves, screen-space reflections of
+the scene (the sky where a reflection leaves the screen), refraction with per-channel absorption and single
+scattering of sun and sky light in the water column, caustics on a shallow bed, a shoreline that fades into the
+bed, foam where waves break, and duckweed. Waves are fetch-limited: a pond only gets ripples and the open sea gets
+swell. Their direction follows `environment.wind`. A current combs a river's ripples into streaks along its flow.
+
+```json
+"pond_water": {"model": "water", "absorption_rgb": [0.42, 0.11, 0.15], "scattering_rgb": [0.018, 0.034, 0.03],
+               "roughness": 0.03, "fetch_m": 40}
+```
+
+| key | default | meaning |
+|---|---|---|
+| `absorption_rgb` | 0.42, 0.11, 0.15 | light absorbed per metre of water (fresh lake water: red first, then blue; the deep turns green-teal) |
+| `color`, `absorption` | | older form: absorption = `absorption` × (1 − `color`) when `absorption_rgb` is not given |
+| `scattering_rgb` | 0.018, 0.034, 0.03 | light scattered per metre (the colour of deep water; more = murkier) |
+| `roughness` | 0.04 | how blurred the sun's glint is |
+| `ripple_strength` | 1 | wave slope (0.5 a calm marsh, 2 a windy lake) |
+| `wave_scale` | 1 | wavelength multiplier |
+| `fetch_m` | the body's size | how far the wind blows over the water; sets the longest wave (a tenth of it, at most 16 m). Lakes and rivers use their size and the sea plane open water, so set it for a sheltered sea-level plane |
+| `reflections` | true | screen-space reflections of the scene (false: sky only) |
+| `caustics` | 0.8 | strength of the light web on a shallow bed |
+| `shore_fade_m` | 0.3 | depth over which the surface fades in from the waterline |
+| `foam`, `foam_width_m`, `foam_color` | 0.5, 0.12, light grey | foam where waves break on shores and objects, and on steep crests. It grows with wave height (fetch) and a river's current, so calm ponds have almost none |
+| `duckweed`, `duckweed_color` | false | duckweed mats on shallow water |
+
+## prefabs
+
+```json
+"prefabs": {"farmstead": {"description": "house, barrel, lamp", "size_m": [7.3, 4, 3.5],
+  "objects": [{"key": "house", "mesh": "cottage", "position": [0, 0], "yaw_deg": 0},
+              {"key": "barrel", "mesh": "barrel", "position": [3.8, 0]}],
+  "lights": [{"key": "lamp", "position": [0, -3, 2.5], "color": [1, 0.8, 0.5], "intensity": 8}]}}
+```
+
+Groups stored relative to an origin: `[x, y]` items sit on the ground where they land, `[x, y, z]` items are z metres
+above the ground at the origin; yaws are relative to the group's facing. `prefab_place` makes a copy with ids
+`<instance>_<key>`, the instance id as a tag and `"prefab": {"name", "instance"}` on every item. Content libraries can
+ship prefabs too (a `prefabs` section in `library.json`); a map prefab of the same name wins.
+
+## scatter
+
+```json
+{"id": "forest_west", "meshes": [{"mesh": "conifer_a", "weight": 2}, {"mesh": "broadleaf_a", "weight": 1}],
+ "area": {"rect": {"center": [-120, 0], "size": [140, 400]}, "falloff": 30},
+ "density_per_100m2": 1.2, "min_spacing_m": 3, "clumping": 0.4, "scale": [0.8, 1.3],
+ "slope_deg": [0, 32], "height_m": [-1000, 400], "avoid_paths_m": 4, "avoid_objects_m": 3,
+ "collision": {"type": "cylinder", "radius": 0.35, "height": 6}, "seed": 3}
+```
+
+Other keys: `tilt_deg`, `align_to_slope`, `avoid_water`, `max_rock`, `max_path`, `sink_m`, `clump_scale_m`,
+`yaw_deg` (fixed yaw), `shadow`, `cull_distance_m`, `max_instances`, `avoid_ruts` (keep out of the wheel ruts of
+`lane` paths but allow the strip between them). Results are deterministic for a given rule and terrain.
+
+Rules can keep clear of each other and bring company:
+
+```json
+{"id": "boulders", "mesh": "rock_b", "area": "forest_north", "density_per_100m2": 0.8,
+ "avoid_rules": ["forest_west"], "avoid_rules_m": 0.5}
+{"id": "forest_west", "meshes": [...], "footprint_m": 2.5,
+ "companions": [{"meshes": [{"mesh": "pebble_a"}, {"mesh": "fern_a"}], "count": [1, 3], "distance_m": [0.8, 2.2],
+                 "scale": [0.6, 1.1], "chance": 0.8}]}
+```
+
+`avoid_rules` drops points within `footprint_m` (of each instance of the named, earlier rules; 0.5 by default,
+times the instance's scale) plus `avoid_rules_m`. `companions` place smaller meshes around every instance of the
+rule (stones and ferns at tree feet), on the ground and out of water; they belong to the rule.
+
+Areas (used by scatter, sculpting, painting and deletion):
+`{"circle": {"center": [x, y], "radius": r}}`, `{"rect": {"center": [x, y], "size": [w, h], "yaw_deg": a}}`,
+`{"polygon": [[x, y], ...]}`, `{"line": [[x, y], ...], "width": w}`, `{"union": [area, area, ...]}` or `"all"`,
+plus `"falloff"` in metres.
+
+## entities
+
+```json
+{"id": "gem_1", "type": "collectible", "position": [5, -120], "color": [1, 0.72, 0.28], "size_m": 0.6,
+ "hover_m": 1.1, "light": true, "radius_m": 1.3}
+{"id": "town_goal", "type": "goal", "position": [1, 160], "radius_m": 3, "message": "Welcome to the town"}
+```
+
+Types: `collectible`, `goal`, `trigger`, `spawn`, `waypoint`.
+
+`message` is shown in play: a toast when a collectible is picked up (besides "Collected n / N") or the player
+enters a trigger (its id when empty), a large banner when the player reaches a goal ("You made it!" when
+empty). Collectibles, goals and waypoints also appear on the minimap.
+
+## hud
+
+The in-game HUD, drawn over the final image while playing (P in the editor, `--play`, `play_sim` captures,
+`capture` while playing); never over the editor's fly camera. Every key is optional (`hud_set` edits it):
+
+```json
+"hud": {"enabled": true, "scale": 1.0,
+        "minimap": {"enabled": true, "corner": "top_right", "size_px": 220, "range_m": 120, "north_up": true,
+                    "shape": "round", "route": "loop"},
+        "counters": true, "timer": false, "messages": true}
+```
+
+| key | meaning |
+|---|---|
+| `enabled` | draw the HUD at all (default true) |
+| `scale` | multiplies every size (0.25 to 4). Sizes are for 1080p and follow the output height, a little more than proportionally below 1080p so 960 x 540 captures stay legible |
+| `minimap` | `false` hides it; else the keys below |
+| `minimap.corner` | `top_right` (default), `top_left`, `bottom_right`, `bottom_left` |
+| `minimap.size_px` | diameter at 1080p (64 to 1024, default 220) |
+| `minimap.range_m` | metres from the player to the edge (default 120) |
+| `minimap.north_up` | true: north at the top (default); false: the view direction points up |
+| `minimap.shape` | `round` (default) or `square` |
+| `minimap.route` | a named route (`routes`) drawn as a dotted trail |
+| `counters` | collectibles found / total, top left (top right when the minimap is there) |
+| `timer` | play time under the counter (default false) |
+| `messages` | toasts at the top centre (pickups, entity messages) and a large banner when a goal is reached |
+
+The minimap is the map seen from straight above in neutral light (a high north-west sun, no haze or clouds),
+rendered when the HUD first needs it and again only when something visible from above changes (terrain,
+paths, objects, scatter, materials, water level). Paths are tinted tan and ground below the water level blue.
+Instances seen from 250 m away are drawn (trees, rocks, buildings; not grass), largest cull distance first
+within a triangle budget (much smaller on software rasterisers such as llvmpipe); the ones over the budget
+appear as dots (foliage dark green, the rest grey). Live markers: the player arrow (facing) with a view cone,
+collectibles not yet taken (in their colour), goals (rings) and `waypoint` entities (white dots); markers
+beyond the range sit on the rim.
+
+## lights
+
+```json
+{"id": "lantern_1", "position": [3, 150], "offset_z": 2.4, "color": [1, 0.75, 0.45], "intensity": 12, "range_m": 10}
+```
+
+## materials
+
+```json
+"materials": {
+  "stone": {"model": "courses", "color_a": [0.25, 0.215, 0.17], "color_b": [0.155, 0.13, 0.094],
+            "block_width": 0.95, "block_height": 0.44, "mortar_width": 0.014, "grime": 0.5},
+  "door": {"model": "lit", "base_color": [0.3, 0.18, 0.1], "roughness": 0.7, "textures": {"base": "assets/door.png"}}
+}
+```
+
+Models: `lit` (glTF metallic-roughness; `base_color`, `roughness`, `metallic`, `emissive`,
+`emissive_strength`, `textures` {base, normal, orm, emissive}), `courses` (procedural stone, brick, tiles,
+planks), `terrain`, `foliage`, `grass`, `water`, `emissive`, `unlit`. Common keys: `two_sided`,
+`alpha` (`opaque`, `mask`, `blend`), `alpha_cutoff`, `vertex_color`, `wind` {strength, height, speed},
+`normal_convention` (`opengl`, the default for glTF and Blender, or `directx` for textures from Unreal).
+Built-in materials: see `catalog`.
+
+Primitives have UVs in metres, with an image's top edge up on walls (`v` runs down the wall, as in glTF).
+
+`triplanar` (models `lit`, `emissive`, `unlit`) maps `textures.base` and `textures.normal` in world space along
+the three axes instead of by UV, so tiling textures stay the same size on any mesh, stretched kit pieces
+included. Walls show the image's top edge up. It is the Unreal fortress master material (`M_FT_Master`) ported. The texture is read as detail: it is
+normalised to a mean luminance of 0.40 and scales the base colour's brightness and hue, then multiplies by the
+vertex tint (with `vertex_color`). `base_color` 0.4 with `albedo_strength` 1 and `chroma_mix` 1 shows the
+texture's own colours.
+
+```json
+"FT_Sand": {"model": "lit", "base_color": [0.215, 0.203, 0.198], "roughness": 0.88, "vertex_color": true,
+            "normal_convention": "directx",
+            "textures": {"base": "textures/T_FT_Ashlar_A.jpg", "normal": "textures/T_FT_Ashlar_N.png"},
+            "triplanar": {"tile_m": 5.5, "albedo_strength": 1.0, "chroma_mix": 0.4, "normal_strength": 0.9,
+                          "vertex_color_scale": 1.6, "noise": 0.1, "contact_dark": 0.55, "top_light": 0.16,
+                          "warm": 0.6, "strokes": 0.07, "streaks": 0.55, "moss": 0.55}}
+```
+
+| key | default | meaning |
+|---|---|---|
+| `tile_m` | 4 | metres per texture tile |
+| `albedo_strength` | 1 | how far the texture's luminance moves the base colour (0 = flat base colour) |
+| `chroma_mix` | 0.4 | how much of the texture's hue comes through (0 = grey detail, 1 = full colour) |
+| `normal_strength` | 1 | blend from the mesh normal to the triplanar normal map |
+| `top_only` | 0 | 1 = project every face from above (floors, paving) |
+| `vertex_color_scale` | 1 | the vertex tint is multiplied by this (1.6 for the Unreal fortress meshes, whose tint is stored ×0.625) |
+| `noise` | 0 | large-scale brightness variation |
+| `emissive_detail` | 0 | the glow follows the texture's brightness (leaded windows glow between the cames) |
+| `contact_dark` | 1 | brightness at the foot of walls, from vertex alpha = height above the ground (1 = off) |
+| `top_light`, `warm` | 0 | brighter, warmer up-facing surfaces |
+| `strokes` | 0 | soft painterly banding |
+| `streaks`, `moss` | 0 | rain streaks down walls, moss on up-facing ledges |
+| `ignore_vertex_color` | 0 | 1 = the vertex colours are masks, not a tint (no tint, no contact shadow) |
+
+Content-library materials with textures load when something first uses them, so the library can hold many
+textured materials without costing memory on maps that don't use them.
+
+`extends` starts from another material (the map's, the content library's or a built-in) and replaces only the
+keys given; `triplanar`, `wind` and `textures` merge key by key. A map material may extend a library material of
+the same name to override it for that map:
+
+```json
+"court_paving": {"extends": "FT_Paving", "vertex_color": false},
+"FT_Sand": {"extends": "FT_Sand", "base_color": [0.25, 0.23, 0.22]}
+```
+
+## meshes
+
+```json
+"meshes": {
+  "ranger_house": {"file": "assets/ranger_house.glb", "category": "buildings", "front": "-y",
+                   "lods": [{"ratio": 0.3, "distance_m": 80}], "lod0_distance_m": 35,
+                   "collision": "mesh", "import_scale": 1.0, "ground_origin": true}
+}
+```
+
+`front` is the side that `face_towards` turns towards a target (`-y` for Blender exports).
+
+The content library is `content/library.json` (written by `reference-world/blender/export_content.py`) plus every
+`content/<folder>/library.json` (one per source, each with its own `meshes` and `materials`, paths relative to its
+folder): `content/fortress` holds the FloatingIslet fortress kit (`fk_*` meshes, `FT_*` materials), and
+`content/textures` 100 tileable texture materials (`TX_<category>_<name>`, world-space, from
+`tools/make_texture_library.py`; `maps/texture_gallery` shows them all on 3 m boxes). A name defined
+twice keeps its first definition (the root library, then folders in alphabetical order).
+
+## instance_files
+
+Large sets of one mesh (foliage, rocks, repeated kit pieces) in a binary file next to `map.json`:
+
+```json
+"instance_files": [
+  {"id": "pines", "file": "instances/conifer_a.bin", "mesh": "conifer_a", "collision": "cylinder",
+   "shadow": true, "cull_distance_m": 900},
+  {"id": "walls", "file": "instances/sm_wall.bin", "mesh": "SM_Wall", "layout": "pos_quat_scale3",
+   "collision": "mesh", "materials": {"M_Stone": "M_Stone_Mossy"}}
+]
+```
+
+Little-endian float32 records. `layout` `pos_scale_quat` (default, 32 bytes): position xyz, uniform scale,
+quaternion xyzw. `pos_quat_scale3` (40 bytes): position xyz, quaternion xyzw, scale xyz. Positions are absolute
+(they do not follow terrain edits). `materials` works as on objects.
+
+## gltf_scenes
+
+```json
+"gltf_scenes": [{"id": "castle", "file": "assets/castle_level.glb", "collision": "mesh", "shadow": true}]
+```
+
+Every node with a mesh in the file is placed where the file puts it (glTF's Y up is converted; per-axis scale
+and `EXT_mesh_gpu_instancing` are kept), and its point lights are added. Use it for a level exported in one
+piece; split it into `meshes` + `objects` / `instance_files` when agents need to edit the parts.
+
+## player
+
+```json
+"player": {"character": "mannequin", "camera": "third_person", "walk_speed": 4.2, "run_speed": 7.6,
+           "jump_height_m": 1.25, "height_m": 1.8, "radius_m": 0.32, "max_slope_deg": 48,
+           "step_height_m": 0.4, "camera_distance_m": 4.2}
+```
+
+`character` is `"mannequin"` (the default jointed figure, animated procedurally) or the name of a rigged mesh: a
+map `meshes` entry or a content-library mesh whose glTF has a skin (`JOINTS_0` / `WEIGHTS_0`, inverse bind
+matrices, a joint hierarchy). A rigged character plays its animation clips:
+
+```json
+"player": {"character": "hero",
+           "animations": {"idle": "Idle", "walk": "Walk", "run": {"clip": "Run", "speed_mps": 5.2},
+                          "jump": "Jump", "fall": "Fall", "land": "Land"},
+           "animation_files": ["assets/hero_anims.glb"], "character_scale": 1.0, "character_yaw_offset_deg": 0,
+           "root_motion": "keep", "animation_blend_s": 0.2}
+```
+
+| key | meaning |
+|---|---|
+| `animations` | state -> clip name, or `{"clip", "speed_mps"}`. States: `idle`, `walk`, `run`, `jump` (once from the take-off, then holds), `fall` (loops while falling), `land` (once on touch-down). A state left out takes the clip whose name contains it (the shortest such name), so clips named Idle, Walk, Run ... map themselves. Missing clips fall back: walk and run use each other, jump and fall each other, land is skipped, idle holds the rest pose. |
+| `animation_files` | more GLBs with clips for the same skeleton, relative to the map (Mixamo style, one clip per file). Joints match by name, ignoring a `prefix:` and case; a clip named `mixamo.com` takes the file name. Only the root bone's translation is taken from these files, so the character keeps its own bone lengths. |
+| `character_scale` | model scale (default 1). The physics capsule stays `height_m` / `radius_m`. |
+| `character_yaw_offset_deg` | turns the model about Z when it does not look where it walks (default 0) |
+| `root_motion` | `keep` (default, for in-place clips) or `strip`: remove the root bone's horizontal travel over each clip, so a clip that walks forward plays in place (sway and bob stay) |
+| `animation_blend_s` | crossfade between states, seconds (default 0.2; jump and land use at most 0.12, fall at least 0.25) |
+
+Walk and run play at the ground speed divided by the clip's `speed_mps` (0.5x to 2x). `speed_mps` comes from
+`animations`, else from the glTF animation's `extras` (`{"speed_mps": 1.7}`: in Blender a custom property on the
+action, exported with custom properties on), else from the root bone's travel per second, else `walk_speed` /
+`run_speed`. The run clip takes over above halfway between the walk and run clip speeds, so the clip follows the
+actual speed rather than the Shift key.
+
+The character's mesh entry: `front` (default `-y`, the glTF convention: the model looks along glTF +Z, as Blender
+and Mixamo export) is turned to the walking direction; `import_scale`, `import_yaw_deg` and `ground_origin` work as
+for other meshes (the model's origin belongs between its feet); `animation_files` lists clip files relative to the
+entry (how a content-library character carries its clips); with `"category": "characters"` the `catalog` lists the
+clips. Skinning runs on the CPU every frame (the 4 strongest influences per vertex) into the character's own range
+of the vertex buffer; non-skinned meshes in the file follow their nearest joint.

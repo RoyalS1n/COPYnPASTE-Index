@@ -1,0 +1,18 @@
+[
+ {"tool": "batch_begin", "args": {"title": "rigged character test"}},
+ {"tool": "player_set", "args": {"character": "rigged_dummy",
+                                 "animations": {"idle": "Idle", "walk": "Walk", "run": "Run", "jump": "Jump", "fall": "Fall", "land": "Land"}}},
+ {"tool": "capture", "args": {"views": [{"player": true}], "width": 640, "height": 360}},
+ {"tool": "play_sim", "args": {"camera": "side", "captures": "each", "inputs": [
+   {"seconds": 1.0, "expect_animation": "idle"},
+   {"seconds": 1.13, "move": [0, 0.4], "expect_animation": "walk"},
+   {"seconds": 1.0, "move": [0, 1], "run": true, "expect_animation": "run"},
+   {"seconds": 0.2, "move": [0, 0.3], "jump": true, "expect_animation": "jump"},
+   {"seconds": 0.77, "move": [0, 0.3], "expect_animation": "fall"},
+   {"seconds": 0.12, "expect_animation": "land"},
+   {"seconds": 1.0, "expect_animation": "idle"}]}},
+ {"tool": "project_info"},
+ {"tool": "undo"},
+ {"tool": "capture", "args": {"views": [{"player": true}], "width": 320, "height": 180, "save": false}},
+ {"tool": "batch_end", "args": {"save": false, "notes": "character test: rigged_dummy through idle, walk, run, jump, fall, land; undone"}}
+]

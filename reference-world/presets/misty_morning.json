@@ -1,0 +1,52 @@
+{
+  "name": "misty_morning",
+  "extends": "golden_valley",
+  "seed": 21,
+  "palette": {
+    "grass": [
+      0.04,
+      0.085,
+      0.022
+    ],
+    "grass_dry": [
+      0.1,
+      0.11,
+      0.04
+    ],
+    "leaves": [
+      0.045,
+      0.1,
+      0.025
+    ]
+  },
+  "lighting": {
+    "sun_elevation_deg": 18.0,
+    "sun_azimuth_deg": 168.0,
+    "sun_strength": 3.0,
+    "sun_color": [
+      1.0,
+      0.88,
+      0.74
+    ],
+    "sun_angle_deg": 3.0,
+    "sky_strength": 0.14,
+    "aerosol_density": 5.0,
+    "haze_color": [
+      0.52,
+      0.57,
+      0.62
+    ],
+    "haze_amount": 0.9,
+    "mist_start_m": 5.0,
+    "mist_depth_m": 2400.0,
+    "cloud_coverage": 0.6,
+    "cloud_color": [
+      0.95,
+      0.95,
+      0.97
+    ],
+    "exposure": 0.7,
+    "look": "AgX - Base Contrast",
+    "bloom": 0.3
+  }
+}

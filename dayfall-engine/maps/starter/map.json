@@ -1,0 +1,145 @@
+{
+  "cameras": {
+    "course": {"position": [-30, -18, 14], "target": [2, 10, 5], "vfov_deg": 50.0},
+    "hill": {"position": [18, 40, 16], "target": [0, 78, 12], "vfov_deg": 50.0}
+  },
+  "entities": [
+    {"id": "gem_ramp", "position": [-14, 10, 7.1], "type": "collectible"},
+    {"color": [0.4, 0.8, 1.0], "id": "gem_bridge", "position": [16, 10, 8.1], "type": "collectible"},
+    {"color": [1.0, 0.45, 0.75], "id": "gem_hill", "position": [0, 74], "type": "collectible"},
+    {
+      "id": "hill_goal",
+      "message": "Course complete!",
+      "position": [0, 80],
+      "radius_m": 3,
+      "type": "goal"
+    }
+  ],
+  "environment": {"preset": "serene"},
+  "format": "dayfall-map",
+  "lights": [],
+  "name": "Starter",
+  "objects": [
+    {
+      "id": "ramp",
+      "mesh": {"material": "blockout", "size": [4, 10, 2], "type": "ramp"},
+      "position": [-14, 2]
+    },
+    {
+      "id": "ramp_platform",
+      "mesh": {"material": "blockout_dark", "size": [8, 6, 2], "type": "box"},
+      "position": [-14, 10]
+    },
+    {
+      "id": "stairs",
+      "mesh": {"material": "blockout", "size": [3, 4, 1.8], "steps": 10, "type": "stairs"},
+      "position": [-3, 4]
+    },
+    {
+      "id": "stairs_platform",
+      "mesh": {"material": "blockout_dark", "size": [6, 6, 1.8], "type": "box"},
+      "position": [-3, 9]
+    },
+    {
+      "id": "jump_low",
+      "mesh": {"material": "blockout", "size": [2, 2, 0.6], "type": "box"},
+      "position": [7, 2]
+    },
+    {
+      "id": "jump_mid",
+      "mesh": {"material": "blockout", "size": [2, 2, 1.0], "type": "box"},
+      "position": [7, 5.5]
+    },
+    {
+      "id": "jump_high",
+      "mesh": {"material": "blockout_dark", "size": [2, 2, 1.3], "type": "box"},
+      "position": [7, 9]
+    },
+    {
+      "id": "tower_a",
+      "mesh": {"material": "blockout_dark", "size": [4, 4, 3], "type": "box"},
+      "position": [16, 4]
+    },
+    {
+      "id": "tower_b",
+      "mesh": {"material": "blockout_dark", "size": [4, 4, 3], "type": "box"},
+      "position": [16, 16]
+    },
+    {
+      "id": "bridge",
+      "mesh": {"material": "planks", "size": [1.6, 8.2, 0.3], "type": "box"},
+      "offset_z": 2.7,
+      "position": [16, 10]
+    },
+    {
+      "id": "tower_ramp",
+      "mesh": {"material": "blockout", "size": [3, 7, 3], "type": "ramp"},
+      "position": [16, -3.5]
+    },
+    {
+      "id": "wall",
+      "mesh": {"material": "blockout", "size": [14, 1, 3.5], "type": "box"},
+      "position": [0, 24]
+    },
+    {
+      "id": "pillar_1",
+      "mesh": {"height": 5, "material": "blockout", "radius": 0.6, "type": "cylinder"},
+      "position": [-10, 20]
+    },
+    {
+      "id": "pillar_2",
+      "mesh": {"height": 5, "material": "blockout", "radius": 0.6, "type": "cylinder"},
+      "position": [10, 20]
+    },
+    {
+      "id": "ball",
+      "mesh": {"material": "blockout_dark", "radius": 1.2, "type": "sphere"},
+      "position": [-20, -6]
+    },
+    {
+      "id": "cone",
+      "mesh": {"height": 3, "material": "blockout", "radius": 1.5, "type": "cone"},
+      "position": [20, -8]
+    }
+  ],
+  "paths": [
+    {
+      "id": "loop",
+      "points": [[0, -28], [22, -18], [30, 6], [22, 30], [0, 40], [-22, 30], [-30, 6], [-22, -18], [0, -28]],
+      "width_m": 2.8
+    },
+    {"id": "hill_trail", "points": [[0, 40], [3, 52], [-2, 64], [0, 78]], "width_m": 2.4}
+  ],
+  "player": {},
+  "player_start": {"position": [0, -20], "yaw_deg": 90},
+  "routes": {
+    "loop": {
+      "points": [
+        [0.0, -20.0], [0.0, -28.0], [4.4, -26.0], [8.8, -24.0], [13.2, -22.0], [17.6, -20.0],
+        [22.0, -18.0], [23.6, -13.2], [25.2, -8.4], [26.8, -3.6], [28.4, 1.2], [30.0, 6.0],
+        [28.4, 10.8], [26.8, 15.6], [25.2, 20.4], [23.6, 25.2], [22.0, 30.0], [17.6, 32.0],
+        [13.2, 34.0], [8.8, 36.0], [4.4, 38.0], [0.0, 40.0], [-4.4, 38.0], [-8.8, 36.0],
+        [-13.2, 34.0], [-17.6, 32.0], [-22.0, 30.0], [-23.6, 25.2], [-25.2, 20.4], [-26.8, 15.6],
+        [-28.4, 10.8], [-30.0, 6.0], [-28.4, 1.2], [-26.8, -3.6], [-25.2, -8.4], [-23.6, -13.2],
+        [-22.0, -18.0], [-17.6, -20.0], [-13.2, -22.0], [-8.8, -24.0], [-4.4, -26.0], [0.0, -28.0]
+      ]
+    },
+    "to_goal": {"points": [[0.0, 40.0], [1.0, 60.0], [0.0, 80.0]]}
+  },
+  "scatter": [],
+  "terrain": {
+    "dry_amount": 0.5,
+    "height_file": "terrain/height.png",
+    "height_range_m": [1.5655, 13.8094],
+    "material": "terrain",
+    "origin": [-128.0, -128.0],
+    "paint_files": ["terrain/paint_a.png", "terrain/paint_b.png"],
+    "png_rows": "north_first",
+    "rock_slope_deg": 40.0,
+    "samples_per_side": 257,
+    "seed": 4,
+    "snowline_m": 100000.0,
+    "spacing_m": 1.0
+  },
+  "version": 2
+}

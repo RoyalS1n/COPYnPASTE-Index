@@ -1,0 +1,73 @@
+# Agent guide: DAYFALL engine
+
+Read this before changing anything in this folder.
+
+## What this is
+
+A custom C++20 / Vulkan 1.3 game engine for DAYFALL, built for AI agents to edit live. The editor serves MCP;
+agents build levels through tools and verify them with captures. Engine code is in `src/`, shaders in
+`shaders/`, maps in `maps/`, the content library in `content/`, docs in `docs/`.
+
+## Level editing (through the dayfall MCP server)
+
+Follow `docs/AGENT_WORKFLOW.md`. In short:
+
+1. Read first: `project_info`, then `world_get` / `catalog` / `terrain_info` as needed.
+2. One theme per batch: `batch_begin` -> edits -> `capture` -> inspect -> fix -> `batch_end`.
+3. A successful tool call doesn't mean the level is right: look at the captures every time.
+4. Never change terrain, lighting and character in one batch (the engine refuses).
+5. Block out with primitives and `walk_test` the route before adding art; `play_sim` for jumps.
+6. Report what you saw in the captures, not only what the tools returned.
+
+Do not hand-edit `maps/*/terrain/*` (binary). Editing `map.json` by hand is fine while the editor is closed;
+with the editor open, use the tools (or `doc_patch`) so undo and the live view stay in sync.
+
+## Engine code
+
+Build (Windows): `cmake --preset windows` then `cmake --build build/windows --config Release`.
+Build (Linux): `cmake --preset linux && cmake --build build/linux -j`.
+The engine always lands in `bin/` (`bin/dayfall.exe` + `bin/shaders/`).
+
+Check a change without a window:
+
+```
+bin/dayfall maps/starter --exec tests/smoke.json        # run tool calls, prints JSON, exit 1 on failure
+bin/dayfall maps/starter --exec tests/world_tools.json  # the spatial tools (also terrain_tools, layout_tools, prefabs,
+                                                        # water, procedural, character, hud and regressions .json)
+bin/dayfall maps/starter --capture all --out <dir>      # render every saved view
+bin/dayfall maps/starter --walk-test loop               # exit 0 if the route passes
+bin/dayfall --list-tools > docs/TOOLS.md                # regenerate the tool reference
+python3 tools/test_mcp.py                               # the MCP server over stdio and HTTP (raw and with the MCP SDK)
+```
+
+Use `--validation` when you touch Vulkan code: validation errors are bugs. After changing `src/editor/McpServer.*`
+(or progress / cancellation in a tool), run `tools/test_mcp.py`; its SDK tests need `python3 -m pip install mcp`.
+
+An `--exec` call can state what it expects, and the run fails if it is not met: `"expect": {"error": true,
+"error_contains": "...", "equals": {"/json/pointer": value}, "contains": {...}, "at_least": {...}, "at_most":
+{...}}` (pointers into the tool's result; `contains` matches substrings, array elements and object subsets;
+`at_least` / `at_most` compare numbers, or the length of an array). Add a test file like `tests/world_tools.json`
+when you add or change tools.
+
+Porting the Unreal level or the Blender worlds: `docs/PORTING.md`. After changing anything in `tools/unreal/`, run
+its tests (`python tools/unreal/test_dayfall_convert.py --engine`, `python tools/unreal/test_export_mock.py --engine`,
+`test_fortress_materials.py`, and `test_fbx_to_glb.py` with a Python that has bpy). `tools/quantize_glb.py` (shrinks
+GLBs for `content/`) has `tools/test_quantize_glb.py`.
+
+Conventions:
+
+- World space is Z up, metres, X east, Y north. glTF (Y up) is converted on load.
+- `shaders/include/common.glsl` and `src/render/GpuTypes.h` mirror each other byte for byte: change both.
+- Recoverable problems throw `df::Error` (tools report them to the agent); `fatal()` is for GPU failures only.
+- Logs go to stderr: stdout carries MCP in `--mcp stdio` mode.
+- A new tool goes in `src/editor/Tools.cpp` with a short, exact description and a schema; regenerate
+  `docs/TOOLS.md`. A tool that runs long calls `E.reportProgress(done, total, message)` in its loop and throws
+  `Error("cancelled")` when it returns false (MCP progress and cancellation; see walk_test, play_sim, capture).
+- Keep edits undoable: every world change goes through `World::beginEdit` / `endEdit`.
+
+## Change log
+
+Every change adds one line to the project change log, newest first, in the same commit:
+`- YYYY-MM-DD [Agent] what changed — why — where`. On the developer's machine that is the "Change summaries"
+section of `AI_README.md`; in this repository it is `changes.md` at the repository root, which is merged into
+AI_README.md and then deleted. Never keep a second log.

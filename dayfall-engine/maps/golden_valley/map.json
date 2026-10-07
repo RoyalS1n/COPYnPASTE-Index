@@ -1,0 +1,935 @@
+{
+  "cameras": {
+    "courtyard": {"position": [82.52, -611.69, 45.15], "target": [85.6, -548.4, 50.45], "vfov_deg": 45},
+    "hall": {"position": [140.63, -561.65, 45.7], "target": [132.9, -531.2, 46.05], "vfov_deg": 45},
+    "path_0": {"position": [74.19, -1075.0, 2.5], "target": [84.59, -1027.04, 12.09], "vfov_deg": 45},
+    "path_1": {"position": [-1.86, -995.0, 9.3], "target": [15.3, -948.71, 17.26], "vfov_deg": 45},
+    "path_2": {"position": [-73.87, -915.0, 25.3], "target": [-48.88, -871.98, 30.25], "vfov_deg": 45}
+  },
+  "entities": [],
+  "environment": {
+    "clouds": {"color": [1.0, 0.7, 0.5], "coverage": 0.55, "enabled": true},
+    "haze": {
+      "amount": 0.72,
+      "color_far": [0.55, 0.495, 0.46],
+      "color_near": [0.62, 0.52, 0.42],
+      "depth_m": 6500.0,
+      "start_m": 30.0
+    },
+    "post": {"bloom": {"size": 0.7, "strength": 0.2, "threshold": 0.8}, "gain": [1.035, 1.0, 0.955]},
+    "shadow_distance_m": 300,
+    "sky": {"aerosol_density": 1.6, "air_density": 1.0, "ozone_density": 1.0, "strength": 0.1},
+    "sun": {
+      "angle_deg": 0.6,
+      "azimuth_deg": -163.0,
+      "color": [1.0, 0.7, 0.42],
+      "elevation_deg": 14.0,
+      "strength": 5.5
+    },
+    "tonemap": {"contrast": 1.15, "exposure_ev": 0.9, "saturation": 1.05, "vignette": 0.25},
+    "water": {"enabled": true, "level_m": -0.7}
+  },
+  "format": "dayfall-map",
+  "instance_files": [
+    {
+      "collision": {"height": 6, "radius": 0.4, "type": "cylinder"},
+      "file": "instances/conifer_a.bin",
+      "id": "trees_conifer_a",
+      "mesh": "conifer_a",
+      "shadow": true
+    },
+    {
+      "collision": {"height": 6, "radius": 0.4, "type": "cylinder"},
+      "file": "instances/conifer_b.bin",
+      "id": "trees_conifer_b",
+      "mesh": "conifer_b",
+      "shadow": true
+    },
+    {
+      "collision": {"height": 6, "radius": 0.4, "type": "cylinder"},
+      "file": "instances/conifer_c.bin",
+      "id": "trees_conifer_c",
+      "mesh": "conifer_c",
+      "shadow": true
+    },
+    {
+      "collision": {"height": 6, "radius": 0.4, "type": "cylinder"},
+      "file": "instances/conifer_d.bin",
+      "id": "trees_conifer_d",
+      "mesh": "conifer_d",
+      "shadow": true
+    },
+    {
+      "collision": {"height": 6, "radius": 0.4, "type": "cylinder"},
+      "file": "instances/broadleaf_a.bin",
+      "id": "trees_broadleaf_a",
+      "mesh": "broadleaf_a",
+      "shadow": true
+    },
+    {
+      "collision": {"height": 6, "radius": 0.4, "type": "cylinder"},
+      "file": "instances/broadleaf_b.bin",
+      "id": "trees_broadleaf_b",
+      "mesh": "broadleaf_b",
+      "shadow": true
+    },
+    {
+      "collision": {"height": 6, "radius": 0.4, "type": "cylinder"},
+      "file": "instances/broadleaf_c.bin",
+      "id": "trees_broadleaf_c",
+      "mesh": "broadleaf_c",
+      "shadow": true
+    },
+    {"file": "instances/bush_a.bin", "id": "bushes_bush_a", "mesh": "bush_a", "shadow": true},
+    {"file": "instances/bush_b.bin", "id": "bushes_bush_b", "mesh": "bush_b", "shadow": true},
+    {"file": "instances/bush_c.bin", "id": "bushes_bush_c", "mesh": "bush_c", "shadow": true},
+    {
+      "collision": "convex",
+      "file": "instances/rock_a.bin",
+      "id": "rocks_rock_a",
+      "mesh": "rock_a",
+      "shadow": true
+    },
+    {
+      "collision": "convex",
+      "file": "instances/rock_b.bin",
+      "id": "rocks_rock_b",
+      "mesh": "rock_b",
+      "shadow": true
+    },
+    {
+      "collision": "convex",
+      "file": "instances/rock_c.bin",
+      "id": "rocks_rock_c",
+      "mesh": "rock_c",
+      "shadow": true
+    },
+    {
+      "collision": "convex",
+      "file": "instances/rock_d.bin",
+      "id": "rocks_rock_d",
+      "mesh": "rock_d",
+      "shadow": true
+    },
+    {
+      "collision": "convex",
+      "file": "instances/rock_e.bin",
+      "id": "rocks_rock_e",
+      "mesh": "rock_e",
+      "shadow": true
+    },
+    {"file": "instances/fern_a.bin", "id": "ferns_fern_a", "mesh": "fern_a", "shadow": true},
+    {"file": "instances/fern_b.bin", "id": "ferns_fern_b", "mesh": "fern_b", "shadow": true},
+    {"file": "instances/fern_c.bin", "id": "ferns_fern_c", "mesh": "fern_c", "shadow": true},
+    {
+      "file": "instances/pebble_a.bin",
+      "id": "pebbles_pebble_a",
+      "mesh": "pebble_a",
+      "shadow": false
+    },
+    {
+      "file": "instances/pebble_b.bin",
+      "id": "pebbles_pebble_b",
+      "mesh": "pebble_b",
+      "shadow": false
+    },
+    {
+      "file": "instances/pebble_c.bin",
+      "id": "pebbles_pebble_c",
+      "mesh": "pebble_c",
+      "shadow": false
+    },
+    {
+      "file": "instances/pebble_d.bin",
+      "id": "pebbles_pebble_d",
+      "mesh": "pebble_d",
+      "shadow": false
+    },
+    {
+      "collision": "mesh",
+      "file": "instances/outcrop_a.bin",
+      "id": "outcrops_outcrop_a",
+      "mesh": "outcrop_a",
+      "shadow": true
+    },
+    {
+      "collision": "mesh",
+      "file": "instances/outcrop_b.bin",
+      "id": "outcrops_outcrop_b",
+      "mesh": "outcrop_b",
+      "shadow": true
+    },
+    {
+      "collision": "mesh",
+      "file": "instances/outcrop_c.bin",
+      "id": "outcrops_outcrop_c",
+      "mesh": "outcrop_c",
+      "shadow": true
+    }
+  ],
+  "lights": [
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_000",
+      "intensity": 5.57,
+      "position": [141.85, -585.5, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_001",
+      "intensity": 5.57,
+      "position": [130.93, -599.82, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_002",
+      "intensity": 5.57,
+      "position": [138.26, -584.6, 46.6],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_003",
+      "intensity": 5.57,
+      "position": [145.84, -529.65, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_004",
+      "intensity": 5.57,
+      "position": [147.94, -547.53, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_005",
+      "intensity": 5.57,
+      "position": [102.37, -495.02, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_006",
+      "intensity": 5.57,
+      "position": [118.61, -502.79, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_007",
+      "intensity": 5.57,
+      "position": [134.84, -510.57, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_008",
+      "intensity": 5.57,
+      "position": [49.3, -506.76, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_009",
+      "intensity": 5.57,
+      "position": [65.68, -499.29, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_010",
+      "intensity": 5.57,
+      "position": [21.0, -559.23, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_011",
+      "intensity": 5.57,
+      "position": [26.45, -542.07, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_012",
+      "intensity": 5.57,
+      "position": [31.9, -524.92, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_013",
+      "intensity": 5.57,
+      "position": [42.84, -612.89, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_014",
+      "intensity": 5.57,
+      "position": [32.99, -597.82, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_015",
+      "intensity": 5.57,
+      "position": [23.14, -582.76, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_016",
+      "intensity": 5.57,
+      "position": [44.11, -608.62, 46.6],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_017",
+      "intensity": 5.57,
+      "position": [66.54, -624.04, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_018",
+      "intensity": 5.57,
+      "position": [100.65, -621.04, 58.45],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "tower_019",
+      "intensity": 4.775,
+      "position": [115.3, -618.84, 45.95],
+      "range_m": 15.5
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "brazier_020",
+      "intensity": 8.754,
+      "position": [115.3, -618.84, 58.75],
+      "range_m": 20.9
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "tower_021",
+      "intensity": 9.549,
+      "position": [150.06, -573.24, 67.88],
+      "range_m": 21.9
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "tower_022",
+      "intensity": 4.775,
+      "position": [150.06, -573.24, 45.95],
+      "range_m": 15.5
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "brazier_023",
+      "intensity": 8.754,
+      "position": [150.06, -573.24, 58.75],
+      "range_m": 20.9
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "tower_024",
+      "intensity": 9.549,
+      "position": [143.29, -515.61, 68.48],
+      "range_m": 21.9
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "tower_025",
+      "intensity": 4.775,
+      "position": [143.29, -515.61, 45.95],
+      "range_m": 15.5
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "brazier_026",
+      "intensity": 8.754,
+      "position": [143.29, -515.61, 58.75],
+      "range_m": 20.9
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "tower_027",
+      "intensity": 9.549,
+      "position": [89.04, -489.63, 72.14],
+      "range_m": 21.9
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "tower_028",
+      "intensity": 4.775,
+      "position": [89.04, -489.63, 45.95],
+      "range_m": 15.5
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "brazier_029",
+      "intensity": 8.754,
+      "position": [89.04, -489.63, 58.75],
+      "range_m": 20.9
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "tower_030",
+      "intensity": 9.549,
+      "position": [36.43, -513.61, 70.17],
+      "range_m": 21.9
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "tower_031",
+      "intensity": 4.775,
+      "position": [36.43, -513.61, 45.95],
+      "range_m": 15.5
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "brazier_032",
+      "intensity": 8.754,
+      "position": [36.43, -513.61, 58.75],
+      "range_m": 20.9
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "tower_033",
+      "intensity": 9.549,
+      "position": [17.66, -572.74, 72.15],
+      "range_m": 21.9
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "tower_034",
+      "intensity": 4.775,
+      "position": [17.66, -572.74, 45.95],
+      "range_m": 15.5
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "brazier_035",
+      "intensity": 8.754,
+      "position": [17.66, -572.74, 58.75],
+      "range_m": 20.9
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "tower_036",
+      "intensity": 9.549,
+      "position": [51.49, -624.46, 67.94],
+      "range_m": 21.9
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "tower_037",
+      "intensity": 4.775,
+      "position": [51.49, -624.46, 45.95],
+      "range_m": 15.5
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "brazier_038",
+      "intensity": 8.754,
+      "position": [51.49, -624.46, 58.75],
+      "range_m": 20.9
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_039",
+      "intensity": 5.57,
+      "position": [85.24, -617.47, 46.8],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_040",
+      "intensity": 5.57,
+      "position": [80.85, -617.86, 46.8],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "chandelier_041",
+      "intensity": 20.69,
+      "position": [82.38, -535.33, 57.3],
+      "range_m": 32.2
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "chandelier_042",
+      "intensity": 20.69,
+      "position": [88.88, -535.47, 57.3],
+      "range_m": 32.2
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "chandelier_043",
+      "intensity": 20.69,
+      "position": [84.83, -537.38, 65.3],
+      "range_m": 32.2
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "chandelier_044",
+      "intensity": 20.69,
+      "position": [85.88, -535.41, 73.3],
+      "range_m": 32.2
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_045",
+      "intensity": 5.57,
+      "position": [96.1, -539.13, 46.6],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_046",
+      "intensity": 5.57,
+      "position": [96.25, -532.13, 46.6],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_047",
+      "intensity": 5.57,
+      "position": [82.16, -545.63, 54.6],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_048",
+      "intensity": 5.57,
+      "position": [89.15, -545.78, 54.6],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_049",
+      "intensity": 5.57,
+      "position": [75.66, -531.68, 62.6],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_050",
+      "intensity": 5.57,
+      "position": [75.5, -538.68, 62.6],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_051",
+      "intensity": 5.57,
+      "position": [89.6, -525.18, 70.6],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_052",
+      "intensity": 5.57,
+      "position": [82.6, -525.03, 70.6],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_053",
+      "intensity": 5.57,
+      "position": [83.39, -548.85, 46.8],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_054",
+      "intensity": 5.57,
+      "position": [87.78, -548.95, 46.8],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "pavilion_055",
+      "intensity": 7.162,
+      "position": [85.88, -535.41, 78.65],
+      "range_m": 18.9
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "candle_056",
+      "intensity": 1.432,
+      "position": [141.3, -553.74, 44.65],
+      "range_m": 8.5
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "candle_057",
+      "intensity": 1.432,
+      "position": [140.32, -549.87, 44.65],
+      "range_m": 8.5
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "candle_058",
+      "intensity": 1.432,
+      "position": [139.33, -545.99, 44.65],
+      "range_m": 8.5
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "candle_059",
+      "intensity": 1.432,
+      "position": [138.35, -542.11, 44.65],
+      "range_m": 8.5
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "candle_060",
+      "intensity": 1.432,
+      "position": [137.36, -538.24, 44.65],
+      "range_m": 8.5
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "candle_061",
+      "intensity": 1.432,
+      "position": [136.26, -555.02, 44.65],
+      "range_m": 8.5
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "candle_062",
+      "intensity": 1.432,
+      "position": [135.28, -551.15, 44.65],
+      "range_m": 8.5
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "candle_063",
+      "intensity": 1.432,
+      "position": [134.29, -547.27, 44.65],
+      "range_m": 8.5
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "candle_064",
+      "intensity": 1.432,
+      "position": [133.31, -543.39, 44.65],
+      "range_m": 8.5
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "candle_065",
+      "intensity": 1.432,
+      "position": [132.32, -539.52, 44.65],
+      "range_m": 8.5
+    },
+    {
+      "color": [1.0, 0.45, 0.15],
+      "id": "fire_066",
+      "intensity": 30.239,
+      "position": [133.14, -532.17, 44.45],
+      "range_m": 38.9
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "chandelier_067",
+      "intensity": 20.69,
+      "position": [139.03, -555.35, 52.7],
+      "range_m": 32.2
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "chandelier_068",
+      "intensity": 20.69,
+      "position": [136.89, -546.91, 52.7],
+      "range_m": 32.2
+    },
+    {
+      "color": [1.0, 0.62, 0.3],
+      "id": "chandelier_069",
+      "intensity": 20.69,
+      "position": [134.74, -538.47, 52.7],
+      "range_m": 32.2
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_070",
+      "intensity": 5.57,
+      "position": [133.72, -558.03, 46.8],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_071",
+      "intensity": 5.57,
+      "position": [128.8, -538.65, 46.8],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_072",
+      "intensity": 5.57,
+      "position": [129.67, -551.01, 47.0],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "torch_073",
+      "intensity": 5.57,
+      "position": [128.59, -546.75, 47.0],
+      "range_m": 16.7
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "house_074",
+      "intensity": 6.366,
+      "position": [33.39, -545.0, 46.45],
+      "range_m": 17.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "house_075",
+      "intensity": 6.366,
+      "position": [65.12, -507.78, 46.45],
+      "range_m": 17.8
+    },
+    {
+      "color": [1.0, 0.45, 0.12],
+      "id": "forge_076",
+      "intensity": 20.69,
+      "position": [56.9, -554.78, 44.85],
+      "range_m": 32.2
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_077",
+      "intensity": 4.377,
+      "position": [84.38, -646.6, 44.91],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_078",
+      "intensity": 4.377,
+      "position": [110.92, -652.41, 36.76],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_079",
+      "intensity": 4.377,
+      "position": [138.06, -650.16, 31.16],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_080",
+      "intensity": 4.377,
+      "position": [163.64, -640.64, 27.01],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_081",
+      "intensity": 4.377,
+      "position": [186.06, -625.02, 22.54],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_082",
+      "intensity": 4.377,
+      "position": [204.24, -604.56, 21.24],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_083",
+      "intensity": 4.377,
+      "position": [217.48, -580.56, 18.3],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_084",
+      "intensity": 4.377,
+      "position": [225.38, -554.29, 15.49],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_085",
+      "intensity": 4.377,
+      "position": [227.89, -526.95, 12.94],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_086",
+      "intensity": 4.377,
+      "position": [225.13, -499.61, 11.18],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_087",
+      "intensity": 4.377,
+      "position": [217.38, -473.23, 11.98],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_088",
+      "intensity": 4.377,
+      "position": [215.62, -497.15, 30.41],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_089",
+      "intensity": 4.377,
+      "position": [209.09, -524.38, 31.72],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_090",
+      "intensity": 4.377,
+      "position": [202.56, -551.61, 27.88],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_091",
+      "intensity": 4.377,
+      "position": [196.02, -578.83, 25.63],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_092",
+      "intensity": 4.377,
+      "position": [189.49, -606.06, 20.53],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_093",
+      "intensity": 4.377,
+      "position": [182.96, -633.29, 25.23],
+      "range_m": 14.8
+    },
+    {
+      "color": [1.0, 0.55, 0.22],
+      "id": "lantern_094",
+      "intensity": 4.377,
+      "position": [176.43, -660.51, 18.89],
+      "range_m": 14.8
+    }
+  ],
+  "materials": {},
+  "meshes": {
+    "castle": {
+      "category": "structures",
+      "collision": "mesh",
+      "file": "assets/castle.glb",
+      "lod0_distance_m": 1000000000.0
+    },
+    "castle_cliff": {
+      "category": "structures",
+      "collision": "mesh",
+      "file": "assets/castle_cliff.glb",
+      "lod0_distance_m": 1000000000.0
+    },
+    "far_ranges": {
+      "category": "terrain",
+      "collision": "none",
+      "description": "Distant mountain ranges around the map (Blender skirt)",
+      "file": "assets/far_ranges.glb"
+    }
+  },
+  "name": "Golden Valley",
+  "objects": [
+    {
+      "collision": "mesh",
+      "cull_distance_m": 1000000.0,
+      "id": "castle",
+      "mesh": "castle",
+      "position": [0, 0, 0]
+    },
+    {
+      "collision": "mesh",
+      "cull_distance_m": 1000000.0,
+      "id": "castle_cliff",
+      "mesh": "castle_cliff",
+      "position": [0, 0, 0]
+    },
+    {
+      "collision": "none",
+      "cull_distance_m": 100000,
+      "footprint_m": false,
+      "id": "far_ranges",
+      "mesh": "far_ranges",
+      "position": [0, 0, 0],
+      "shadow": false,
+      "tags": ["backdrop"]
+    }
+  ],
+  "paths": [],
+  "player": {},
+  "player_start": {"position": [172.54, -665.01], "yaw_deg": 129.7},
+  "routes": {"camera_path": {"points": [[74.2, -1075.0], [-1.9, -995.0], [-73.9, -915.0]]}},
+  "scatter": [
+    {
+      "area": {"falloff": 90.0, "line": [[74.2, -1075.0], [-1.9, -995.0], [-73.9, -915.0]], "width": 180.0},
+      "avoid_objects_m": 0.5,
+      "avoid_paths_m": 0.0,
+      "avoid_ruts": true,
+      "clump_scale_m": 25,
+      "clumping": 0.35,
+      "density_per_100m2": 330,
+      "id": "grass_route",
+      "max_path": 1.0,
+      "max_rock": 0.45,
+      "meshes": [
+        {"mesh": "grass_clump_a", "weight": 3},
+        {"mesh": "grass_clump_b", "weight": 3},
+        {"mesh": "grass_clump_c", "weight": 3},
+        {"mesh": "grass_tall_a", "weight": 1.2},
+        {"mesh": "grass_tall_b", "weight": 1.2},
+        {"mesh": "grass_short_a", "weight": 1.5},
+        {"mesh": "flowers_a", "weight": 0.25},
+        {"mesh": "flowers_b", "weight": 0.25}
+      ],
+      "scale": [0.7, 1.4],
+      "seed": 23,
+      "shadow": false,
+      "slope_deg": [0, 38],
+      "tilt_deg": 7
+    }
+  ],
+  "source": "reference-world preset 'golden_valley' via reference-world/blender/export_dayfall_map.py",
+  "terrain": {
+    "dry_amount": 0.5,
+    "height_file": "terrain/height.png",
+    "height_range_m": [-2.2, 737.441],
+    "horizon": {"enabled": false},
+    "material": "terrain",
+    "origin": [-1200.0, -1200.0],
+    "paint_files": ["terrain/paint_a.png", "terrain/paint_b.png"],
+    "png_rows": "north_first",
+    "rock_slope_deg": 40.0,
+    "samples_per_side": 2017,
+    "seed": 7,
+    "snowline_m": 380.0,
+    "spacing_m": 1.19048
+  },
+  "version": 2
+}
