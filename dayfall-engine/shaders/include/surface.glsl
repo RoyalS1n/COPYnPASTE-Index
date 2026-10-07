@@ -54,6 +54,76 @@ Surface shadeLit(Material m, vec3 n, vec4 t, vec2 uv, vec4 color0) {
     return s;
 }
 
+// World-space triplanar detail, ported from the Unreal fortress master (M_FT_Master): a tiling texture
+// projected along the three axes is normalised to a mean luminance of 0.40 and modulates the base colour's
+// luminance and chroma, times the vertex tint. A painterly layer follows: a contact shadow at the feet of walls
+// from vertex alpha (height above the ground), warm sunlit tops, soft stroke banding, rain streaks and moss.
+// c[2] = 1/tile (1/m), albedo strength, chroma mix, normal strength
+// c[3] = vertex tint scale, top only, noise, emissive detail
+// c[4] = contact dark, top light, warm, strokes
+// c[5] = streaks, moss, ignore vertex colour, unused
+const vec3 LUMA = vec3(0.3, 0.59, 0.11);
+vec3 triplanarWeights(vec3 n, float topOnly) {
+    vec3 b = pow(abs(n), vec3(4.0));
+    b = mix(b, vec3(0.0, 0.0, 1.0), clamp(topOnly, 0.0, 1.0));
+    return b / (b.x + b.y + b.z + 1e-4);
+}
+
+Surface shadeTriplanar(Material m, vec3 p, vec3 n, vec4 c0) {
+    Surface s = defaultSurface(n);
+    vec4 k2 = m.c[2], k3 = m.c[3], k4 = m.c[4], k5 = m.c[5];
+    vec3 P = p * k2.x;
+    vec3 b = triplanarWeights(n, k3.y);
+    float ignoreVc = (m.h0.y & MAT_VERTEXCOLOR) != 0u ? clamp(k5.z, 0.0, 1.0) : 1.0;
+    vec3 col = m.c[0].rgb * mix(c0.rgb * k3.x, vec3(1.0), ignoreVc);
+    float l = 0.4;
+    if (m.h0.z != NO_TEX) {
+        vec3 d = tex(m.h0.z, P.yz).rgb * b.x + tex(m.h0.z, P.xz).rgb * b.y + tex(m.h0.z, P.xy).rgb * b.z;
+        l = dot(d, LUMA);
+        col *= max(1.0 + (l / 0.40 - 1.0) * k2.y, 0.15) * mix(vec3(1.0), d / max(l, 0.03), k2.z);
+    }
+    vec3 q = p * 0.4;
+    col *= 1.0 + k3.z * sin(q.x * 1.7 + sin(q.y * 1.3)) * sin(q.y * 1.9 + sin(q.z * 1.1)) * sin(q.z * 1.5 + sin(q.x * 0.9));
+
+    float up = clamp(n.z, 0.0, 1.0);
+    float h = mix(pow(clamp(c0.a, 0.0, 1.0), 0.65), 1.0, ignoreVc);
+    col *= mix(mix(k4.x, 1.0, h), 1.0, up) * (1.0 + k4.y * up);      // contact shadow on vertical faces only
+    col *= mix(vec3(1.0), vec3(1.07, 1.01, 0.90), up * k4.z);
+    vec3 qs = p * 0.35;
+    col *= 1.0 + k4.w * sin(qs.x * 2.3 + qs.y * 1.7 + sin(qs.z * 2.9) * 1.5) * sin(qs.y * 3.1 - qs.z * 1.3 + sin(qs.x * 1.9));
+    if (m.h0.z != NO_TEX && (k5.x > 0.0 || k5.y > 0.0)) {
+        // the detail texture stretched along z gives long rain streaks on walls; moss gathers on up-facing ledges
+        // where a large-scale sample of it is dark
+        float tile = 1.0 / max(k2.x, 1e-4);
+        float vert = 1.0 - clamp(abs(n.z) * 3.0, 0.0, 1.0);
+        float st = dot(tex(m.h0.z, vec2((p.x - p.y) / (tile * 0.3), p.z / (tile * 5.5))).rgb, LUMA) / 0.40;
+        col *= mix(1.0, clamp(0.72 + 0.3 * st, 0.0, 1.0), clamp(k5.x, 0.0, 1.0) * vert);
+        float mn = dot(tex(m.h0.z, p.xy / (tile * 2.3)).rgb, LUMA) / 0.40;
+        float moss = clamp((1.05 - mn) * 2.6, 0.0, 1.0) * clamp((n.z - 0.55) * 2.5, 0.0, 1.0) * clamp(k5.y, 0.0, 1.0);
+        col = mix(col, vec3(0.085, 0.125, 0.04) * (0.75 + 0.5 * mn), moss);
+    }
+    s.albedo = max(col, vec3(0.0));
+    s.alpha = m.c[0].a;
+    s.rough = m.p[0].x;
+    s.metal = m.p[0].y;
+    s.spec = m.p[0].z;
+    if (m.h0.w != NO_TEX && k2.w > 0.0) {
+        // whiteout blend: each projection's (u, v) tilts the two world axes it was sampled along. With uv = world
+        // coordinates, a DirectX map (green = -dh/dv, v down the image) is already in that frame.
+        vec3 tx = tex(m.h0.w, P.yz).xyz * 2.0 - 1.0;
+        vec3 ty = tex(m.h0.w, P.xz).xyz * 2.0 - 1.0;
+        vec3 tz = tex(m.h0.w, P.xy).xyz * 2.0 - 1.0;
+        if ((m.h0.y & MAT_NORMAL_DX) == 0u) { tx.y = -tx.y; ty.y = -ty.y; tz.y = -tz.y; }
+        vec3 wn = vec3(abs(tx.z) * n.x, tx.x + n.y, tx.y + n.z) * b.x
+                + vec3(ty.x + n.x, abs(ty.z) * n.y, ty.y + n.z) * b.y
+                + vec3(tz.x + n.x, tz.y + n.y, abs(tz.z) * n.z) * b.z;
+        s.n = normalize(mix(n, normalize(wn), clamp(k2.w, 0.0, 1.0)));
+    }
+    vec3 e = m.c[1].rgb * m.c[1].a;
+    s.emissive = e * mix(1.0, clamp(l / 0.40, 0.0, 1.0) * 1.25, clamp(k3.w, 0.0, 1.0));   // glows between the cames
+    return s;
+}
+
 // Terrain: biome weights in the vertex colours (R grass, G rock, B snow, A wet;
 // colour1 R path, G dry, B lane), lane distance in uv1.x, world-space detail.
 Surface shadeTerrain(Material m, vec3 p, vec3 n, vec4 c0, vec4 c1, vec2 uv1) {

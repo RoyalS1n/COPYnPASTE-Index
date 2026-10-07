@@ -27,6 +27,7 @@
 #define MAT_DUCKWEED 16u
 #define MAT_VERTEXCOLOR 32u
 #define MAT_NORMAL_DX 64u      // DirectX normal map (green down): Unreal exports
+#define MAT_TRIPLANAR 128u     // lit: world-space triplanar detail texture (c[2..6])
 
 #define INST_SHADOW 1u
 #define INST_AXIS_SCALE 2u   // flags >> 8 indexes instanceScales

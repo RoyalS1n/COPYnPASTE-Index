@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 // Render-ready scene: everything the renderer and physics consume, assembled
 // by the scene builder from the editable world document. World space is
 // right-handed, Z up, metres.
@@ -95,8 +96,13 @@ struct Scene {
     vec3 terrainMin{0}, terrainMax{0};
     std::shared_ptr<const SkyVolume> skyVolume;   // sky occlusion around static structures (null: none)
 
+    // Defines a material on first use by name (content-library materials with textures load only when a mesh,
+    // the terrain or an override names them). Set by the scene builder for the length of a build.
+    std::function<void(Scene&, const std::string&)> materialSource;
+
     uint32_t addMaterial(MaterialDef m);
     uint32_t findOrAddMaterial(const std::string& name);
+    bool hasMaterial(const std::string& name);   // asks materialSource for a missing one
     uint32_t addTexture(const Texture& t);   // deduplicated by name
     // Appends a mesh asset's geometry. Its parts' materials resolve by name:
     // a material already in the scene wins (borrowing the asset's base-colour

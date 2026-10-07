@@ -224,6 +224,41 @@ planks), `terrain`, `foliage`, `grass`, `water`, `emissive`, `unlit`. Common key
 `normal_convention` (`opengl`, the default for glTF and Blender, or `directx` for textures from Unreal).
 Built-in materials: see `catalog`.
 
+`triplanar` (models `lit`, `emissive`, `unlit`) maps `textures.base` and `textures.normal` in world space along
+the three axes instead of by UV, so tiling textures stay the same size on any mesh, stretched kit pieces
+included. It is the Unreal fortress master material (`M_FT_Master`) ported. The texture is read as detail: it is
+normalised to a mean luminance of 0.40 and scales the base colour's brightness and hue, then multiplies by the
+vertex tint (with `vertex_color`). `base_color` 0.4 with `albedo_strength` 1 and `chroma_mix` 1 shows the
+texture's own colours.
+
+```json
+"FT_Sand": {"model": "lit", "base_color": [0.215, 0.203, 0.198], "roughness": 0.88, "vertex_color": true,
+            "normal_convention": "directx",
+            "textures": {"base": "textures/T_FT_Ashlar_A.jpg", "normal": "textures/T_FT_Ashlar_N.png"},
+            "triplanar": {"tile_m": 5.5, "albedo_strength": 1.0, "chroma_mix": 0.4, "normal_strength": 0.9,
+                          "vertex_color_scale": 1.6, "noise": 0.1, "contact_dark": 0.55, "top_light": 0.16,
+                          "warm": 0.6, "strokes": 0.07, "streaks": 0.55, "moss": 0.55}}
+```
+
+| key | default | meaning |
+|---|---|---|
+| `tile_m` | 4 | metres per texture tile |
+| `albedo_strength` | 1 | how far the texture's luminance moves the base colour (0 = flat base colour) |
+| `chroma_mix` | 0.4 | how much of the texture's hue comes through (0 = grey detail, 1 = full colour) |
+| `normal_strength` | 1 | blend from the mesh normal to the triplanar normal map |
+| `top_only` | 0 | 1 = project every face from above (floors, paving) |
+| `vertex_color_scale` | 1 | the vertex tint is multiplied by this (1.6 for the Unreal fortress meshes, whose tint is stored ×0.625) |
+| `noise` | 0 | large-scale brightness variation |
+| `emissive_detail` | 0 | the glow follows the texture's brightness (leaded windows glow between the cames) |
+| `contact_dark` | 1 | brightness at the foot of walls, from vertex alpha = height above the ground (1 = off) |
+| `top_light`, `warm` | 0 | brighter, warmer up-facing surfaces |
+| `strokes` | 0 | soft painterly banding |
+| `streaks`, `moss` | 0 | rain streaks down walls, moss on up-facing ledges |
+| `ignore_vertex_color` | 0 | 1 = the vertex colours are masks, not a tint (no tint, no contact shadow) |
+
+Content-library materials with textures load when something first uses them, so the library can hold many
+textured materials without costing memory on maps that don't use them.
+
 ## meshes
 
 ```json

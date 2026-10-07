@@ -16,6 +16,27 @@ vec4 col(const json& j, const char* k, vec4 def) { return j.contains(k) ? v4(j[k
 float f(const json& j, const char* k, float def) { return j.contains(k) && j[k].is_number() ? j[k].get<float>() : def; }
 bool b(const json& j, const char* k, bool def) { return j.contains(k) && j[k].is_boolean() ? j[k].get<bool>() : def; }
 
+// World-space triplanar detail (the Unreal fortress master): see shadeTriplanar in shaders/include/surface.glsl.
+void parseTriplanar(const json& t, GpuMaterial& g, uint32_t& flags) {
+    static const char* keys[] = {"tile_m", "albedo_strength", "chroma_mix", "normal_strength", "top_only",
+                                 "vertex_color_scale", "noise", "emissive_detail", "contact_dark", "top_light", "warm",
+                                 "strokes", "streaks", "moss", "ignore_vertex_color"};
+    if (!t.is_object()) throw Error("triplanar must be an object");
+    for (auto& [k, v] : t.items()) {
+        bool known = false;
+        for (const char* key : keys) known = known || k == key;
+        if (!known) throw Error("unknown triplanar key '" + k + "'");
+        if (!v.is_number()) throw Error("triplanar." + k + " must be a number");
+    }
+    float tile = f(t, "tile_m", 4.0f);
+    if (tile <= 0.0f) throw Error("triplanar.tile_m must be > 0");
+    flags |= MatTriplanar;
+    g.c[2] = vec4(1.0f / tile, f(t, "albedo_strength", 1.0f), f(t, "chroma_mix", 0.4f), f(t, "normal_strength", 1.0f));
+    g.c[3] = vec4(f(t, "vertex_color_scale", 1.0f), f(t, "top_only", 0.0f), f(t, "noise", 0.0f), f(t, "emissive_detail", 0.0f));
+    g.c[4] = vec4(f(t, "contact_dark", 1.0f), f(t, "top_light", 0.0f), f(t, "warm", 0.0f), f(t, "strokes", 0.0f));
+    g.c[5] = vec4(f(t, "streaks", 0.0f), f(t, "moss", 0.0f), f(t, "ignore_vertex_color", 0.0f), 0.0f);
+}
+
 uint32_t modelFromName(const std::string& m) {
     if (m == "lit") return ModelLit;
     if (m == "terrain") return ModelTerrain;
@@ -101,8 +122,11 @@ MaterialDef parseMaterial(const std::string& name, const json& j, const TextureR
                           f(j, "emissive_strength", model == ModelEmissive ? 1.0f : 0.0f));
             g.p[0] = vec4(f(j, "roughness", 0.8f), f(j, "metallic", 0.0f), f(j, "specular", 0.5f), f(j, "occlusion_strength", 1.0f));
             g.p[1].w = f(j, "normal_scale", 1.0f);
+            if (j.contains("triplanar")) parseTriplanar(j["triplanar"], g, flags);
             break;
     }
+    if (j.contains("triplanar") && !(flags & MatTriplanar))
+        throw Error("triplanar needs model lit, emissive or unlit");
     if (j.contains("textures") && textures) {
         const json& t = j["textures"];
         if (t.contains("base")) g.h0.z = textures(t["base"].get<std::string>(), true);

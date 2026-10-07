@@ -287,10 +287,18 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
         };
     };
     for (auto& [k, v] : builtinMaterials().items()) s.addMaterial(parseMaterial(k, v, nullptr));
+    // library materials with textures load on first use (the library holds far more textures than a map uses)
+    auto addLibMaterial = [&, res = texResolver(contentDir)](const std::string& k, const json& v) {
+        try { s.addMaterial(parseMaterial(k, v, res)); } catch (const Error& e) { warn(std::format("material '{}': {}", k, e.what())); }
+    };
     if (lib_.contains("materials"))
-        for (auto& [k, v] : lib_["materials"].items()) {
-            try { s.addMaterial(parseMaterial(k, v, texResolver(contentDir))); } catch (const Error& e) { warn(std::format("material '{}': {}", k, e.what())); }
-        }
+        for (auto& [k, v] : lib_["materials"].items())
+            if (!v.contains("textures") || s.materialByName.count(k)) addLibMaterial(k, v);
+    struct SourceGuard { Scene& s; ~SourceGuard() { s.materialSource = nullptr; } } sourceGuard{s};
+    s.materialSource = [&](Scene&, const std::string& k) {
+        if (doc.contains("materials") && doc["materials"].contains(k)) return;   // the map's own definition follows
+        if (lib_.contains("materials") && lib_["materials"].contains(k)) addLibMaterial(k, lib_["materials"][k]);
+    };
     if (doc.contains("materials") && doc["materials"].is_object())
         for (auto& [k, v] : doc["materials"].items()) {
             try { s.addMaterial(parseMaterial(k, v, texResolver(w.dir))); } catch (const Error& e) { warn(std::format("material '{}': {}", k, e.what())); }

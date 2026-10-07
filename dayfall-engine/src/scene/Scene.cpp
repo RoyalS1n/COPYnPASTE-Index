@@ -11,9 +11,14 @@ uint32_t Scene::addMaterial(MaterialDef m) {
     return id;
 }
 
+bool Scene::hasMaterial(const std::string& name) {
+    if (materialByName.count(name)) return true;
+    if (materialSource) materialSource(*this, name);
+    return materialByName.count(name) > 0;
+}
+
 uint32_t Scene::findOrAddMaterial(const std::string& name) {
-    auto it = materialByName.find(name);
-    if (it != materialByName.end()) return it->second;
+    if (hasMaterial(name)) return materialByName.at(name);
     MaterialDef m;
     m.name = name;
     m.gpu.c[0] = vec4(0.6f, 0.6f, 0.6f, 1.0f);
@@ -38,7 +43,7 @@ uint32_t Scene::addMeshAsset(const MeshAsset& a, const std::string& name) {
             if (matIds.count(p.material)) continue;
             const MaterialDef* own = nullptr;
             for (auto& m : a.materials) if (m.name == p.material) own = &m;
-            auto it = materialByName.find(p.material);
+            auto it = hasMaterial(p.material) ? materialByName.find(p.material) : materialByName.end();
             if (it != materialByName.end()) {
                 MaterialDef& def = materials[it->second];
                 if (own && def.gpu.h0.z == kNoTexture && own->gpu.h0.z != kNoTexture) def.gpu.h0.z = remapTex(own->gpu.h0.z);
