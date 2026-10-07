@@ -402,7 +402,7 @@ Create or update a point light (a lighting batch): id, position [x,y] (offset_z 
 
 *materials*
 
-Create or change a material. definition: {model: lit|courses|foliage|grass|terrain|water|emissive|unlit, ...}; lit: base_color, roughness, metallic, emissive, emissive_strength, textures {base, normal, orm}; courses (stone, bricks, tiles, planks): color_a, color_b, mortar_color, block_width, block_height, mortar_width, grime; terrain: grass, grass_dry, soil, rock, rock_dark, moss, snow. merge (default true) keeps unspecified fields.
+Create or change a material. definition: {model: lit|courses|foliage|grass|terrain|water|emissive|unlit, ...}; lit: base_color, roughness, metallic, emissive, emissive_strength, textures {base, normal, orm}; courses (stone, bricks, tiles, planks): color_a, color_b, mortar_color, block_width, block_height, mortar_width, grime; terrain: grass, grass_dry, soil, rock, rock_dark, moss, snow; water: absorption_rgb, scattering_rgb, roughness, ripple_strength, fetch_m, reflections, caustics, foam, duckweed (docs/MAP_FORMAT.md). merge (default true) keeps unspecified fields.
 
 | argument | type | notes |
 |---|---|---|

@@ -583,12 +583,15 @@ MeshAsset Terrain::waterMesh(const WaterBody& b) const {
         while (((hi.x - lo.x) / cell) * ((hi.y - lo.y) / cell) > 250000.0f) cell *= 1.5f;
         int nx = std::max(1, (int)std::ceil((hi.x - lo.x) / cell)), ny = std::max(1, (int)std::ceil((hi.y - lo.y) / cell));
         std::vector<int> idx((size_t)(nx + 1) * (ny + 1), -1);
+        vec2 alo, ahi;
+        b.area.bounds(alo, ahi);
+        vec4 fetch(0, std::max(ahi.x - alo.x, ahi.y - alo.y), 0, 0);   // colour1.g: how far the wind blows over it
         auto vert = [&](int i, int j) {
             int& v = idx[(size_t)j * (nx + 1) + i];
             if (v < 0) {
                 vec2 p = lo + vec2(i * cell, j * cell);
                 float depth = std::max(b.level - heightAt(p.x, p.y), 0.0f);
-                v = (int)mb.vertex(makeVertex(vec3(p, b.level), vec3(0, 0, 1), p * 0.1f, vec4(1, 0, 0, 1), vec4(depth * 0.5f, 0, 0, 1), vec4(0)));
+                v = (int)mb.vertex(makeVertex(vec3(p, b.level), vec3(0, 0, 1), p * 0.1f, vec4(1, 0, 0, 1), vec4(depth * 0.5f, 0, 0, 1), fetch));
             }
             return (uint32_t)v;
         };
@@ -611,7 +614,7 @@ MeshAsset Terrain::waterMesh(const WaterBody& b) const {
             vec2 side(-dir.y, dir.x);
             if (k > 0) along += glm::length(b.line[k] - b.line[k - 1]);
             float z = b.surface[k];
-            vec4 tan(dir, 0, 1), flow(b.flowSpeed, 0, 0, 0);
+            vec4 tan(dir, 0, 1), flow(b.flowSpeed, b.halfWidth * 6.0f, 0, 0);   // speed, fetch
             float dl = std::max(z - heightAt(b.line[k].x, b.line[k].y), 0.0f);
             uint32_t l = mb.vertex(makeVertex(vec3(b.line[k] + side * hw, z), vec3(0, 0, 1), vec2(0, along * 0.1f), tan, vec4(dl * 0.5f, 0, 0, 1), flow));
             uint32_t r = mb.vertex(makeVertex(vec3(b.line[k] - side * hw, z), vec3(0, 0, 1), vec2(1, along * 0.1f), tan, vec4(dl * 0.5f, 0, 0, 1), flow));
@@ -680,6 +683,8 @@ void Terrain::sampleMasks(uint32_t i, uint32_t j, float slope, vec4& c0, vec4& c
     if (!shoreLevel.empty() && shoreLevel[idx] != kNoWater) wet = std::max(wet, 1 - smoothstep(shoreLevel[idx] + 0.15f, shoreLevel[idx] + 1.2f, h));
     float dry = std::max(smoothstep(-0.2f, 0.6f, big + 0.4f * brk) * dryAmount, P(PaintDry)) * (1 - P(PaintGrass) * 0.7f);
     float path = std::max(pathMask[idx], P(PaintDirt));
+    // the bed of a lake or river is silt, not turf
+    if (!waterSurface.empty() && waterSurface[idx] != kNoWater) path = std::max(path, smoothstep(0.05f, 0.5f, waterSurface[idx] - h));
     rock *= 1 - path;
     dry *= 1 - path;
     float grass = std::clamp(1 - rock - snow, 0.0f, 1.0f);

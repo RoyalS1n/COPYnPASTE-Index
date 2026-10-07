@@ -189,6 +189,34 @@ through rises instead of flowing uphill; its ripples drift with a speed from its
 (`water`). The carving is derived, like paths: deleting a body restores the ground. Walk tests, scatter
 `avoid_water`, `ground_query`, `find_space`, `world_check` and the minimap all see lakes, rivers and the sea.
 
+### Water materials
+
+The `water` model shades the surface as a layer of water over the scene: wind waves, screen-space reflections of
+the scene (the sky where a reflection leaves the screen), refraction with per-channel absorption and single
+scattering of sun and sky light in the water column, caustics on a shallow bed, a shoreline that fades into the
+bed, foam where waves break, and duckweed. Waves are fetch-limited: a pond only gets ripples and the open sea gets
+swell. Their direction follows `environment.wind`. A current combs a river's ripples into streaks along its flow.
+
+```json
+"pond_water": {"model": "water", "absorption_rgb": [0.42, 0.11, 0.15], "scattering_rgb": [0.018, 0.034, 0.03],
+               "roughness": 0.03, "fetch_m": 40}
+```
+
+| key | default | meaning |
+|---|---|---|
+| `absorption_rgb` | 0.42, 0.11, 0.15 | light absorbed per metre of water (fresh lake water: red first, then blue; the deep turns green-teal) |
+| `color`, `absorption` | | older form: absorption = `absorption` × (1 − `color`) when `absorption_rgb` is not given |
+| `scattering_rgb` | 0.018, 0.034, 0.03 | light scattered per metre (the colour of deep water; more = murkier) |
+| `roughness` | 0.04 | how blurred the sun's glint is |
+| `ripple_strength` | 1 | wave slope (0.5 a calm marsh, 2 a windy lake) |
+| `wave_scale` | 1 | wavelength multiplier |
+| `fetch_m` | the body's size | how far the wind blows over the water; sets the longest wave (a tenth of it, at most 16 m). Lakes and rivers use their size and the sea plane open water, so set it for a sheltered sea-level plane |
+| `reflections` | true | screen-space reflections of the scene (false: sky only) |
+| `caustics` | 0.8 | strength of the light web on a shallow bed |
+| `shore_fade_m` | 0.3 | depth over which the surface fades in from the waterline |
+| `foam`, `foam_width_m`, `foam_color` | 0.5, 0.12, light grey | foam where waves break on shores and objects, and on steep crests. It grows with wave height (fetch) and a river's current, so calm ponds have almost none |
+| `duckweed`, `duckweed_color` | false | duckweed mats on shallow water |
+
 ## prefabs
 
 ```json

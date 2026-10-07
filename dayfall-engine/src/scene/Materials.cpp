@@ -110,12 +110,31 @@ MaterialDef parseMaterial(const std::string& name, const json& j, const TextureR
             g.c[3] = col(j, "lichen", vec4(0.32f, 0.3f, 0.2f, 1));
             g.p[0] = vec4(f(j, "moss_amount", 0.6f), f(j, "lichen_amount", 0.5f), f(j, "bump", 0.05f), 0);
             break;
-        case ModelWater:
-            g.c[0] = col(j, "color", vec4(0.55f, 0.6f, 0.55f, 1));
+        case ModelWater: {
+            for (const char* k : {"absorption_rgb", "scattering_rgb", "foam_color"})
+                if (j.contains(k) && !(j[k].is_array() && j[k].size() == 3 && j[k][0].is_number() && j[k][1].is_number() && j[k][2].is_number()))
+                    throw Error(std::string("water material: ") + k + " must be [r, g, b]");
+            for (const char* k : {"absorption", "roughness", "ripple_strength", "wave_scale", "fetch_m", "foam", "foam_width_m",
+                                  "caustics", "shore_fade_m"})
+                if (j.contains(k) && !j[k].is_number()) throw Error(std::string("water material: ") + k + " must be a number");
+            if (j.contains("reflections") && !j["reflections"].is_boolean()) throw Error("water material: reflections must be true or false");
+            // c[0] absorption per metre: absorption_rgb, or the older color + absorption (absorption x (1 - color));
+            // the default is fresh lake water (red goes first, then blue: green-teal in the deep)
+            vec3 sigmaA(0.42f, 0.11f, 0.15f);
+            if (j.contains("absorption_rgb")) sigmaA = v3(j["absorption_rgb"], sigmaA);
+            else if (j.contains("color")) sigmaA = f(j, "absorption", 1.2f) * (vec3(1.0f) - vec3(col(j, "color", vec4(0.55f, 0.6f, 0.55f, 1))));
+            else if (j.contains("absorption")) sigmaA *= f(j, "absorption", 1.0f);
+            g.c[0] = vec4(glm::max(sigmaA, vec3(0.0f)), 1);
             g.c[1] = col(j, "duckweed_color", vec4(0.08f, 0.17f, 0.025f, 1));
-            g.p[0] = vec4(f(j, "absorption", 1.2f), f(j, "roughness", 0.04f), f(j, "ripple_strength", 1.0f), 0);
+            g.c[2] = vec4(glm::max(v3(j.value("scattering_rgb", json()), vec3(0.018f, 0.034f, 0.03f)), vec3(0.0f)), 0);
+            g.c[3] = vec4(v3(j.value("foam_color", json()), vec3(0.82f, 0.84f, 0.8f)), f(j, "foam", 0.5f));
+            g.p[0] = vec4(0, f(j, "roughness", 0.04f), f(j, "ripple_strength", 1.0f), f(j, "wave_scale", 1.0f));
+            g.p[1] = vec4(f(j, "fetch_m", 0.0f), 0, 0, 0);   // 0: from the water body's size (the sea plane: open water)
+            g.p[2] = vec4(f(j, "caustics", 0.8f), b(j, "reflections", true) ? 1.0f : 0.0f, f(j, "shore_fade_m", 0.3f),
+                          f(j, "foam_width_m", 0.12f));
             if (b(j, "duckweed", false)) flags |= MatDuckweed;
             break;
+        }
         default:   // lit, emissive, unlit
             g.c[0] = col(j, "base_color", vec4(0.6f, 0.6f, 0.6f, 1));
             g.c[1] = vec4(v3(j.value("emissive", json()), vec3(model == ModelEmissive ? 1.0f : 0.0f)),
@@ -178,7 +197,7 @@ const json& builtinMaterials() {
                        "translucency": 0.2, "wind": {"strength": 0.05, "height": 12.0, "speed": 1.1}},
       "grass_blades": {"model": "grass", "color_a": [0.05, 0.095, 0.018], "color_b": [0.2, 0.15, 0.045],
                        "wind": {"strength": 0.12, "height": 0.6, "speed": 2.2}},
-      "water":        {"model": "water", "color": [0.55, 0.62, 0.55], "absorption": 1.0, "roughness": 0.03},
+      "water":        {"model": "water", "roughness": 0.03},
       "glow":         {"model": "emissive", "base_color": [1.0, 0.8, 0.35], "emissive": [1.0, 0.75, 0.3], "emissive_strength": 30.0},
       "glow_blue":    {"model": "emissive", "base_color": [0.4, 0.7, 1.0], "emissive": [0.35, 0.65, 1.0], "emissive_strength": 30.0},
       "window_lit":   {"model": "emissive", "base_color": [1.0, 0.7, 0.35], "emissive": [1.0, 0.62, 0.28], "emissive_strength": 6.0},

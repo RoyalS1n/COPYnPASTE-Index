@@ -204,6 +204,7 @@
       "color": [0.45, 0.5, 0.36],
       "duckweed": true,
       "duckweed_color": [0.08, 0.17, 0.025],
+      "fetch_m": 60,
       "model": "water",
       "ripple_strength": 0.5,
       "roughness": 0.03
