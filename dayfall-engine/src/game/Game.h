@@ -7,6 +7,7 @@
 #include "render/Camera.h"
 #include "world/SceneBuilder.h"
 #include <deque>
+#include <functional>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
@@ -82,6 +83,8 @@ struct WalkTestOptions {
     bool run = false;
     float maxSeconds = 240.0f;
     float waypointRadius = 1.5f;
+    // optional: called every simulated half second with the waypoints reached; false stops the walk ("cancelled": true)
+    std::function<bool(size_t reached, size_t waypoints, float seconds)> progress;
 };
 nlohmann::json runWalkTest(const WalkTestOptions& opt, const Scene& scene, std::vector<EntityState> entities, Physics& physics,
                            const PlayerConfig& cfg, float waterLevel, std::vector<vec3>* problemPoints = nullptr);

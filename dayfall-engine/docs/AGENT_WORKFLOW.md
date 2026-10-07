@@ -38,6 +38,10 @@ that `dayfall` is connected). `CLAUDE.md` and the project skill `.claude/skills/
 workflow, and the server sends the same rules when it connects. The first calls of every session are reads:
 `project_info`, then `world_get`, `catalog` and `terrain_info`. Nothing is changed until the agent knows the map.
 
+The server also offers the docs, the live map document and the newest captures as MCP resources (in Claude Code:
+`@dayfall:` then e.g. `dayfall://map/section/routes`), and this workflow as prompts (`build_level`, `review_level`,
+`refine_area`, `test_route`; in Claude Code they appear as `/mcp__dayfall__build_level` and so on).
+
 ### 4. One prompt builds a playable base level
 
 > Build a playable base level on a new map maps/valley_town: a 512 m valley, a dirt path along the valley floor

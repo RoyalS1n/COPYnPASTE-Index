@@ -9,8 +9,9 @@ static std::mutex g_logMutex;
 static const auto g_start = std::chrono::steady_clock::now();
 static std::deque<std::string> g_recent;
 static uint64_t g_warnings = 0, g_errors = 0;
+static std::function<void(LogLevel, const std::string&)> g_sink;
 
-void logWrite(LogLevel level, const std::string& msg) {
+static void writeLine(LogLevel level, const std::string& msg) {
     std::lock_guard lock(g_logMutex);
     double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - g_start).count();
     const char* tag = level == LogLevel::Info ? "info" : level == LogLevel::Warn ? "warn" : "ERROR";
@@ -21,6 +22,21 @@ void logWrite(LogLevel level, const std::string& msg) {
     if (g_recent.size() > 500) g_recent.pop_front();
     if (level == LogLevel::Warn) ++g_warnings;
     if (level == LogLevel::Error) ++g_errors;
+}
+
+void logWrite(LogLevel level, const std::string& msg) {
+    writeLine(level, msg);
+    std::function<void(LogLevel, const std::string&)> sink;
+    {
+        std::lock_guard lock(g_logMutex);
+        sink = g_sink;
+    }
+    if (sink) sink(level, msg);   // outside the lock: the sink may block on its own output
+}
+
+void setLogSink(std::function<void(LogLevel, const std::string&)> sink) {
+    std::lock_guard lock(g_logMutex);
+    g_sink = std::move(sink);
 }
 
 std::vector<std::string> recentLog(size_t maxLines) {

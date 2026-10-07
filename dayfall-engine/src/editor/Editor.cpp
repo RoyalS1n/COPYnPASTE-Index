@@ -3,6 +3,7 @@
 #include "core/Log.h"
 #include <chrono>
 #include <format>
+#include <map>
 
 namespace df {
 using json = nlohmann::json;
@@ -22,6 +23,33 @@ const char* categoryName(ToolCategory c) {
         case ToolCategory::Assets: return "assets";
     }
     return "?";
+}
+
+std::string toolTitle(const std::string& name) {
+    static const std::map<std::string, const char*> kTitles = {
+        {"project_info", "Project overview"},      {"world_get", "Read the world document"},  {"catalog", "Placeable content"},
+        {"terrain_info", "Terrain heights"},       {"ground_query", "Ground at points"},      {"capture", "Capture views"},
+        {"stats", "Render statistics"},            {"log", "Engine log"},                     {"batch_begin", "Begin a batch"},
+        {"batch_end", "End the batch"},            {"undo", "Undo"},                          {"redo", "Redo"},
+        {"save", "Save the map"},                  {"map_new", "New map"},                    {"map_open", "Open a map"},
+        {"terrain_generate", "Generate terrain"},  {"terrain_import", "Import a heightmap"},   {"terrain_sculpt", "Sculpt terrain"},
+        {"terrain_paint", "Paint terrain"},        {"terrain_settings", "Terrain settings"},  {"path_set", "Add or change a path"},
+        {"object_add", "Place objects"},           {"object_update", "Change objects"},       {"delete", "Delete items"},
+        {"place_along_path", "Place along a path"}, {"scatter_set", "Scatter rule"},          {"entity_add", "Add gameplay entities"},
+        {"hud_set", "In-game HUD"},                {"player_set", "Player character"},        {"environment_set", "Lighting and atmosphere"},
+        {"light_set", "Add or change lights"},     {"material_set", "Define a material"},     {"asset_import", "Import a model"},
+        {"doc_patch", "Patch the map document"},   {"camera_set", "Save a camera view"},      {"route_set", "Define a test route"},
+        {"walk_test", "Walk-test a route"},        {"play_sim", "Simulate play input"},       {"play", "Play mode in the editor"}};
+    if (auto it = kTitles.find(name); it != kTitles.end()) return it->second;
+    std::string t = name;
+    for (char& c : t) if (c == '_') c = ' ';
+    if (!t.empty()) t[0] = (char)toupper((unsigned char)t[0]);
+    return t;
+}
+
+bool Editor::reportProgress(double p, double total, const std::string& message) {
+    if (progress) progress(p, total, message);
+    return !cancelRequested;
 }
 
 static bool exclusive(ToolCategory c) {
