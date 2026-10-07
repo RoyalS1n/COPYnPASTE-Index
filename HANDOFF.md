@@ -7,7 +7,9 @@ It follows the minimum-handoff template in section 12.3 of the user's `guide.md`
 ## 0. First things to do locally
 
 1. `git fetch origin && git checkout claude/hopeful-lamport-xbvnfe && git pull`. The working tree was clean and pushed at `2098a4f`
-   (plus the commit that adds this file).
+   (plus the commit that adds this file). The branch is open as **PR #1**
+   (https://github.com/RoyalS1n/COPYnPASTE-Index/pull/1, into `main`, mergeable, no CI checks configured). Pushing to the
+   branch updates the PR. Its auto-written description overstates the texture library: it has 100 textures, not "1900+ materials".
 2. **Merge `changes.md` (repo root) into the "Change summaries" section of**
    `C:\Users\keega\Documents\Unreal Projects\FloatingIslet\AI_README.md` (newest first, entries pasted unchanged).
    Then delete `changes.md` and commit. Only one change log may exist; `changes.md` exists only because AI_README
