@@ -10,7 +10,8 @@ constexpr uint32_t kNoTexture = 0xFFFFFFFFu;
 enum Group : uint32_t { GroupOpaque = 0, GroupTwoSided = 1, GroupMasked = 2, GroupWater = 3, GroupBlend = 4, GroupCount = 5 };
 enum Model : uint32_t { ModelLit = 0, ModelTerrain = 1, ModelFoliage = 2, ModelCourses = 3, ModelWater = 4,
                         ModelEmissive = 5, ModelUnlit = 6, ModelGrass = 7, ModelRock = 8 };
-enum MatFlags : uint32_t { MatTwoSided = 1, MatMasked = 2, MatBlend = 4, MatWind = 8, MatDuckweed = 16, MatVertexColor = 32 };
+enum MatFlags : uint32_t { MatTwoSided = 1, MatMasked = 2, MatBlend = 4, MatWind = 8, MatDuckweed = 16, MatVertexColor = 32,
+                           MatNormalDirectX = 64 };   // normal map green channel points down (Unreal, 3ds Max)
 // InstAxisScale: the instance is stretched per axis; flags >> 8 indexes Scene::instanceScales
 // (posScale.w then holds the largest axis, for culling)
 enum InstFlags : uint32_t { InstShadow = 1, InstAxisScale = 2 };

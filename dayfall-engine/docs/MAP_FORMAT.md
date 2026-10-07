@@ -166,7 +166,8 @@ Types: `collectible`, `goal`, `trigger`, `spawn`, `waypoint`.
 Models: `lit` (glTF metallic-roughness; `base_color`, `roughness`, `metallic`, `emissive`,
 `emissive_strength`, `textures` {base, normal, orm, emissive}), `courses` (procedural stone, brick, tiles,
 planks), `terrain`, `foliage`, `grass`, `water`, `emissive`, `unlit`. Common keys: `two_sided`,
-`alpha` (`opaque`, `mask`, `blend`), `alpha_cutoff`, `vertex_color`, `wind` {strength, height, speed}.
+`alpha` (`opaque`, `mask`, `blend`), `alpha_cutoff`, `vertex_color`, `wind` {strength, height, speed},
+`normal_convention` (`opengl`, the default for glTF and Blender, or `directx` for textures from Unreal).
 Built-in materials: see `catalog`.
 
 ## meshes

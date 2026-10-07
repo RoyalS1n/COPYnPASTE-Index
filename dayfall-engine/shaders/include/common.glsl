@@ -25,6 +25,7 @@
 #define MAT_WIND 8u
 #define MAT_DUCKWEED 16u
 #define MAT_VERTEXCOLOR 32u
+#define MAT_NORMAL_DX 64u      // DirectX normal map (green down): Unreal exports
 
 #define INST_SHADOW 1u
 #define INST_AXIS_SCALE 2u   // flags >> 8 indexes instanceScales

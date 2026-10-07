@@ -42,6 +42,9 @@ MaterialDef parseMaterial(const std::string& name, const json& j, const TextureR
     if (alpha == "mask") flags |= MatMasked;
     if (alpha == "blend") flags |= MatBlend;
     if (b(j, "vertex_color", false)) flags |= MatVertexColor;
+    std::string nc = j.value("normal_convention", "opengl");
+    if (nc == "directx") flags |= MatNormalDirectX;
+    else if (nc != "opengl") throw Error("normal_convention must be opengl (glTF, Blender) or directx (Unreal)");
     if (j.contains("wind")) {
         flags |= MatWind;
         const json& w = j["wind"];

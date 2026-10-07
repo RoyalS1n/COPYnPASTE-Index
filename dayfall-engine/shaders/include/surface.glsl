@@ -42,6 +42,7 @@ Surface shadeLit(Material m, vec3 n, vec4 t, vec2 uv, vec4 color0) {
     }
     if (m.h0.w != NO_TEX && dot(t.xyz, t.xyz) > 0.0) {
         vec3 tn = tex(m.h0.w, uv).xyz * 2.0 - 1.0;
+        if ((m.h0.y & MAT_NORMAL_DX) != 0u) tn.y = -tn.y;
         tn.xy *= m.p[1].w > 0.0 ? m.p[1].w : 1.0;
         vec3 T = normalize(t.xyz - n * dot(n, t.xyz));
         vec3 B = cross(n, T) * t.w;
