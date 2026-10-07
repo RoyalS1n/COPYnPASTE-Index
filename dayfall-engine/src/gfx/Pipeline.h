@@ -16,6 +16,7 @@ struct GraphicsPipelineDesc {
     bool depthTest = true, depthWrite = true;
     VkCompareOp depthCompare = VK_COMPARE_OP_GREATER_OR_EQUAL;   // reversed Z
     bool blend = false;              // premultiplied-free standard alpha blend
+    bool additive = false;           // one + one (bloom upsampling)
     bool alphaToCoverage = false;
     bool depthBias = false;          // dynamic depth bias (shadows)
     bool depthClamp = false;

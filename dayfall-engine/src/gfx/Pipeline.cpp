@@ -48,10 +48,10 @@ VkPipeline createGraphicsPipeline(Device& d, const GraphicsPipelineDesc& desc) {
     std::vector<VkPipelineColorBlendAttachmentState> blends(desc.colorFormats.size());
     for (auto& b : blends) {
         b.colorWriteMask = 0xF;
-        if (desc.blend) {
+        if (desc.blend || desc.additive) {
             b.blendEnable = VK_TRUE;
-            b.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-            b.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            b.srcColorBlendFactor = desc.additive ? VK_BLEND_FACTOR_ONE : VK_BLEND_FACTOR_SRC_ALPHA;
+            b.dstColorBlendFactor = desc.additive ? VK_BLEND_FACTOR_ONE : VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
             b.colorBlendOp = VK_BLEND_OP_ADD;
             b.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
             b.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;

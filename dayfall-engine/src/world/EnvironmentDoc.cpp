@@ -1,12 +1,16 @@
 #include "world/EnvironmentDoc.h"
 #include "core/Error.h"
 #include <cmath>
+#include <format>
 
 namespace df {
 using json = nlohmann::json;
 namespace {
 vec3 v3(const json& j, vec3 def) { return j.is_array() && j.size() >= 3 ? vec3(j[0].get<float>(), j[1].get<float>(), j[2].get<float>()) : def; }
 float f(const json& j, const char* k, float def) { return j.is_object() && j.contains(k) && j[k].is_number() ? j[k].get<float>() : def; }
+void range(float v, float lo, float hi, const char* what) {
+    if (!(v >= lo && v <= hi)) throw Error(std::format("post.{} must be {} to {}", what, lo, hi));
+}
 
 void apply(const json& e, Environment& env) {
     if (e.contains("time_of_day")) {
@@ -67,6 +71,48 @@ void apply(const json& e, Environment& env) {
         env.lookPower = f(t, "contrast", env.lookPower);
         env.lookSaturation = f(t, "saturation", env.lookSaturation);
         env.vignette = f(t, "vignette", env.vignette);
+    }
+    if (e.contains("post")) {
+        const json& p = e["post"];
+        if (!p.is_object()) throw Error("post must be {bloom, gain, highlights_gain, shadows_gain, white_temp_k, painterly}");
+        if (p.contains("bloom")) {
+            const json& b = p["bloom"];
+            env.bloomStrength = f(b, "strength", env.bloomStrength);
+            env.bloomThreshold = f(b, "threshold", env.bloomThreshold);
+            env.bloomSize = f(b, "size", env.bloomSize);
+        }
+        env.gain = v3(p.value("gain", json()), env.gain);
+        env.highlightsGain = v3(p.value("highlights_gain", json()), env.highlightsGain);
+        env.shadowsGain = v3(p.value("shadows_gain", json()), env.shadowsGain);
+        env.whiteTempK = f(p, "white_temp_k", env.whiteTempK);
+        if (p.contains("painterly")) {
+            const json& k = p["painterly"];
+            if (k.is_boolean()) env.painterly = k.get<bool>();
+            else if (k.is_object()) {
+                env.painterly = k.value("enabled", env.painterly);
+                env.kuwaharaRadius = f(k, "radius", env.kuwaharaRadius);
+                env.painterlyBlend = f(k, "blend", env.painterlyBlend);
+                env.inkStrength = f(k, "edge_strength", env.inkStrength);
+                env.inkDepthK = f(k, "depth_k", env.inkDepthK);
+                env.inkNormalK = f(k, "normal_k", env.inkNormalK);
+                env.painterlyChroma = f(k, "chroma", env.painterlyChroma);
+            } else throw Error("post.painterly must be true, false or {enabled, radius, blend, edge_strength, depth_k, normal_k, chroma}");
+        }
+        range(env.bloomStrength, 0, 4, "bloom.strength");
+        range(env.bloomThreshold, 0, 100, "bloom.threshold");
+        range(env.bloomSize, 0, 1, "bloom.size");
+        for (int i = 0; i < 3; ++i) {
+            range(env.gain[i], 0, 4, "gain");
+            range(env.highlightsGain[i], 0, 4, "highlights_gain");
+            range(env.shadowsGain[i], 0, 4, "shadows_gain");
+        }
+        range(env.whiteTempK, 1500, 15000, "white_temp_k");
+        range(env.kuwaharaRadius, 0, 8, "painterly.radius");
+        range(env.painterlyBlend, 0, 1, "painterly.blend");
+        range(env.inkStrength, 0, 1, "painterly.edge_strength");
+        range(env.inkDepthK, 0, 100, "painterly.depth_k");
+        range(env.inkNormalK, 0, 20, "painterly.normal_k");
+        range(env.painterlyChroma, 0, 2, "painterly.chroma");
     }
     if (e.contains("wind")) {
         const json& w = e["wind"];

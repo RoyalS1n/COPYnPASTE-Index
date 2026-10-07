@@ -83,7 +83,7 @@ bool containsValue(const json& have, const json& want) {
     }
     if (have.is_object() && want.is_object()) {
         for (auto& [k, v] : want.items())
-            if (!have.contains(k) || !(have[k] == v || (v.is_object() || v.is_string()) && containsValue(have[k], v))) return false;
+            if (!have.contains(k) || !(have[k] == v || ((v.is_object() || v.is_string()) && containsValue(have[k], v)))) return false;
         return true;
     }
     return have == want;

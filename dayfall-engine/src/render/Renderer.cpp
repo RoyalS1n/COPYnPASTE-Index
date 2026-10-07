@@ -14,6 +14,7 @@ namespace {
 constexpr VkFormat kHdrFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 constexpr VkFormat kDepthFormat = VK_FORMAT_D32_SFLOAT;
 constexpr VkFormat kShadowFormat = VK_FORMAT_D32_SFLOAT;
+constexpr VkFormat kLdrFormat = VK_FORMAT_A2B10G10R10_UNORM_PACK32;   // tone-mapped, gamma-encoded (painterly input)
 constexpr VkBufferUsageFlags kSsbo = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 // 0 UBO, 1-11 buffers, 12-20 images, 21 terrain patches, 22 instance scales, 23 sky occlusion volumes, 24 bindless textures
 constexpr uint32_t kBindingCount = 25;
@@ -111,6 +112,28 @@ void setViewport(VkCommandBuffer cmd, uint32_t w, uint32_t h, bool flipY) {
     vkCmdSetScissor(cmd, 0, 1, &sc);
 }
 
+// camera white balance: the white of a light at `kelvin` turns neutral (D65), so lower is cooler, like Unreal's
+// White Temp. Daylight locus from 4000 K, Planckian locus (Kim et al. 2002) below; a luminance-neutral rgb gain.
+vec3 whiteBalance(float kelvin) {
+    auto white = [](float t) {
+        double T = std::clamp((double)t, 1667.0, 25000.0), x, y;
+        if (T >= 4000.0) {
+            x = T <= 7000.0 ? -4.6070e9 / (T * T * T) + 2.9678e6 / (T * T) + 0.09911e3 / T + 0.244063
+                            : -2.0064e9 / (T * T * T) + 1.9018e6 / (T * T) + 0.24748e3 / T + 0.237040;
+            y = -3.0 * x * x + 2.87 * x - 0.275;
+        } else {
+            x = -0.2661239e9 / (T * T * T) - 0.2343589e6 / (T * T) + 0.8776956e3 / T + 0.179910;
+            y = T < 2222.0 ? -1.1063814 * x * x * x - 1.34811020 * x * x + 2.18555832 * x - 0.20219683
+                           : -0.9549476 * x * x * x - 1.37418593 * x * x + 2.09137015 * x - 0.16748867;
+        }
+        double X = x / y, Z = (1.0 - x - y) / y;   // Y = 1, to linear Rec.709
+        return vec3((float)(3.2404542 * X - 1.5371385 - 0.4985314 * Z), (float)(-0.9692660 * X + 1.8760108 + 0.0415560 * Z),
+                    (float)(0.0556434 * X - 0.2040259 + 1.0572252 * Z));
+    };
+    vec3 g = white(6500.0f) / glm::max(white(kelvin), vec3(1e-3f));
+    return g / glm::dot(g, vec3(0.2126f, 0.7152f, 0.0722f));
+}
+
 VkSampler makeSampler(Device& d, VkFilter filter, VkSamplerAddressMode mode, bool mips, bool compare = false) {
     VkSamplerCreateInfo ci{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
     ci.magFilter = ci.minFilter = filter;
@@ -188,6 +211,22 @@ void Renderer::init(Device& dev, const RenderSettings& s, const std::string& sha
     plci.pushConstantRangeCount = 1;
     plci.pPushConstantRanges = &pr;
     VK_CHECK(vkCreatePipelineLayout(dev.device, &plci, nullptr, &layout_));
+    // post passes: set 0 plus set 1, the pass's input image (one set per image they read)
+    VkDescriptorSetLayoutBinding pb{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT};
+    VkDescriptorSetLayoutCreateInfo plc{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    plc.bindingCount = 1;
+    plc.pBindings = &pb;
+    VK_CHECK(vkCreateDescriptorSetLayout(dev.device, &plc, nullptr, &postSetLayout_));
+    VkDescriptorPoolSize ps{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kBloomMax + 2};
+    VkDescriptorPoolCreateInfo ppci{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    ppci.maxSets = kBloomMax + 2;
+    ppci.poolSizeCount = 1;
+    ppci.pPoolSizes = &ps;
+    VK_CHECK(vkCreateDescriptorPool(dev.device, &ppci, nullptr, &postPool_));
+    VkDescriptorSetLayout postSets[2] = {setLayout_, postSetLayout_};
+    plci.setLayoutCount = 2;
+    plci.pSetLayouts = postSets;
+    VK_CHECK(vkCreatePipelineLayout(dev.device, &plci, nullptr, &postLayout_));
 
     for (uint32_t f = 0; f < kFrames; ++f) {
         ubo_[f] = createBuffer(dev, sizeof(GpuFrame), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, MemUsage::Upload);
@@ -222,7 +261,7 @@ void Renderer::createPipelines() {
     VkShaderModule cullResetCs = sh("cull_reset.comp"), cullCs = sh("cull.comp");
     VkShaderModule meshVs = sh("mesh.vert"), meshFs = sh("mesh.frag"), shadowVs = sh("shadow.vert"), shadowFs = sh("shadow.frag");
     VkShaderModule fullVs = sh("fullscreen.vert"), skyFs = sh("sky.frag"), waterFs = sh("water.frag");
-    VkShaderModule terrainVs = sh("terrain.vert"), terrainFs = sh("terrain.frag");
+    VkShaderModule terrainVs = sh("terrain.vert"), terrainFs = sh("terrain.frag"), bloomFs = sh("bloom.frag");
 
     cullReset_ = createComputePipeline(d, cullResetCs, layout_);
     cull_ = createComputePipeline(d, cullCs, layout_);
@@ -299,16 +338,29 @@ void Renderer::createPipelines() {
     ts.depthCompare = VK_COMPARE_OP_LESS_OR_EQUAL;
     ts.depthBias = true;
     terrainShadow_ = createGraphicsPipeline(d, ts);
-    for (VkShaderModule m : {cullResetCs, cullCs, meshVs, meshFs, shadowVs, shadowFs, fullVs, skyFs, waterFs, terrainVs, terrainFs})
+
+    GraphicsPipelineDesc bl;
+    bl.layout = postLayout_;
+    bl.vert = fullVs;
+    bl.frag = bloomFs;
+    bl.colorFormats = {kHdrFormat};
+    bl.cull = VK_CULL_MODE_NONE;
+    bl.depthTest = bl.depthWrite = false;
+    bloomDown_ = createGraphicsPipeline(d, bl);
+    bl.additive = true;
+    bloomUp_ = createGraphicsPipeline(d, bl);
+    for (VkShaderModule m : {cullResetCs, cullCs, meshVs, meshFs, shadowVs, shadowFs, fullVs, skyFs, waterFs, terrainVs, terrainFs, bloomFs})
         vkDestroyShaderModule(d.device, m, nullptr);
 }
 
-VkPipeline Renderer::postPipeline(VkFormat format) {
-    for (auto& [f, p] : post_) if (f == format) return p;
+VkPipeline Renderer::postPipeline(VkFormat format, bool painterly) {
+    auto& cache = painterly ? painterly_ : post_;
+    for (auto& [f, p] : cache) if (f == format) return p;
     Device& d = *d_;
-    VkShaderModule vs = loadShader(d, shaderDir_ + "/fullscreen.vert.spv"), fs = loadShader(d, shaderDir_ + "/post.frag.spv");
+    VkShaderModule vs = loadShader(d, shaderDir_ + "/fullscreen.vert.spv"),
+                   fs = loadShader(d, shaderDir_ + (painterly ? "/painterly.frag.spv" : "/post.frag.spv"));
     GraphicsPipelineDesc p;
-    p.layout = layout_;
+    p.layout = postLayout_;
     p.vert = vs;
     p.frag = fs;
     p.colorFormats = {format};
@@ -317,7 +369,7 @@ VkPipeline Renderer::postPipeline(VkFormat format) {
     VkPipeline pipe = createGraphicsPipeline(d, p);
     vkDestroyShaderModule(d.device, vs, nullptr);
     vkDestroyShaderModule(d.device, fs, nullptr);
-    post_.push_back({format, pipe});
+    cache.push_back({format, pipe});
     return pipe;
 }
 
@@ -354,6 +406,16 @@ void Renderer::createTargets() {
         mz.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         depthMsaa_ = createImage(d, mz);
     }
+    // bloom chain from half resolution down to a few pixels (as many levels as bloom.size 1 would use)
+    int levels = std::clamp((int)std::log2((double)std::min(w, h)) - 1, 1, (int)kBloomMax);
+    for (int i = 0; i < levels; ++i) {
+        ImageDesc bd{kHdrFormat, std::max(1u, w >> (i + 1)), std::max(1u, h >> (i + 1))};
+        bd.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        bloom_.push_back(createImage(d, bd));
+    }
+    ImageDesc ld{kLdrFormat, w, h};
+    ld.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    ldr_ = createImage(d, ld);
     ImageDesc sd{kShadowFormat, s_.shadowSize, s_.shadowSize};
     sd.layers = std::max(1u, s_.cascades);
     sd.arrayView = true;
@@ -369,7 +431,9 @@ void Renderer::createTargets() {
         imageBarrier(cmd, shadowMap_.image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
                      VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-        for (Image* img : {&hdr_, &sceneCopy_})
+        std::vector<Image*> sampled{&hdr_, &sceneCopy_, &ldr_};
+        for (Image& b : bloom_) sampled.push_back(&b);
+        for (Image* img : sampled)
             imageBarrier(cmd, img->image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0,
                          VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
@@ -377,11 +441,48 @@ void Renderer::createTargets() {
                      VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0,
                      VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     });
+    writePostDescriptors();
 }
 
 void Renderer::destroyTargets() {
-    for (Image* i : {&hdrMsaa_, &depthMsaa_, &hdr_, &depth_, &sceneCopy_, &shadowMap_})
+    for (Image* i : {&hdrMsaa_, &depthMsaa_, &hdr_, &depth_, &sceneCopy_, &shadowMap_, &ldr_})
         if (i->image) destroyImage(*d_, *i);
+    for (Image& b : bloom_) destroyImage(*d_, b);
+    bloom_.clear();
+}
+
+// set 1 of the post passes: one set per image they read (hdr_, each bloom level, ldr_)
+void Renderer::writePostDescriptors() {
+    Device& d = *d_;
+    vkResetDescriptorPool(d.device, postPool_, 0);
+    std::vector<const Image*> src{&hdr_};
+    for (const Image& b : bloom_) src.push_back(&b);
+    src.push_back(&ldr_);
+    postSets_.assign(src.size(), VK_NULL_HANDLE);
+    std::vector<VkDescriptorSetLayout> layouts(src.size(), postSetLayout_);
+    VkDescriptorSetAllocateInfo ai{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    ai.descriptorPool = postPool_;
+    ai.descriptorSetCount = (uint32_t)src.size();
+    ai.pSetLayouts = layouts.data();
+    VK_CHECK(vkAllocateDescriptorSets(d.device, &ai, postSets_.data()));
+    std::vector<VkDescriptorImageInfo> ii(src.size());
+    std::vector<VkWriteDescriptorSet> w(src.size(), {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET});
+    for (size_t i = 0; i < src.size(); ++i) {
+        ii[i] = {linearClamp_, src[i]->view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        w[i].dstSet = postSets_[i];
+        w[i].descriptorCount = 1;
+        w[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        w[i].pImageInfo = &ii[i];
+    }
+    vkUpdateDescriptorSets(d.device, (uint32_t)w.size(), w.data(), 0, nullptr);
+}
+
+// Blender's Glare node uses log2(size x the smaller side) levels from full resolution; ours start at half
+uint32_t Renderer::bloomLevels() const {
+    const Environment& env = scene_->env;
+    if (env.bloomStrength <= 0.0f) return 0;
+    int n = (int)std::log2(std::max(std::min(s_.width, s_.height) * env.bloomSize, 1.0f)) - 1;
+    return (uint32_t)std::clamp(n, 0, (int)bloom_.size());
 }
 
 void Renderer::resize(uint32_t w, uint32_t h) {
@@ -669,6 +770,15 @@ void Renderer::updateFrame(uint32_t frame, const Camera& cam, float time) {
     f.water = vec4(env.waterLevel, 0.0f, cam.nearPlane, 0.0f);
     f.lodBias = vec4(s_.lodScale, cullScaleOverride > 0 ? cullScaleOverride : s_.cullScale, 0, 0);
     f.post = vec4(env.vignette, 1.0f, 0, 0);
+    // bloom normalised by its level count like Blender's, the threshold's knee and cap; white balance in the gain
+    uint32_t lv = bloomLevels();
+    f.bloom = vec4(lv ? env.bloomStrength / lv : 0.0f, env.bloomThreshold, std::max(env.bloomThreshold * 0.25f, 0.02f),
+                   std::max(10.0f - env.bloomThreshold, 1.0f));
+    f.gain = vec4(env.gain * whiteBalance(env.whiteTempK), 0.0f);
+    f.highlightsGain = vec4(env.highlightsGain, 0.0f);
+    f.shadowsGain = vec4(env.shadowsGain, 0.0f);
+    f.painterly = vec4(env.kuwaharaRadius * s_.height / 1080.0f, env.painterlyBlend, env.inkStrength, env.painterlyChroma);   // radius: 1080p pixels
+    f.painterlyEdges = vec4(env.inkDepthK, env.inkNormalK, 0.0f, 0.0f);
     f.totals = uvec4(mainTotal_, shadowTotal_, 0, 0);
     f.counts = uvec4(numInstances_, numBatches_, views_, 0);
     extractPlanes(f.viewProj, &f.viewPlanes[0]);
@@ -932,28 +1042,75 @@ void Renderer::record(VkCommandBuffer cmd, uint32_t frame, const Camera& cam, fl
                  VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     stamp(4, kAtt);
 
-    // 5. tone mapping into the output image
-    imageBarrier(cmd, out.image, VK_IMAGE_ASPECT_COLOR_BIT, out.initialLayout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                 kAtt | VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, kAtt, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
-    {
-        VkRenderingAttachmentInfo ca = colorAttachment(out.view, VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+    recordPost(cmd, out, q0);
+    stamp(7, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
+}
+
+// 5. bloom, 6. tone mapping and grade, 7. painterly filter (when on), into the output image
+void Renderer::recordPost(VkCommandBuffer cmd, const OutputTarget& out, uint32_t q0) {
+    constexpr VkPipelineStageFlags2 kAtt = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, kFs = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+    auto pass = [&](VkImageView view, VkExtent2D ext, VkAttachmentLoadOp load, VkPipeline pipe, uint32_t set, uint32_t mode) {
+        VkRenderingAttachmentInfo ca = colorAttachment(view, load);
         VkRenderingInfo ri{VK_STRUCTURE_TYPE_RENDERING_INFO};
-        ri.renderArea = {{0, 0}, {s_.width, s_.height}};
+        ri.renderArea = {{0, 0}, ext};
         ri.layerCount = 1;
         ri.colorAttachmentCount = 1;
         ri.pColorAttachments = &ca;
         vkCmdBeginRendering(cmd, &ri);
-        setViewport(cmd, s_.width, s_.height, false);
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, postPipeline(out.format));
+        setViewport(cmd, ext.width, ext.height, false);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, postLayout_, 1, 1, &postSets_[set], 0, nullptr);
+        Push p{0, 0, mode, 0};
+        vkCmdPushConstants(cmd, postLayout_, VK_SHADER_STAGE_ALL, 0, sizeof(p), &p);
         vkCmdDraw(cmd, 3, 1, 0, 0);
         vkCmdEndRendering(cmd);
+    };
+    // sampled images turn into attachments after their earlier reads (this frame's or the last), and back after
+    auto toAttachment = [&](const Image& img, bool load) {
+        imageBarrier(cmd, img.image, VK_IMAGE_ASPECT_COLOR_BIT, load ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
+                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, kFs | kAtt, load ? VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT : 0, kAtt,
+                     VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT | (load ? VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT : 0));
+    };
+    auto toSampled = [&](const Image& img) {
+        imageBarrier(cmd, img.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                     kAtt, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, kFs, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+    };
+    auto stamp = [&](uint32_t i, VkPipelineStageFlags2 stage) {
+        if (queries_) vkCmdWriteTimestamp2(cmd, stage, queries_, q0 + i);
+    };
+    // bloom: threshold and 13-tap downsamples to 1/2, 1/4, ... (set i reads hdr_ for i = 0, else bloom_[i - 1]),
+    // then tent upsamples added back up the chain (set i + 2 reads bloom_[i + 1])
+    uint32_t n = bloomLevels();
+    for (uint32_t i = 0; i < n; ++i) {
+        toAttachment(bloom_[i], false);
+        pass(bloom_[i].view, bloom_[i].extent, VK_ATTACHMENT_LOAD_OP_DONT_CARE, bloomDown_, i, i == 0 ? 0u : 1u);
+        toSampled(bloom_[i]);
+    }
+    for (int i = (int)n - 2; i >= 0; --i) {
+        toAttachment(bloom_[i], true);
+        pass(bloom_[i].view, bloom_[i].extent, VK_ATTACHMENT_LOAD_OP_LOAD, bloomUp_, (uint32_t)i + 2, 2u);
+        toSampled(bloom_[i]);
+    }
+    stamp(5, kAtt);
+
+    // tone mapping (set 1 reads the top bloom level) into the output, or into ldr_ for the painterly pass
+    bool paint = scene_->env.painterly;
+    VkExtent2D full{s_.width, s_.height};
+    imageBarrier(cmd, out.image, VK_IMAGE_ASPECT_COLOR_BIT, out.initialLayout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                 kAtt | VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, kAtt, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+    if (paint) toAttachment(ldr_, false);
+    pass(paint ? ldr_.view : out.view, full, VK_ATTACHMENT_LOAD_OP_DONT_CARE, postPipeline(paint ? kLdrFormat : out.format, false), 1,
+         paint ? 1u : 0u);
+    stamp(6, kAtt);
+    if (paint) {
+        toSampled(ldr_);
+        pass(out.view, full, VK_ATTACHMENT_LOAD_OP_DONT_CARE, postPipeline(out.format, true), (uint32_t)postSets_.size() - 1, 0u);
     }
     if (out.finalLayout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
         imageBarrier(cmd, out.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, out.finalLayout, kAtt,
                      VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
                      VK_PIPELINE_STAGE_2_TRANSFER_BIT | VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                      VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_MEMORY_READ_BIT);
-    stamp(5, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
 }
 
 // ------------------------------------------------------------------------------------------ terrain
@@ -1183,15 +1340,21 @@ void Renderer::shutdown() {
         if (i->image) destroyImage(d, *i);
     if (terrainIndices_.buffer) destroyBuffer(d, terrainIndices_);
     for (auto& b : patches_) if (b.buffer) destroyBuffer(d, b);
-    for (VkPipeline p : {cullReset_, cull_, opaque_, twoSided_, masked_, sky_, shadowOpaque_, shadowMasked_, water_, blend_, terrainMain_, terrainShadow_})
+    for (VkPipeline p : {cullReset_, cull_, opaque_, twoSided_, masked_, sky_, shadowOpaque_, shadowMasked_, water_, blend_, terrainMain_, terrainShadow_,
+                         bloomDown_, bloomUp_})
         if (p) vkDestroyPipeline(d.device, p, nullptr);
-    for (auto& [f, p] : post_) vkDestroyPipeline(d.device, p, nullptr);
-    post_.clear();
+    for (auto* cache : {&post_, &painterly_}) {
+        for (auto& [f, p] : *cache) vkDestroyPipeline(d.device, p, nullptr);
+        cache->clear();
+    }
     for (VkSampler s : {linearRepeat_, linearClamp_, nearestClamp_, shadowSampler_, skySampler_}) vkDestroySampler(d.device, s, nullptr);
     if (queries_) vkDestroyQueryPool(d.device, queries_, nullptr);
     vkDestroyPipelineLayout(d.device, layout_, nullptr);
+    vkDestroyPipelineLayout(d.device, postLayout_, nullptr);
     vkDestroyDescriptorPool(d.device, pool_, nullptr);
+    vkDestroyDescriptorPool(d.device, postPool_, nullptr);
     vkDestroyDescriptorSetLayout(d.device, setLayout_, nullptr);
+    vkDestroyDescriptorSetLayout(d.device, postSetLayout_, nullptr);
     d_ = nullptr;
 }
 }  // namespace df

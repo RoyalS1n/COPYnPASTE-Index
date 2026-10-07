@@ -59,6 +59,7 @@ struct GpuFrame {
     vec4 lodBias;
     uvec4 totals;
     vec4 post;
+    vec4 bloom, gain, highlightsGain, shadowsGain, painterly, painterlyEdges;   // post pass (common.glsl)
     vec4 terrainA, terrainB, terrainC;
     vec4 skyOcc;                              // region count, strength, sample offset along the normal (cells), -
     vec4 skyOccRegions[kMaxSkyRegions * 2];   // per region: min corner, cell size (m); size in cells, -

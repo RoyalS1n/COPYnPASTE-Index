@@ -114,6 +114,12 @@ layout(set = 0, binding = 0) uniform Frame {
     vec4 lodBias;            // lod distance scale, cull distance scale, unused, unused
     uvec4 totals;            // visible-list size of the main view, of each shadow view, unused, unused
     vec4 post;               // vignette, dither, unused, unused
+    vec4 bloom;              // strength / levels, threshold (before exposure), soft knee, cap on the excess
+    vec4 gain;               // multiplicative grade gain rgb (white balance folded in), unused
+    vec4 highlightsGain;     // rgb, unused
+    vec4 shadowsGain;        // rgb, unused
+    vec4 painterly;          // Kuwahara radius (px), blend, ink edge strength, chroma
+    vec4 painterlyEdges;     // depth k, normal k, unused, unused
     vec4 terrainA;           // origin xy, sample spacing (m), samples per side
     vec4 terrainB;           // height min, height range, snowline, rock slope (deg)
     vec4 terrainC;           // dry amount, enabled, material index (bits), unused

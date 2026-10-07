@@ -140,6 +140,10 @@ void Editor::updateMinimap() {
     e.lookPower = 1.08f;
     e.lookSaturation = 1.12f;
     e.vignette = 0;
+    e.bloomStrength = 0;
+    e.painterly = false;
+    e.gain = e.highlightsGain = e.shadowsGain = vec3(1.0f);
+    e.whiteTempK = 6500.0f;
     std::vector<GpuInstance> keepDyn(scene.instances.begin() + staticEnd, scene.instances.end());
     for (size_t i = staticEnd; i < scene.instances.size(); ++i) scene.instances[i].cullDistance = -1.0f;
     Renderer& r = engine->renderer;

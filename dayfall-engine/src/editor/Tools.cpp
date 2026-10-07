@@ -1060,7 +1060,9 @@ void Editor::registerTools() {
              "preset golden_hour|serene|noon|misty_morning|dusk|overcast, time_of_day (hours), sun {elevation_deg, azimuth_deg, "
              "strength, color, angle_deg}, sky {strength, aerosol_density}, haze {color_near, color_far, amount, start_m, depth_m, "
              "height_fog_density, height_fog_falloff, height_fog_base_m}, clouds {enabled, coverage, height_m, color}, tonemap "
-             "{exposure_ev, contrast, saturation, vignette}, wind {direction [x,y], strength}, water {enabled, level_m}, "
+             "{exposure_ev, contrast, saturation, vignette}, post {bloom {strength, threshold, size}, gain [r,g,b], highlights_gain, "
+             "shadows_gain, white_temp_k, painterly (true or {enabled, radius, blend, edge_strength, depth_k, normal_k, chroma})}, "
+             "wind {direction [x,y], strength}, water {enabled, level_m}, "
              "shadow_distance_m, sky_occlusion {enabled, cell_m, rays, strength} (sky light hidden by roofs and walls; false = off).",
              ToolCategory::Lighting, object({{"preset", str("")}, {"time_of_day", num("")}, {"sun", anyObj("")}, {"replace", boolean("")}}),
              [&E](const json& a) {
