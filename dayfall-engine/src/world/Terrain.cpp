@@ -528,6 +528,63 @@ MeshAsset Terrain::chunkMesh(uint32_t cx, uint32_t cy) const {
     return m;
 }
 
+MeshAsset Terrain::horizonMesh(const json& p) const {
+    MeshBuilder b;
+    float S = size();
+    vec2 c = origin + vec2(S * 0.5f);
+    float lo = 1e30f, hi = -1e30f;
+    for (float h : height) { lo = std::min(lo, h); hi = std::max(hi, h); }
+    float R = std::max(num(p, "radius_m", std::max(5000.0f, S * 10.0f)), S);
+    float H = num(p, "height_m", std::max(80.0f, (hi - lo) * 1.4f));
+    float rough = std::clamp(num(p, "roughness", 0.6f), 0.0f, 1.0f);
+    Perlin2D n1(seed + 31), n2(seed + 32);
+    const int around = 4 * 96;   // perimeter samples (square -> circle)
+    const int rings = 48;
+    auto square = [&](float a) {   // point on the terrain boundary in direction a
+        vec2 d(std::cos(a), std::sin(a));
+        float k = 0.5f * S / std::max(std::abs(d.x), std::abs(d.y));
+        return c + d * k;
+    };
+    std::vector<vec3> pos((size_t)(rings + 1) * around);
+    for (int r = 0; r <= rings; ++r) {
+        float t = (float)r / rings;
+        float tt = t * t;   // denser near the playable edge
+        for (int i = 0; i < around; ++i) {
+            float a = 6.2831853f * i / around;
+            vec2 sq = square(a), far = c + vec2(std::cos(a), std::sin(a)) * R;
+            vec2 q = glm::mix(sq, far, tt);
+            float edgeH = heightAt(sq.x, sq.y) - (r == 0 ? 0.08f : 0.0f);
+            float d = glm::length(q - sq);
+            float ridge = ridged(n1, q.x / 1400.0f, q.y / 1400.0f, 6);
+            float hills = 0.5f + 0.5f * fbm(n2, q.x / 600.0f, q.y / 600.0f, 5);
+            float farH = lo + H * (rough * smoothstep(0.1f, 0.9f, ridge) + (1.0f - rough) * hills) * smoothstep(0.0f, R * 0.25f, d);
+            float w = smoothstep(0.0f, std::max(S * 0.6f, 300.0f), d);
+            pos[(size_t)r * around + i] = vec3(q, glm::mix(edgeH, std::max(farH, edgeH * 0.5f + farH * 0.5f), w));
+        }
+    }
+    auto P = [&](int r, int i) { return pos[(size_t)r * around + ((i + around) % around)]; };
+    for (int r = 0; r <= rings; ++r)
+        for (int i = 0; i < around; ++i) {
+            vec3 dr = r < rings ? P(r + 1, i) - P(r, i) : P(r, i) - P(r - 1, i);
+            vec3 di = P(r, i + 1) - P(r, i - 1);
+            vec3 nn = glm::normalize(glm::cross(di, dr));
+            if (nn.z < 0) nn = -nn;
+            float slope = glm::degrees(std::acos(std::clamp(nn.z, -1.0f, 1.0f)));
+            vec3 q = P(r, i);
+            float rock = smoothstep(rockSlopeDeg - 6, rockSlopeDeg + 8, slope);
+            float snow = smoothstep(snowline - 20, snowline + 30, q.z) * (1 - smoothstep(40, 55, slope));
+            vec4 c0(1 - rock, rock, snow, 0), c1(0, dryAmount * 0.6f, 0, 0);
+            b.vertex(makeVertex(q, nn, vec2(q), vec4(1, 0, 0, 1), c0, c1));
+        }
+    for (int r = 0; r < rings; ++r)
+        for (int i = 0; i < around; ++i) {
+            uint32_t a = r * around + i, bb = r * around + (i + 1) % around, cc = (r + 1) * around + (i + 1) % around, d = (r + 1) * around + i;
+            b.quad("terrain", a, d, cc, bb);
+        }
+    MeshAsset m = b.build("terrain_horizon");
+    return m;
+}
+
 void Terrain::load(const std::filesystem::path& hf, const std::filesystem::path& pf, uint32_t samples, float sp, vec2 org) {
     create(samples, sp, org);
     auto h = readBinary(hf);

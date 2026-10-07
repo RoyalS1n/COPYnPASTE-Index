@@ -1,0 +1,111 @@
+# Building DAYFALL with Claude in the DAYFALL engine
+
+This is the Unreal + Claude workflow, rebuilt for our own engine. The trick is the same: let the agent work
+inside the **live editor**. The difference is that the engine itself enforces the rule that saves the project.
+
+## The eight steps
+
+### 1. The engine and the starter map: walk and jump from minute one
+
+Build once (see the README), then run:
+
+```
+bin\dayfall.exe
+```
+
+It opens `maps/starter`: rolling hills, a blockout training course (ramp, stairs, jump blocks, a bridge between
+two towers), a dirt loop, three glowing collectibles and a goal on the hill. Press **P** to play: WASD to move,
+Shift to run, Space to jump, mouse to look, Esc to go back to editing. In edit mode, hold the right mouse button
+and use WASD / Q / E to fly.
+
+### 2. The editor starts its MCP server for you
+
+The windowed editor serves MCP at `http://127.0.0.1:7777/mcp` as soon as it opens; there is no plugin to enable.
+The log line `MCP server listening on http://127.0.0.1:7777/mcp` confirms it. Other options:
+
+| situation | command |
+|---|---|
+| live editor (normal) | `bin\dayfall.exe [map]` |
+| another port | `bin\dayfall.exe --mcp http:7801` |
+| no window (cloud agent, CI) | `bin/dayfall maps/x --headless --mcp http:7777` |
+| the agent launches the engine itself | `dayfall maps/x --headless --mcp stdio` as a stdio MCP server |
+
+### 3. Connect Claude Code and read the project first
+
+Open Claude Code in `dayfall-engine/`. The project's `.mcp.json` connects to the editor (run `/mcp` to check
+that `dayfall` is connected). `CLAUDE.md` and the project skill `.claude/skills/dayfall-level` tell the agent the
+workflow, and the server sends the same rules when it connects. The first calls of every session are reads:
+`project_info`, then `world_get`, `catalog` and `terrain_info`. Nothing is changed until the agent knows the map.
+
+### 4. One prompt builds a playable base level
+
+> Build a playable base level on a new map maps/valley_town: a 512 m valley, a dirt path along the valley floor
+> from the south end to a small town at the north end (five or six houses blocked out with primitives, a well,
+> fences along the last stretch of the path), and 3 glowing collectibles along the route. Put the player start at
+> the south end of the path. Work in batches and show me captures.
+
+The agent creates the map (`map_new`), shapes the terrain (`terrain_generate`, `terrain_info`), lays the path
+(`path_set`), blocks out the town (`object_add`, `place_along_path`), adds the collectibles (`entity_add`) and
+captures after each batch. Every result comes back as images in the conversation and as files in
+`maps/<map>/captures/`.
+
+### 5. Test the whole route with the default mannequin before any custom art
+
+> Define the route from the player start along the path to the town square and walk-test it. Fix every problem
+> it reports, then test the jumps onto the platforms with play_sim.
+
+`walk_test` drives the mannequin along the route with real physics and reports every stuck point, fall, steep
+slope or water crossing, with a capture of each spot. `play_sim` plays scripted input (move, run, jump, turn)
+through the real player controller: use it for jumps, ledges and stairs. A route is done when `passed` is true.
+
+### 6. Bring in a rigged character
+
+Export the character as glTF / GLB with its skeleton and its walk, run, idle and jump clips (a humanoid rig
+such as the UE5 Mannequin or Mixamo works). Then:
+
+> Import Characters/Ranger.glb as the player character and wire walk, run and jump to its clips.
+
+The agent uses `asset_import`, then `player_set` (a character batch on its own). Until a rigged character is
+assigned, the default jointed mannequin is used, animated procedurally.
+
+### 7. Import your forest and town assets and place them along the route
+
+> Import the meshes in Assets/Town/*.glb, replace the blockout houses with them, line the path with the fence
+> and lantern meshes, and plant a mixed forest on the valley slopes away from the path.
+
+`asset_import` registers each model (with LODs and collision), `object_update` swaps a blockout's mesh in place,
+`place_along_path` lines paths with props and `scatter_set` plants forests, rocks and grass by rules (slope,
+height, distance from paths and buildings). The engine's content library already holds the trees, rocks, grass
+and buildings from the Blender worlds (see `catalog`).
+
+### 8. Refine in small batches
+
+> Batch 1: vegetation only, grass in the valley, ferns in the shade of the trees.
+> Batch 2: lighting only, golden hour, lanterns in the town.
+> Batch 3: the town entrance: an arch where the path meets the town, and a goal there.
+
+Each batch is one theme, captured and inspected before the next.
+
+## The rule that saves the project
+
+**A successful tool call doesn't mean the level is right.** Look at the editor after every batch, and never
+change terrain, lighting and character in one prompt.
+
+DAYFALL enforces both:
+
+- `batch_end` refuses to close a batch while there are edits nobody has looked at. The agent has to call
+  `capture`, inspect the images and fix what is wrong first.
+- A batch that has changed terrain cannot change lighting or the character, and so on. The tool call fails
+  with an explanation, and the agent closes the batch and opens a new one.
+- Every edit can be undone (`undo`, Ctrl+Z in the editor), and `batch_end` saves the map.
+
+Run with `--no-rules` only for scripted rebuilds you have already verified.
+
+## Prompting tips
+
+- Name things: "house_1" is easier to fix later than "box_17". Tags group things ("tags": ["town"]).
+- Ask for a capture of a specific place: "orbit the town square from the south-east at 40 m".
+- Positions with two numbers sit on the ground and follow later terrain edits; give three numbers only for
+  floating things or things on top of other objects.
+- Scale: the mannequin is 1.8 m tall; doors are about 2.1 m, ceilings 2.8 to 3.5 m.
+- Big changes in small steps: block out, test, then replace with art.

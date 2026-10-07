@@ -55,6 +55,8 @@ private:
     uint64_t chunkTerrainVersion_ = 0;
     std::string chunkPathsKey_;
     std::vector<std::shared_ptr<MeshAsset>> chunks_;
+    std::shared_ptr<MeshAsset> horizon_;
+    std::string horizonKey_;
     // scatter cache: rule id -> (key, points)
     struct ScatterCache { std::string key; std::vector<ScatterPoint> points; };
     std::unordered_map<std::string, ScatterCache> scatter_;

@@ -10,10 +10,14 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
 endif()
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+# The engine always lands in <repo>/bin (bin/dayfall.exe on Windows) next to
+# its shaders, whatever the generator or configuration: docs, .mcp.json and
+# agents can rely on one path.
+set(DF_BIN_DIR ${CMAKE_SOURCE_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${DF_BIN_DIR})
 foreach(cfg Debug Release RelWithDebInfo MinSizeRel)
   string(TOUPPER ${cfg} CFG)
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CFG} ${CMAKE_BINARY_DIR}/bin)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CFG} ${DF_BIN_DIR})
 endforeach()
 
 option(DF_ENABLE_VALIDATION "Enable Vulkan validation layers by default in debug builds" ON)
@@ -40,5 +44,5 @@ else()
   target_link_libraries(dayfall PRIVATE ${CMAKE_DL_LIBS} pthread)
 endif()
 
-df_compile_shaders(dayfall_shaders ${CMAKE_SOURCE_DIR}/shaders ${CMAKE_BINARY_DIR}/bin/shaders)
+df_compile_shaders(dayfall_shaders ${CMAKE_SOURCE_DIR}/shaders ${DF_BIN_DIR}/shaders)
 add_dependencies(dayfall dayfall_shaders)

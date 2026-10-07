@@ -1,0 +1,14 @@
+[
+ {"tool": "project_info"},
+ {"tool": "catalog"},
+ {"tool": "terrain_info", "args": {"grid_cells": 4}},
+ {"tool": "ground_query", "args": {"points": [[0, 0], [16, 10]]}},
+ {"tool": "batch_begin", "args": {"title": "smoke test"}},
+ {"tool": "object_add", "args": {"id": "smoke_box", "mesh": {"type": "box", "size": [1, 1, 1], "material": "brick"}, "position": [-6, -10]}},
+ {"tool": "capture", "args": {"views": [{"orbit": {"target": [-6, -10], "distance_m": 8}}], "width": 320, "height": 180, "save": false}},
+ {"tool": "undo"},
+ {"tool": "capture", "args": {"views": [{"overview": true}], "width": 320, "height": 180, "save": false}},
+ {"tool": "batch_end", "args": {"save": false, "notes": "smoke test: add, capture, undo"}},
+ {"tool": "walk_test", "args": {"route": "loop", "captures": false}},
+ {"tool": "play_sim", "args": {"inputs": [{"seconds": 1, "move": [0, 1]}, {"seconds": 1, "jump": true}], "captures": "none"}}
+]

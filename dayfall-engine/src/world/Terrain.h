@@ -62,6 +62,10 @@ public:
     // render chunks
     uint32_t chunksPerSide() const { return n ? (n - 1 + chunkQuads - 1) / chunkQuads : 0; }
     MeshAsset chunkMesh(uint32_t cx, uint32_t cy) const;
+    // Distant land around the playable terrain, continuing its edge into far
+    // hills / mountains so the world never ends in a void. No collision.
+    // params: {"enabled", "radius_m", "height_m", "roughness"}
+    MeshAsset horizonMesh(const nlohmann::json& params) const;
 
     void load(const std::filesystem::path& heightFile, const std::filesystem::path& paintFile, uint32_t samples, float spacing, vec2 origin);
     void save(const std::filesystem::path& heightFile, const std::filesystem::path& paintFile) const;

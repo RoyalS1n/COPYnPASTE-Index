@@ -1,4 +1,5 @@
 build/
+bin/
 # agents' screenshots stay local
 maps/*/captures/
 __pycache__/

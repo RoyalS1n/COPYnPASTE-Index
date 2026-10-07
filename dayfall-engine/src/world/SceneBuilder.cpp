@@ -248,6 +248,18 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
             uint32_t m = s.addMeshAsset(*c, c->name);
             s.addInstance(m, vec3(0), quat(1, 0, 0, 0), 1.0f, true, 1e9f);
         }
+        // distant land
+        const json& hz = doc.value("terrain", json::object()).value("horizon", json::object());
+        if (hz.value("enabled", true)) {
+            std::string key = hz.dump() + std::format("|{}|", T.version) + chunkPathsKey_;
+            if (horizonKey_ != key || !horizon_) {
+                horizon_ = std::make_shared<MeshAsset>(T.horizonMesh(hz));
+                horizonKey_ = key;
+            }
+            if (tmat != "terrain") for (auto& lod : horizon_->lods) for (auto& p : lod) p.material = tmat;
+            uint32_t m = s.addMeshAsset(*horizon_, horizon_->name);
+            s.addInstance(m, vec3(0), quat(1, 0, 0, 0), 1.0f, true, 1e9f);
+        }
         InstanceSet set;
         set.name = "terrain";
         set.first = first;

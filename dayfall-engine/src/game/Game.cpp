@@ -198,7 +198,13 @@ json runWalkTest(const WalkTestOptions& opt, const Scene& scene, std::vector<Ent
     bool wasGround = true, inWater = false;
     vec3 prev = start;
     int jumps = 0, pickups = 0;
+    std::string lastType;
+    vec3 lastPos(1e9f);
     auto event = [&](const std::string& type, vec3 p, const std::string& detail) {
+        // one event per problem spot: the same kind within 4 m is the same problem
+        if (type == lastType && glm::length(p - lastPos) < 4.0f && type != "pickup") return;
+        lastType = type;
+        lastPos = p;
         if (events.size() < 40) events.push_back({{"type", type}, {"time_s", std::round(t * 10) / 10},
                                                   {"position", {std::round(p.x * 10) / 10, std::round(p.y * 10) / 10, std::round(p.z * 10) / 10}},
                                                   {"detail", detail}});

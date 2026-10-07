@@ -1,6 +1,7 @@
 #include "world/World.h"
 #include "core/Error.h"
 #include "core/FileSystem.h"
+#include "core/JsonFormat.h"
 #include "core/Log.h"
 #include <algorithm>
 #include <cstring>
@@ -85,7 +86,7 @@ void World::save() {
         terrain.save(dir / t["height_file"].get<std::string>(), dir / t["paint_file"].get<std::string>());
     }
     fs::path tmp = dir / "map.json.tmp";
-    if (!writeText(tmp, doc.dump(2) + "\n")) throw Error("cannot write " + tmp.string());
+    if (!writeText(tmp, dumpReadable(doc) + "\n")) throw Error("cannot write " + tmp.string());
     fs::rename(tmp, dir / "map.json");
     dirty = false;
     logInfo("saved map to {}", dir.string());

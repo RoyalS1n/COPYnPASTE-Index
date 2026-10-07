@@ -95,8 +95,9 @@ void Editor::registerTools() {
                  json counts = json::object();
                  for (auto& s : World::idSections()) counts[s] = d.contains(s) && d[s].is_array() ? d[s].size() : 0;
                  json cams = json::array(), routes = json::array();
-                 for (auto& [k, v] : d.value("cameras", json::object()).items()) cams.push_back(k);
-                 for (auto& [k, v] : d.value("routes", json::object()).items()) routes.push_back(k);
+                 const json camsDoc = d.value("cameras", json::object()), routesDoc = d.value("routes", json::object());   // named: items() on a temporary dangles
+                 for (auto& [k, v] : camsDoc.items()) cams.push_back(k);
+                 for (auto& [k, v] : routesDoc.items()) routes.push_back(k);
                  json lib = E.builder.catalog(E.world)["meshes"];
                  std::map<std::string, int> cats;
                  for (auto& [k, v] : lib.items()) cats[v.value("category", "uncategorised")]++;
@@ -1174,6 +1175,75 @@ void Editor::registerTools() {
                      E.game.showIdle(E.scene, E.builder, vec3(0), 0.0f, false);
                      E.engine->renderer.updateDynamicInstances(E.scene);
                  }
+                 return r;
+             }});
+
+    addTool({"play_sim",
+             "Play the level with scripted input through the real player controller and camera, as fast as possible: test "
+             "jumps, ledges, stairs and pickups. start: {position [x,y(,z)], yaw_deg} (default: the player start); inputs: "
+             "[{seconds, move [x right, y forward], run, jump (pressed at the step start), turn_deg (spread over the step)}]; "
+             "captures: end (default) | each | none (player-camera images).",
+             ToolCategory::Read,
+             object({{"start", anyObj("{position, yaw_deg}")}, {"inputs", arr(anyObj("an input step"), "input steps in order")},
+                     {"captures", str("end|each|none")}}, {"inputs"}),
+             [&E](const json& a) {
+                 if (E.playing()) E.stopPlay();
+                 E.startPlay();
+                 if (a.contains("start")) {
+                     const json& st = a["start"];
+                     vec2 p = xy(st.at("position"));
+                     float z = st["position"].size() >= 3 ? st["position"][2].get<float>() : E.groundHeight(p) + 0.05f;
+                     E.game.teleport(E.physics, vec3(p, z), st.value("yaw_deg", 90.0f));
+                 }
+                 std::string capMode = a.value("captures", "end");
+                 ToolResult r;
+                 json timeline = json::array();
+                 const float dt = 1.0f / 60.0f;
+                 float t = 0;
+                 auto snap = [&](const std::string& label) {
+                     float aspect = (float)E.options.captureWidth / E.options.captureHeight;
+                     CaptureView cv;
+                     cv.camera = E.game.camera(E.physics, aspect);
+                     cv.label = label;
+                     E.engine->renderer.updateDynamicInstances(E.scene);
+                     CaptureResult c = E.engine->capture(cv.camera, E.time + t, E.options.captureWidth, E.options.captureHeight);
+                     auto enc = encodeJpeg(c.rgba.data(), c.width, c.height, 85);
+                     ToolImage img{"image/jpeg", base64(enc), label, ""};
+                     if (!E.world.dir.empty()) {
+                         fs::path path = E.world.dir / "captures" / std::format("{:04d}_{}.jpg", ++E.captureCounter_, label);
+                         if (writeFile(path, enc)) img.path = path.string();
+                     }
+                     r.images.push_back(img);
+                 };
+                 int step = 0;
+                 for (const json& in : a.at("inputs")) {
+                     float secs = std::clamp(in.value("seconds", 1.0f), 0.0f, 60.0f);
+                     int frames = std::max(1, (int)std::round(secs / dt));
+                     PlayerInput pin;
+                     if (in.contains("move")) pin.move = xy(in["move"]);
+                     pin.run = in.value("run", false);
+                     float turn = glm::radians(in.value("turn_deg", 0.0f)) / frames;
+                     float maxRise = 0, startZ = E.game.feet.z;
+                     for (int f = 0; f < frames && t < 300.0f; ++f) {
+                         pin.jump = f == 0 && in.value("jump", false);
+                         pin.lookYaw = turn;
+                         E.game.update(dt, pin, E.physics, E.scene, E.entities);
+                         maxRise = std::max(maxRise, E.game.feet.z - startZ);
+                         t += dt;
+                     }
+                     ++step;
+                     timeline.push_back({{"step", step}, {"t", rnd(t)}, {"position", r1(E.game.feet)}, {"on_ground", E.game.onGround},
+                                         {"max_rise_m", rnd(maxRise, 100)}, {"speed", rnd(glm::length(vec2(E.game.velocity)))}});
+                     if (capMode == "each" && r.images.size() < 6) snap(std::format("sim_step_{}", step));
+                 }
+                 if (capMode == "end") snap("sim_end");
+                 json msgs = json::array();
+                 for (auto& m : E.game.messages) msgs.push_back(m.text);
+                 r.data = {{"timeline", timeline},
+                           {"final", {{"position", r1(E.game.feet)}, {"on_ground", E.game.onGround},
+                                      {"facing_deg", rnd(glm::degrees(E.game.facing) + 90.0f)}}},
+                           {"collected", E.game.collectedIds}, {"messages", msgs}};
+                 E.stopPlay();
                  return r;
              }});
 
