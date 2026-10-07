@@ -173,7 +173,8 @@ void Editor::updateMinimap() {
                     return glm::mix(glm::mix(v[at], v[at + 1], f.x), glm::mix(v[at + T.n], v[at + T.n + 1], f.x), f.y);
                 };
                 uint8_t* px = &img.rgba[((size_t)y * res + x) * 4];
-                float wet = glm::smoothstep(0.0f, 1.5f, water - bilerp(T.height)) * 0.7f;
+                float surf = T.waterSurface.size() == T.height.size() ? std::max(water, bilerp(T.waterSurface)) : water;
+                float wet = glm::smoothstep(0.0f, 1.5f, surf - bilerp(T.height)) * 0.7f;
                 if (wet > 0) tint(px, vec3(52, 98, 136), wet);
                 float path = glm::smoothstep(0.15f, 0.6f, bilerp(T.pathMask)) * 0.75f;
                 if (path > 0) tint(px, vec3(214, 190, 140), path);

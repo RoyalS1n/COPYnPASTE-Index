@@ -412,6 +412,217 @@ void Terrain::applyPaths(const json& paths) {
     }
 }
 
+namespace {
+float smoothRange(float e0, float e1, float x) { float t = std::clamp((x - e0) / (e1 - e0), 0.0f, 1.0f); return t * t * (3 - 2 * t); }
+}  // namespace
+
+std::vector<Terrain::WaterBody> Terrain::applyWater(const json& bodies, std::vector<std::string>& warnings) {
+    std::vector<WaterBody> out;
+    waterSurface.assign(height.size(), kNoWater);
+    shoreLevel.assign(height.size(), kNoWater);
+    if (empty() || !bodies.is_array()) return out;
+    const float shore = 4.0f;   // metres of wet bank around the water
+    for (const json& j : bodies) {
+        WaterBody b;
+        b.id = j.value("id", "?");
+        b.type = j.value("type", "lake");
+        b.material = j.value("material", "water");
+        try {
+            if (b.type == "lake") {
+                b.area = Area::parse(j.at("area"));
+                if (b.area.kind == Area::Kind::All) throw Error("a lake needs a bounded area");
+                vec2 lo, hi;
+                b.area.bounds(lo, hi);
+                float pad = shore + spacing * 2.0f + 1.0f;   // bounds() already includes the falloff
+                int i0 = std::max(0, (int)std::floor((lo.x - pad - origin.x) / spacing)), i1 = std::min((int)n - 1, (int)std::ceil((hi.x + pad - origin.x) / spacing));
+                int j0 = std::max(0, (int)std::floor((lo.y - pad - origin.y) / spacing)), j1 = std::min((int)n - 1, (int)std::ceil((hi.y + pad - origin.y) / spacing));
+                if (i0 > i1 || j0 > j1) throw Error("the lake's area is outside the terrain");
+                // the level: given, or "auto": just below the lowest ground on the rim (outside the area, before any
+                // carving), so the water stays in
+                const json& lv = j.value("level_m", json("auto"));
+                if (lv.is_number()) {
+                    b.level = lv.get<float>();
+                } else {
+                    float rim = 1e30f, r1 = std::max(spacing * 1.5f, 1.0f);
+                    for (int jj = j0; jj <= j1; ++jj)
+                        for (int ii = i0; ii <= i1; ++ii) {
+                            float d = b.area.distance(pos(ii, jj));
+                            if (d > 0 && d <= r1) rim = std::min(rim, height[(size_t)jj * n + ii]);
+                        }
+                    if (rim > 1e29f) throw Error("could not find the lake's rim (is the area larger than the terrain?)");
+                    b.level = rim - j.value("freeboard_m", 0.1f);
+                }
+                // carve_m: dig the area down to that depth below the level (deepening over a few metres from the shore),
+                // with a low beach outside it that blends back to the ground over the area's falloff
+                float carve = j.value("carve_m", 0.0f);
+                if (carve > 0) {
+                    float ramp = std::max(2.0f, carve * 3.0f), bank = std::max(b.area.falloff, spacing);
+                    for (int jj = j0; jj <= j1; ++jj)
+                        for (int ii = i0; ii <= i1; ++ii) {
+                            size_t idx = (size_t)jj * n + ii;
+                            float d = b.area.distance(pos(ii, jj));
+                            if (d <= 0) height[idx] = std::min(height[idx], b.level - carve * smoothRange(0.0f, ramp, -d));
+                            else if (d < bank) height[idx] = glm::mix(std::min(height[idx], b.level + 0.25f), height[idx], smoothRange(0.0f, bank, d));
+                        }
+                }
+                int wet = 0;
+                for (int jj = j0; jj <= j1; ++jj)
+                    for (int ii = i0; ii <= i1; ++ii) {
+                        size_t idx = (size_t)jj * n + ii;
+                        float d = b.area.distance(pos(ii, jj));
+                        if (d <= 0 && height[idx] < b.level) { waterSurface[idx] = std::max(waterSurface[idx], b.level); ++wet; }
+                        if (d <= shore) shoreLevel[idx] = std::max(shoreLevel[idx], b.level);
+                    }
+                if (wet == 0) warnings.push_back(std::format("water '{}': the ground is above level {:.2f} everywhere in its area (carve_m digs a basin)", b.id, b.level));
+            } else if (b.type == "river") {
+                const json& pj = j.at("points");
+                if (!pj.is_array() || pj.size() < 2) throw Error("a river needs at least 2 points");
+                std::vector<vec2> pts;
+                for (auto& q : pj) pts.push_back({q.at(0).get<float>(), q.at(1).get<float>()});
+                float width = std::max(j.value("width_m", 6.0f), 0.5f), depth = std::max(j.value("depth_m", 1.2f), 0.1f);
+                b.halfWidth = width * 0.5f;
+                float bank = std::max(j.value("bank_m", width * 0.5f + 1.5f), 0.5f);
+                float step = std::min(1.0f, spacing);
+                std::vector<vec2> d = catmullRom(pts, step);
+                if (d.size() < 2) throw Error("the river is too short");
+                std::vector<float> hb(d.size());
+                for (size_t k = 0; k < d.size(); ++k) hb[k] = sampleArr(height, d[k].x, d[k].y);
+                // bank profile: smoothed, then never rising downstream (the river cuts through rises)
+                int win = std::max(1, (int)std::round(12.0f / step));
+                for (int pass = 0; pass < 2; ++pass) {
+                    std::vector<float> src = hb;
+                    for (size_t k = 0; k < d.size(); ++k) {
+                        double s = 0; int c = 0;
+                        for (int o = -win; o <= win; ++o) { int q = std::clamp((int)k + o, 0, (int)d.size() - 1); s += src[q]; ++c; }
+                        hb[k] = (float)(s / c);
+                    }
+                }
+                for (size_t k = 1; k < d.size(); ++k) hb[k] = std::min(hb[k], hb[k - 1]);
+                b.line = d;
+                b.surface.resize(d.size());
+                for (size_t k = 0; k < d.size(); ++k) b.surface[k] = hb[k] - depth * 0.25f;
+                for (size_t k = 1; k < d.size(); ++k) b.length += glm::length(d[k] - d[k - 1]);
+                float drop = b.surface.front() - b.surface.back();
+                b.flowSpeed = std::clamp(0.35f + drop / std::max(b.length, 1.0f) * 60.0f, 0.35f, 3.0f);
+                // carve: a U-shaped bed (depth at the centre line, bank height at the half width), banks lowered to
+                // the bank profile and blended back to the ground over bank_m
+                float reach = b.halfWidth + bank;
+                std::vector<float> best(height.size(), 1e30f), at(height.size(), 0.0f);
+                int bi0 = (int)n, bi1 = -1, bj0 = (int)n, bj1 = -1;
+                for (size_t k = 0; k + 1 < d.size(); ++k) {
+                    vec2 a = d[k], c = d[k + 1], ac = c - a;
+                    float len2 = glm::dot(ac, ac);
+                    if (len2 < 1e-10f) continue;
+                    vec2 lo = glm::min(a, c) - reach, hi = glm::max(a, c) + std::max(reach, shore);
+                    lo -= std::max(0.0f, shore - reach);
+                    int i0 = std::max(0, (int)std::floor((lo.x - origin.x) / spacing)), i1 = std::min((int)n - 1, (int)std::ceil((hi.x - origin.x) / spacing));
+                    int j0 = std::max(0, (int)std::floor((lo.y - origin.y) / spacing)), j1 = std::min((int)n - 1, (int)std::ceil((hi.y - origin.y) / spacing));
+                    bi0 = std::min(bi0, i0); bi1 = std::max(bi1, i1); bj0 = std::min(bj0, j0); bj1 = std::max(bj1, j1);
+                    for (int jj = j0; jj <= j1; ++jj)
+                        for (int ii = i0; ii <= i1; ++ii) {
+                            vec2 w = pos(ii, jj);
+                            float t = std::clamp(glm::dot(w - a, ac) / len2, 0.0f, 1.0f);
+                            float dist = glm::length(w - (a + ac * t));
+                            size_t idx = (size_t)jj * n + ii;
+                            if (dist < best[idx]) { best[idx] = dist; at[idx] = (float)k + t; }
+                        }
+                }
+                int wet = 0;
+                for (int jj = std::max(bj0, 0); jj <= bj1; ++jj)
+                    for (int ii = std::max(bi0, 0); ii <= bi1; ++ii) {
+                        size_t idx = (size_t)jj * n + ii;
+                        float dist = best[idx];
+                        if (dist >= std::max(reach, shore)) continue;
+                        size_t k = std::min((size_t)at[idx], d.size() - 2);
+                        float f = at[idx] - (float)k;
+                        float bankH = glm::mix(hb[k], hb[k + 1], f), surf = glm::mix(b.surface[k], b.surface[k + 1], f);
+                        float bed = bankH - depth;
+                        if (dist < b.halfWidth) {
+                            float u = dist / b.halfWidth;
+                            height[idx] = std::min(height[idx], bed + (bankH - bed) * u * u);
+                        } else if (dist < reach) {
+                            float t = smoothRange(b.halfWidth, reach, dist);
+                            height[idx] = glm::mix(std::min(height[idx], bankH), height[idx], t);
+                        }
+                        if (dist < b.halfWidth && height[idx] < surf) { waterSurface[idx] = std::max(waterSurface[idx], surf); ++wet; }
+                        if (dist < b.halfWidth + shore) shoreLevel[idx] = std::max(shoreLevel[idx], surf);
+                    }
+                if (wet == 0) warnings.push_back(std::format("water '{}': the river is outside the terrain", b.id));
+            } else {
+                throw Error("type must be lake or river");
+            }
+            out.push_back(std::move(b));
+        } catch (const std::exception& e) {
+            warnings.push_back(std::format("water '{}': {}", b.id, e.what()));
+        }
+    }
+    return out;
+}
+
+float Terrain::waterSurfaceAt(float x, float y) const {
+    if (empty()) return kNoWater;
+    float best = kNoWater;
+    if (!waterSurface.empty() && inside(vec2(x, y))) {
+        uint32_t i = (uint32_t)std::clamp((int)std::lround((x - origin.x) / spacing), 0, (int)n - 1);
+        uint32_t j = (uint32_t)std::clamp((int)std::lround((y - origin.y) / spacing), 0, (int)n - 1);
+        best = waterSurface[(size_t)j * n + i];
+        if (best != kNoWater && heightAt(x, y) >= best) best = kNoWater;   // the shore between samples
+    }
+    if (waterLevel > -999.0f && heightAt(x, y) < waterLevel) best = std::max(best, waterLevel);
+    return best;
+}
+
+MeshAsset Terrain::waterMesh(const WaterBody& b) const {
+    MeshBuilder mb;
+    if (b.type == "lake") {
+        vec2 lo, hi;
+        b.area.bounds(lo, hi);
+        lo = glm::max(lo, origin);
+        hi = glm::min(hi, maxCorner());
+        float cell = std::max(spacing, 1.0f);
+        while (((hi.x - lo.x) / cell) * ((hi.y - lo.y) / cell) > 250000.0f) cell *= 1.5f;
+        int nx = std::max(1, (int)std::ceil((hi.x - lo.x) / cell)), ny = std::max(1, (int)std::ceil((hi.y - lo.y) / cell));
+        std::vector<int> idx((size_t)(nx + 1) * (ny + 1), -1);
+        auto vert = [&](int i, int j) {
+            int& v = idx[(size_t)j * (nx + 1) + i];
+            if (v < 0) {
+                vec2 p = lo + vec2(i * cell, j * cell);
+                float depth = std::max(b.level - heightAt(p.x, p.y), 0.0f);
+                v = (int)mb.vertex(makeVertex(vec3(p, b.level), vec3(0, 0, 1), p * 0.1f, vec4(1, 0, 0, 1), vec4(depth * 0.5f, 0, 0, 1), vec4(0)));
+            }
+            return (uint32_t)v;
+        };
+        for (int j = 0; j < ny; ++j)
+            for (int i = 0; i < nx; ++i) {
+                vec2 c = lo + vec2((i + 0.5f) * cell, (j + 0.5f) * cell);
+                if (b.area.distance(c) > cell) continue;
+                // only cells where the ground dips below the surface somewhere (the terrain hides the rest)
+                float g = std::min({heightAt(c.x - cell * 0.5f, c.y - cell * 0.5f), heightAt(c.x + cell * 0.5f, c.y - cell * 0.5f),
+                                    heightAt(c.x + cell * 0.5f, c.y + cell * 0.5f), heightAt(c.x - cell * 0.5f, c.y + cell * 0.5f), heightAt(c.x, c.y)});
+                if (g > b.level + 0.05f) continue;
+                mb.quad(b.material, vert(i, j), vert(i + 1, j), vert(i + 1, j + 1), vert(i, j + 1));
+            }
+    } else {
+        // a ribbon a little narrower than the bed at the banks (its edges sink under the ground)
+        float hw = b.halfWidth * 0.95f, along = 0;
+        uint32_t prevL = 0, prevR = 0;
+        for (size_t k = 0; k < b.line.size(); ++k) {
+            vec2 dir = glm::normalize(b.line[std::min(k + 1, b.line.size() - 1)] - b.line[k > 0 ? k - 1 : 0]);
+            vec2 side(-dir.y, dir.x);
+            if (k > 0) along += glm::length(b.line[k] - b.line[k - 1]);
+            float z = b.surface[k];
+            vec4 tan(dir, 0, 1), flow(b.flowSpeed, 0, 0, 0);
+            float dl = std::max(z - heightAt(b.line[k].x, b.line[k].y), 0.0f);
+            uint32_t l = mb.vertex(makeVertex(vec3(b.line[k] + side * hw, z), vec3(0, 0, 1), vec2(0, along * 0.1f), tan, vec4(dl * 0.5f, 0, 0, 1), flow));
+            uint32_t r = mb.vertex(makeVertex(vec3(b.line[k] - side * hw, z), vec3(0, 0, 1), vec2(1, along * 0.1f), tan, vec4(dl * 0.5f, 0, 0, 1), flow));
+            if (k > 0) mb.quad(b.material, prevR, r, l, prevL);
+            prevL = l;
+            prevR = r;
+        }
+    }
+    return mb.build("water_" + b.id);
+}
+
 float Terrain::sampleArr(const std::vector<float>& a, float x, float y) const {
     if (empty()) return 0.0f;
     float fx = std::clamp((x - origin.x) / spacing, 0.0f, (float)(n - 1)), fy = std::clamp((y - origin.y) / spacing, 0.0f, (float)(n - 1));
@@ -466,6 +677,7 @@ void Terrain::sampleMasks(uint32_t i, uint32_t j, float slope, vec4& c0, vec4& c
     float rock = smoothstep(rockSlopeDeg - 4, rockSlopeDeg + 10, slope + 9 * brk);
     rock = std::max(rock, P(PaintRock)) * (1 - snow) * (1 - P(PaintGrass));
     float wet = std::max(1 - smoothstep(waterLevel + 0.2f, waterLevel + 1.6f, h), P(PaintWet));
+    if (!shoreLevel.empty() && shoreLevel[idx] != kNoWater) wet = std::max(wet, 1 - smoothstep(shoreLevel[idx] + 0.15f, shoreLevel[idx] + 1.2f, h));
     float dry = std::max(smoothstep(-0.2f, 0.6f, big + 0.4f * brk) * dryAmount, P(PaintDry)) * (1 - P(PaintGrass) * 0.7f);
     float path = std::max(pathMask[idx], P(PaintDirt));
     rock *= 1 - path;

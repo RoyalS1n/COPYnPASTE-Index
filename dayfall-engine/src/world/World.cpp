@@ -13,7 +13,7 @@ using json = nlohmann::json;
 namespace fs = std::filesystem;
 
 const std::vector<std::string>& World::idSections() {
-    static const std::vector<std::string> s = {"objects", "scatter", "paths", "entities", "lights"};
+    static const std::vector<std::string> s = {"objects", "scatter", "paths", "entities", "lights", "water"};
     return s;
 }
 

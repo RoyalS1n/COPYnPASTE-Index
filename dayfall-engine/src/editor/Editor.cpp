@@ -44,7 +44,8 @@ std::string toolTitle(const std::string& name) {
         {"walk_test", "Walk-test a route"},        {"play_sim", "Simulate play input"},       {"play", "Play mode in the editor"},
         {"world_check", "Check the world for problems"}, {"find_space", "Find building sites"}, {"area_set", "Name an area"},
         {"object_duplicate", "Duplicate objects"}, {"world_diff", "What changed"},           {"editor_state", "The human's selection and view"},
-        {"editor_select", "Highlight in the editor"}, {"prefab_save", "Save a prefab"},     {"prefab_place", "Place a prefab"}};
+        {"editor_select", "Highlight in the editor"}, {"prefab_save", "Save a prefab"},     {"prefab_place", "Place a prefab"},
+        {"water_set", "Lakes and rivers"}};
     if (auto it = kTitles.find(name); it != kTitles.end()) return it->second;
     std::string t = name;
     for (char& c : t) if (c == '_') c = ' ';
@@ -324,7 +325,7 @@ ToolResult Editor::call(const std::string& name, const json& argsIn) {
     json args = argsIn.is_object() ? argsIn : json::object();
     try {
         // named areas: "area": "town" means the map's areas.town (scatter_set keeps the name so the rule follows the area)
-        static const std::set<std::string> keepNames = {"scatter_set", "area_set", "doc_patch"};
+        static const std::set<std::string> keepNames = {"scatter_set", "area_set", "doc_patch", "water_set"};
         if (!keepNames.count(name) && world.doc.contains("areas")) args = Area::expandArgs(args, world.doc["areas"]);
         if (t->edits()) return runEdit(*t, args);
         return t->run(args);

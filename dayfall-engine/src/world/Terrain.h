@@ -49,6 +49,24 @@ public:
     // final heights = base + paths (the map's "paths" array)
     void applyPaths(const nlohmann::json& paths);
 
+    // Water bodies (the map's "water" section with named areas expanded), applied after the paths: lake basins and
+    // river beds are carved into the final heights. waterSurface is the surface over each sample (kNoWater where dry),
+    // shoreLevel the level of water within a few metres (wet banks). Bad bodies are skipped with a warning.
+    struct WaterBody {
+        std::string id, type, material;
+        float level = 0;                       // lake surface
+        Area area;                             // lake
+        std::vector<vec2> line;                // river: smoothed centre line, downstream
+        std::vector<float> surface;            // river: surface height along the line (never rising downstream)
+        float halfWidth = 0, flowSpeed = 0, length = 0;
+    };
+    static constexpr float kNoWater = -1e30f;
+    std::vector<float> waterSurface, shoreLevel;
+    std::vector<WaterBody> applyWater(const nlohmann::json& bodies, std::vector<std::string>& warnings);
+    // the water surface over a point: a body's, or the sea's (waterLevel) where the ground is below it; kNoWater if dry
+    float waterSurfaceAt(float x, float y) const;
+    MeshAsset waterMesh(const WaterBody& b) const;
+
     // queries on the FINAL surface (edges clamp)
     float heightAt(float x, float y) const;
     float baseAt(float x, float y) const;

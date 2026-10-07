@@ -42,6 +42,7 @@ except `format`.
 | `routes` | named test routes `{"points": [[x, y], ...]}` |
 | `areas` | named areas `{"town": {"rect": {...}}}`: any `area` argument or scatter rule can use the name |
 | `prefabs` | reusable groups of objects, entities and lights (`prefab_save`, `prefab_place`) |
+| `water` | lakes and rivers (`water_set`); `environment.water` stays the sea level |
 | `instance_files` | large instance sets in binary files (ported maps) |
 | `gltf_scenes` | whole glTF scenes placed as they are (levels exported from Unreal or Blender) |
 
@@ -168,6 +169,25 @@ height), `ramp`, `stairs` (size, steps), `gem` (size); all take `material`. Thei
 Named regions. Wherever a tool or scatter rule takes an `area`, a name can stand in for it (`"area": "town"`),
 and names can be used inside a `union`. A scatter rule that names an area follows later changes to it. Set
 them with `area_set`.
+
+## water
+
+```json
+"water": [
+  {"id": "pond", "type": "lake", "area": {"circle": {"center": [-30, -30], "radius": 10}, "falloff": 5},
+   "level_m": "auto", "carve_m": 1.6},
+  {"id": "brook", "type": "river", "points": [[-6, 70], [-20, 58], [-35, 40], [-48, -12]], "width_m": 4, "depth_m": 1.0}
+]
+```
+
+Lakes fill an `area` (or a named area) up to `level_m`: a height, or `"auto"` (the default), just below the lowest
+ground on the area's rim (`freeboard_m`, 0.1) so the water stays in. `carve_m` digs the area down to that depth
+below the level, deepening over a few metres from the shore, with a low beach that blends back to the ground over
+the area's `falloff`. Rivers follow `points` from upstream to downstream: the bed is carved like a path (`width_m`,
+6; `depth_m`, 1.2; `bank_m`, the width of the lowered banks) and the surface never rises downstream, so a river cuts
+through rises instead of flowing uphill; its ripples drift with a speed from its drop. Both take `material`
+(`water`). The carving is derived, like paths: deleting a body restores the ground. Walk tests, scatter
+`avoid_water`, `ground_query`, `find_space`, `world_check` and the minimap all see lakes, rivers and the sea.
 
 ## prefabs
 

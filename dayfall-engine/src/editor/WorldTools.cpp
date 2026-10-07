@@ -372,7 +372,6 @@ void Editor::registerWorldTools() {
                  const json& doc = E.world.doc;
                  const Terrain& T = E.world.terrain;
                  auto ground = [&](vec2 p) { return T.empty() ? 0.0f : T.heightAt(p.x, p.y); };
-                 float water = E.scene.env.waterLevel;
                  std::vector<json> issues;
                  std::map<std::string, int> counts;
                  auto add = [&](const char* sev, const char* kind, json ids, vec3 at, std::string msg, std::string fix) {
@@ -454,7 +453,8 @@ void Editor::registerWorldTools() {
                          add("warning", "mostly_buried", {b.id}, at,
                              std::format("'{}' is {:.0f}% below the ground", b.id, 100.0f * (gMean - b.lo.z) / size.z), "raise it (offset_z)");
                      }
-                     if (water > -999.0f && b.hi.z < water) add("info", "under_water", {b.id}, at, std::format("'{}' is under water", b.id), "");
+                     float ws = T.empty() ? Terrain::kNoWater : T.waterSurfaceAt(c.x, c.y);
+                     if (ws != Terrain::kNoWater && b.hi.z < ws) add("info", "under_water", {b.id}, at, std::format("'{}' is under water", b.id), "");
                      // overlaps with later boxes (each pair once)
                      grid.query(vec2(b.lo), vec2(b.hi), [&](uint32_t k) {
                          if (k <= i) return;
@@ -538,7 +538,7 @@ void Editor::registerWorldTools() {
                          if (!T.empty() && !T.inside(vec2(p))) add("error", "player_start", json::array(), p, "the player start is outside the terrain", "player_set start");
                          if (insideObject(p + vec3(0, 0, 0.9f), who))
                              add("error", "player_start", {who}, p, std::format("the player start is inside '{}'", who), "player_set start {position}");
-                         if (water > -999.0f && ground(vec2(p)) < water - 0.5f)
+                         if (!T.empty() && T.waterSurfaceAt(p.x, p.y) > ground(vec2(p)) + 0.5f)
                              add("warning", "player_start", json::array(), p, "the player start is in deep water", "player_set start {position}");
                          if (!T.empty() && T.slopeDegAt(p.x, p.y) > 40.0f)
                              add("warning", "player_start", json::array(), p, "the player start is on a slope too steep to stand on", "player_set start");
@@ -684,7 +684,14 @@ void Editor::registerWorldTools() {
                          float diff = zMax - zMin, slope = T.slopeDegAt(c.x, c.y);
                          if (diff > maxDiff) { rejected["uneven"]++; continue; }
                          if (slope > maxSlope) { rejected["too steep"]++; continue; }
-                         if (avoidWater && water > -999.0f && zMin < water + 0.3f) { rejected["water"]++; continue; }
+                         if (avoidWater) {
+                             bool wet = water > -999.0f && zMin < water + 0.3f;
+                             for (size_t oi = 0; oi < offs.size() && !wet; oi += 2) {
+                                 vec2 wpt = c + ax * offs[oi].x + ay * offs[oi].y;
+                                 wet = T.waterSurfaceAt(wpt.x, wpt.y) != Terrain::kNoWater;
+                             }
+                             if (wet) { rejected["water"]++; continue; }
+                         }
                          // obstacles: the footprint's bounding rectangle grown by the clearance
                          vec2 ext = glm::abs(ax) * half.x + glm::abs(ay) * half.y + vec2(clearance);
                          bool blocked = false;
@@ -926,6 +933,72 @@ void Editor::registerWorldTools() {
                  r.data = {{"since", since}, {"sections", sections}, {"settings_changed", settings},
                            {"terrain_edited", E.world.terrain.version != terrainBase}, {"items_changed", total}};
                  return r;
+             }});
+
+    // ------------------------------------------------------------------ lakes and rivers
+    addTool({"water_set",
+             "Create or replace a lake or a river (section water; delete removes it by id). Lake: area (an area object or a "
+             "named area), level_m (a height, or \"auto\": just below the lowest point of the area's rim, so the water stays "
+             "in), carve_m (dig a basin first: the area's falloff makes the banks). River: points [[x,y],...] from upstream to "
+             "downstream, width_m (6), depth_m (1.2), bank_m: the bed is carved like a path and the water never flows uphill "
+             "(it cuts through rises). Both: id, material (water). Walk tests, scatter avoid_water, ground_query and find_space "
+             "see the water.",
+             ToolCategory::Terrain,
+             object({{"id", str("body id")}, {"type", str("lake|river")}, {"area", areaSchema("the lake")},
+                     {"level_m", {{"description", "a height or \"auto\""}}}, {"carve_m", num("basin depth")},
+                     {"points", arr(point(""), "river centre line, upstream first")}, {"width_m", num("")}, {"depth_m", num("")},
+                     {"bank_m", num("")}, {"material", str("")}}),
+             [&E](const json& a) {
+                 std::string type = a.value("type", a.contains("points") ? "river" : "lake");
+                 json body = {{"type", type}};
+                 static const char* lakeKeys[] = {"area", "level_m", "carve_m", "freeboard_m", "material"};
+                 static const char* riverKeys[] = {"points", "width_m", "depth_m", "bank_m", "material"};
+                 if (type == "lake") {
+                     for (const char* k : lakeKeys) if (a.contains(k)) body[k] = a[k];
+                     if (!body.contains("area")) throw Error("a lake needs an area");
+                     Area::parse(Area::expandNamed(body["area"], E.world.doc.value("areas", json::object())));   // validates
+                     if (body.contains("level_m") && !body["level_m"].is_number() && body["level_m"] != json("auto"))
+                         throw Error("level_m must be a number or \"auto\"");
+                 } else if (type == "river") {
+                     for (const char* k : riverKeys) if (a.contains(k)) body[k] = a[k];
+                     if (!body.contains("points") || !body["points"].is_array() || body["points"].size() < 2)
+                         throw Error("a river needs points: at least 2 [x, y], upstream first");
+                     for (auto& q : body["points"]) xy(q);
+                 } else {
+                     throw Error("type must be lake or river");
+                 }
+                 std::string id = a.value("id", "");
+                 std::string sec;
+                 json* existing = id.empty() ? nullptr : E.world.find(id, &sec);
+                 if (existing && sec != "water") throw Error("id '" + id + "' belongs to " + sec);
+                 E.world.beginEdit("water_set", false);
+                 if (id.empty()) id = E.world.newId(type);
+                 body["id"] = id;
+                 if (existing) *existing = body;
+                 else E.world.list("water").push_back(body);
+                 E.world.endEdit();
+                 E.rebuildIfNeeded();
+                 ToolResult r;
+                 r.data = {{"id", id}, {"type", type}};
+                 for (auto& b : E.builder.waterBodies()) {
+                     if (b.id != id) continue;
+                     if (b.type == "lake") {
+                         r.data["level_m"] = rnd(b.level, 100);
+                         r.data["area_m2"] = std::round(b.area.areaM2());
+                     } else {
+                         r.data["length_m"] = rnd(b.length);
+                         r.data["surface_m"] = {rnd(b.surface.front(), 100), rnd(b.surface.back(), 100)};
+                         r.data["flow_m_s"] = rnd(b.flowSpeed, 100);
+                     }
+                 }
+                 json warns = json::array();
+                 for (auto& w : E.lastBuild.warnings) if (w.find("'" + id + "'") != std::string::npos) warns.push_back(w);
+                 if (!warns.empty()) r.data["warnings"] = warns;
+                 return r;
+             },
+             [](const json& a) {   // a river or a basin carves the ground: a terrain edit
+                 bool carves = a.contains("points") || a.value("type", "") == "river" || a.value("carve_m", 0.0f) > 0.0f;
+                 return carves ? ToolCategory::Terrain : ToolCategory::Layout;
              }});
 
     // ------------------------------------------------------------------ prefabs

@@ -272,7 +272,8 @@ void Editor::registerTools() {
                          o["rock"] = rnd(l.x, 100); o["snow"] = rnd(l.y, 100); o["wet"] = rnd(l.z, 100); o["path"] = rnd(l.w, 100);
                          o["inside_terrain"] = E.world.terrain.inside(q);
                      }
-                     if (E.scene.env.waterLevel > -999 && th < E.scene.env.waterLevel) o["water_depth"] = rnd(E.scene.env.waterLevel - th, 100);
+                     float ws = E.world.terrain.empty() ? Terrain::kNoWater : E.world.terrain.waterSurfaceAt(q.x, q.y);
+                     if (ws != Terrain::kNoWater && th < ws) o["water_depth"] = rnd(ws - th, 100);
                      if (h.hit && h.instance != RayHit::kTerrain && h.instance < E.scene.instances.size())
                          for (auto& s : E.scene.sets)
                              if (h.instance >= s.first && h.instance < s.first + s.count) { o["on"] = s.name; break; }
@@ -807,9 +808,9 @@ void Editor::registerTools() {
 
     addTool({"delete",
              "Delete items by ids [...], by tag, or every item of a section inside an area ({section, area}). Works for objects, "
-             "entities, scatter rules, paths and lights.",
+             "entities, scatter rules, paths, lights and water bodies.",
              ToolCategory::Layout,
-             object({{"ids", arr(str(""), "")}, {"tag", str("")}, {"section", str("objects|entities|scatter|paths|lights")}, {"area", areaSchema()}}),
+             object({{"ids", arr(str(""), "")}, {"tag", str("")}, {"section", str("objects|entities|scatter|paths|lights|water")}, {"area", areaSchema()}}),
              [&E](const json& a) {
                  E.world.beginEdit("delete", true);
                  json removed = json::array();
@@ -1310,6 +1311,7 @@ void Editor::registerTools() {
                  }
                  opt.run = a.value("run", false);
                  opt.maxSeconds = std::clamp(a.value("max_seconds", 240.0f), 5.0f, 1200.0f);
+                 opt.waterAt = [&E](vec2 p) { return E.world.terrain.waterSurfaceAt(p.x, p.y); };
                  opt.progress = [&E](size_t reached, size_t n, float secs) {
                      return E.reportProgress((double)reached, (double)n, std::format("waypoint {}/{}, {:.0f} s walked", reached, n, secs));
                  };

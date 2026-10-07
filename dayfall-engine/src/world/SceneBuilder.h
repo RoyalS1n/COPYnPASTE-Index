@@ -73,6 +73,12 @@ private:
     // terrain chunk cache
     uint64_t chunkTerrainVersion_ = 0;
     std::string chunkPathsKey_;
+    std::vector<Terrain::WaterBody> waterBodies_;
+    std::vector<std::shared_ptr<MeshAsset>> waterMeshes_;
+    std::vector<std::string> waterWarnings_;
+public:
+    const std::vector<Terrain::WaterBody>& waterBodies() const { return waterBodies_; }
+private:
     bool terrainChanged_ = false;
     std::shared_ptr<MeshAsset> horizon_;
     std::string horizonKey_;

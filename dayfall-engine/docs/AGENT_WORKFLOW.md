@@ -104,6 +104,9 @@ Placing things precisely, without guessing coordinates:
   with `"area": "forest_north"` follows later changes to that area.
 - `object_duplicate` makes rows and rings; `object_update {"tag": "farm", "rotate_by_deg": 30, "pivot": "center"}`
   turns a whole group.
+- Water: `water_set {"id": "pond", "area": "pond_area", "carve_m": 1.5}` digs and fills a lake (its level finds the
+  rim by itself); `water_set {"id": "river", "points": [...upstream first], "width_m": 5}` carves a river that never
+  flows uphill. Like paths, they are derived: deleting one restores the ground.
 - Prefabs: dress one farmstead (house, fence, well, lamp), `prefab_save {"name": "farmstead", "tag": "farm"}`, then
   `prefab_place {"name": "farmstead", "position": [...], "yaw_deg": 40}` at each site `find_space` returns (its
   `size` is the prefab's `size_m`). Each copy is tagged with its instance id, so it moves, turns and deletes as one.

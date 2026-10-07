@@ -85,6 +85,7 @@ struct WalkTestOptions {
     float waypointRadius = 1.5f;
     // optional: called every simulated half second with the waypoints reached; false stops the walk ("cancelled": true)
     std::function<bool(size_t reached, size_t waypoints, float seconds)> progress;
+    std::function<float(vec2)> waterAt;   // the water surface at a point (lakes, rivers, the sea); unset: the sea level
 };
 nlohmann::json runWalkTest(const WalkTestOptions& opt, const Scene& scene, std::vector<EntityState> entities, Physics& physics,
                            const PlayerConfig& cfg, float waterLevel, std::vector<vec3>* problemPoints = nullptr);

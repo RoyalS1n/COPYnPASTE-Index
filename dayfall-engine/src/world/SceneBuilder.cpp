@@ -452,9 +452,15 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
     // terrain: rendered from heightmap textures (Renderer::setTerrain); paths are applied here
     Terrain& T = w.terrain;
     if (!T.empty()) {
-        std::string pathsKey = doc.value("paths", json::array()).dump();
+        // paths and water bodies carve the final heights; both are in the key every terrain-derived cache uses
+        json waterDoc = Area::expandArgs(doc.value("water", json::array()), doc.value("areas", json::object()));
+        std::string pathsKey = doc.value("paths", json::array()).dump() + "|water|" + waterDoc.dump();
         if (chunkTerrainVersion_ != T.version || chunkPathsKey_ != pathsKey) {
             T.applyPaths(doc.value("paths", json::array()));
+            waterWarnings_.clear();
+            waterBodies_ = T.applyWater(waterDoc, waterWarnings_);
+            waterMeshes_.clear();
+            for (auto& b : waterBodies_) waterMeshes_.push_back(std::make_shared<MeshAsset>(T.waterMesh(b)));
             chunkTerrainVersion_ = T.version;
             chunkPathsKey_ = pathsKey;
             terrainChanged_ = true;
@@ -481,6 +487,15 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
     } else if (chunkTerrainVersion_ != 0) {
         chunkTerrainVersion_ = 0;
         terrainChanged_ = true;
+    }
+
+    // lakes and rivers (meshes made with the carving above)
+    for (auto& wmsg : waterWarnings_) warn(wmsg);
+    for (size_t k = 0; k < waterBodies_.size() && k < waterMeshes_.size(); ++k) {
+        if (waterMeshes_[k]->vertices.empty()) continue;
+        uint32_t m = sceneMesh(waterMeshes_[k]);
+        uint32_t first = s.addInstance(m, vec3(0), quat(1, 0, 0, 0), 1.0f, false, 1e9f);
+        s.sets.push_back({waterBodies_[k].id, m, first, 1, {CollisionKind::None}});
     }
 
     // water plane

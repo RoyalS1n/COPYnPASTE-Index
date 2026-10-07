@@ -285,8 +285,9 @@ json runWalkTest(const WalkTestOptions& opt, const Scene& scene, std::vector<Ent
             event("fall", st.position, std::format("dropped {:.1f} m", airborneFrom - st.position.z));
         if (st.onSteepGround && stuckTimer > 0.5f) event("steep", st.position, "standing on a slope too steep to walk up");
         wasGround = st.onGround;
-        bool wet = st.position.z < waterLevel - 0.4f;
-        if (wet && !inWater) event("water", st.position, std::format("walked into water {:.1f} m deep", waterLevel - st.position.z));
+        float surface = opt.waterAt ? opt.waterAt(vec2(st.position)) : waterLevel;
+        bool wet = st.position.z < surface - 0.4f;
+        if (wet && !inWater) event("water", st.position, std::format("walked into water {:.1f} m deep", surface - st.position.z));
         inWater = wet;
         if (st.position.z < scene.boundsMin.z - 50.0f) { event("fell_out_of_world", st.position, "below the world"); break; }
         for (size_t i = 0; i < entities.size(); ++i)

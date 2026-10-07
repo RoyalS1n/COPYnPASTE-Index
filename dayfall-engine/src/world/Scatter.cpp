@@ -129,7 +129,7 @@ std::vector<ScatterPoint> evaluateScatter(const json& rule, const ScatterContext
                 float s = t->slopeDegAt(p.x, p.y);
                 if (s < slope.x || s > slope.y) continue;
                 if (z < hr.x || z > hr.y) continue;
-                if (avoidWater && z < ctx.waterLevel + 0.15f) continue;
+                if (avoidWater && (z < ctx.waterLevel + 0.15f || t->waterSurfaceAt(p.x, p.y) > z - 0.15f)) continue;
                 vec4 layers = t->layersAt(p.x, p.y);
                 if (layers.x > maxRock) continue;
                 if (layers.w > maxPath) continue;

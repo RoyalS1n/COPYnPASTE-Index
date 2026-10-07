@@ -48,6 +48,8 @@ Never change terrain, lighting and character in the same batch; the editor refus
 - Primitives are parametric (`{"type": "box", "size": [w, d, h], "material": "plaster"}`); their origin is
   the bottom centre (gems: the centre).
 - Paths flatten and carve the ground under them; moving or deleting a path restores the ground.
+- Water: `water_set` makes lakes (`area`, `level_m: "auto"`, `carve_m` for depth) and rivers (`points` upstream
+  first, `width_m`, `depth_m`); they carve the ground like paths. Walk tests report walking into them.
 - Building sites: `find_space {size: [w, d], near or area, near_path}` returns level, free spots with the yaw that
   faces the path; level a site with the `terrain_sculpt` op it suggests.
 - Relative placement: `object_add` with `place: {on: id}` (on its top), `{next_to: id, side: east, gap_m}` or

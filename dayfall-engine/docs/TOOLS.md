@@ -276,13 +276,13 @@ Change objects or entities: ids [...] or id or tag; set {field: value} (merged; 
 
 *layout* (depends on the arguments)
 
-Delete items by ids [...], by tag, or every item of a section inside an area ({section, area}). Works for objects, entities, scatter rules, paths and lights.
+Delete items by ids [...], by tag, or every item of a section inside an area ({section, area}). Works for objects, entities, scatter rules, paths, lights and water bodies.
 
 | argument | type | notes |
 |---|---|---|
 | area | any | Area: {"circle": {"center": [x,y], "radius": r}} / {"rect": {"center": [x,y], "size": [w,h], "yaw_deg": a}} / {"polygon": [[x,y],...]} / {"line": [[x,y],...], "width": w} / {"union": [area, ...]} / "all"; optional "falloff": metres of soft edge. |
 | ids | array |  |
-| section | string | objects/entities/scatter/paths/lights |
+| section | string | objects/entities/scatter/paths/lights/water |
 | tag | string |  |
 
 ## place_along_path
@@ -590,6 +590,25 @@ What changed: since batch (default while a batch is open: since batch_begin) or 
 | argument | type | notes |
 |---|---|---|
 | since | string | batch/save |
+
+## water_set
+
+*terrain* (depends on the arguments)
+
+Create or replace a lake or a river (section water; delete removes it by id). Lake: area (an area object or a named area), level_m (a height, or "auto": just below the lowest point of the area's rim, so the water stays in), carve_m (dig a basin first: the area's falloff makes the banks). River: points [[x,y],...] from upstream to downstream, width_m (6), depth_m (1.2), bank_m: the bed is carved like a path and the water never flows uphill (it cuts through rises). Both: id, material (water). Walk tests, scatter avoid_water, ground_query and find_space see the water.
+
+| argument | type | notes |
+|---|---|---|
+| area | any | the lake (an area object, "all" or a named area) |
+| bank_m | number |  |
+| carve_m | number | basin depth |
+| depth_m | number |  |
+| id | string | body id |
+| level_m | any | a height or "auto" |
+| material | string |  |
+| points | array | river centre line, upstream first |
+| type | string | lake/river |
+| width_m | number |  |
 
 ## prefab_save
 
