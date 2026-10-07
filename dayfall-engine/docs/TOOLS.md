@@ -591,3 +591,34 @@ What changed: since batch (default while a batch is open: since batch_begin) or 
 |---|---|---|
 | since | string | batch/save |
 
+## prefab_save
+
+*meta*
+
+Save a group of objects, entities and lights as a reusable prefab (a farmstead, a market stall with its crates, a lamp post with its light): name, ids or tag, origin [x,y] (default: the group's centre), yaw_deg (the group's own facing, default 0), description; replace: true overwrites, delete: true removes the prefab. Place copies with prefab_place; catalog lists prefabs.
+
+| argument | type | notes |
+|---|---|---|
+| delete | boolean | remove the prefab |
+| description | string |  |
+| ids | array | items |
+| name (required) | string | prefab name |
+| origin | array | [x, y] |
+| replace | boolean | overwrite an existing prefab |
+| tag | string | items with this tag |
+| yaw_deg | number | the group's facing |
+
+## prefab_place
+
+*layout* (depends on the arguments)
+
+Place a copy of a prefab (the map's or the content library's; see catalog): name, position [x,y] (where its origin lands), yaw_deg (turns the whole group), id_prefix (default the prefab name), tags. Items keep their layout, sit on the ground where they land and get ids <instance>_<key>; the instance id is also a tag, so object_update {tag: instance, rotate_by_deg, pivot: position} or delete {tag: instance} act on the whole copy.
+
+| argument | type | notes |
+|---|---|---|
+| id_prefix | string | instance id prefix |
+| name (required) | string | prefab name |
+| position (required) | array | [x, y] |
+| tags | array | added to every item |
+| yaw_deg | number | turns the group |
+

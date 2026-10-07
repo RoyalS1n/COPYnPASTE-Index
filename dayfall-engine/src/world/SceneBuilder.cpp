@@ -135,7 +135,7 @@ void SceneBuilder::init(const fs::path& dir) {
         try {
             json part = json::parse(readText(sub / "library.json"));
             size_t added = 0;
-            for (const char* kind : {"meshes", "materials"}) {
+            for (const char* kind : {"meshes", "materials", "prefabs"}) {
                 if (!part.contains(kind)) continue;
                 json& into = lib_[kind];
                 if (!into.is_object()) into = json::object();
@@ -176,6 +176,12 @@ CollisionDesc SceneBuilder::parseCollision(const json& j, CollisionDesc def) {
 const json* SceneBuilder::meshEntry(const World& w, const std::string& name, fs::path& baseDir) const {
     if (w.doc.contains("meshes") && w.doc["meshes"].contains(name)) { baseDir = w.dir; return &w.doc["meshes"][name]; }
     if (lib_.contains("meshes") && lib_["meshes"].contains(name)) { baseDir = contentDir; return &lib_["meshes"][name]; }
+    return nullptr;
+}
+
+const json* SceneBuilder::prefab(const World& w, const std::string& name) const {
+    if (w.doc.contains("prefabs") && w.doc["prefabs"].is_object() && w.doc["prefabs"].contains(name)) return &w.doc["prefabs"][name];
+    if (lib_.contains("prefabs") && lib_["prefabs"].is_object() && lib_["prefabs"].contains(name)) return &lib_["prefabs"][name];
     return nullptr;
 }
 
@@ -343,7 +349,20 @@ json SceneBuilder::catalog(const World& w) const {
     for (auto& [k, v] : builtinMaterials().items()) mats.push_back(k);
     if (lib_.contains("materials")) for (auto& [k, v] : lib_["materials"].items()) mats.push_back(k);
     if (w.doc.contains("materials")) for (auto& [k, v] : w.doc["materials"].items()) mats.push_back(k);
-    return {{"primitives", primitiveCatalog()}, {"meshes", meshes}, {"materials", mats}};
+    // prefabs: groups of objects saved with prefab_save (map) or shipped in a content library
+    json prefabs = json::object();
+    auto addPrefabs = [&](const json& src, const char* origin) {
+        if (!src.contains("prefabs") || !src["prefabs"].is_object()) return;
+        for (auto& [k, v] : src["prefabs"].items()) {
+            json e = {{"source", origin}, {"items", v.value("objects", json::array()).size() + v.value("entities", json::array()).size() +
+                                                    v.value("lights", json::array()).size()}};
+            for (const char* f : {"description", "size_m"}) if (v.contains(f)) e[f] = v[f];
+            prefabs[k] = e;
+        }
+    };
+    addPrefabs(lib_, "content library");
+    addPrefabs(w.doc, "map");
+    return {{"primitives", primitiveCatalog()}, {"meshes", meshes}, {"materials", mats}, {"prefabs", prefabs}};
 }
 
 void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities, BuildInfo& info) {

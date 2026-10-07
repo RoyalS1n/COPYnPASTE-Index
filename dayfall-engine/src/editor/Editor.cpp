@@ -44,7 +44,7 @@ std::string toolTitle(const std::string& name) {
         {"walk_test", "Walk-test a route"},        {"play_sim", "Simulate play input"},       {"play", "Play mode in the editor"},
         {"world_check", "Check the world for problems"}, {"find_space", "Find building sites"}, {"area_set", "Name an area"},
         {"object_duplicate", "Duplicate objects"}, {"world_diff", "What changed"},           {"editor_state", "The human's selection and view"},
-        {"editor_select", "Highlight in the editor"}};
+        {"editor_select", "Highlight in the editor"}, {"prefab_save", "Save a prefab"},     {"prefab_place", "Place a prefab"}};
     if (auto it = kTitles.find(name); it != kTitles.end()) return it->second;
     std::string t = name;
     for (char& c : t) if (c == '_') c = ' ';

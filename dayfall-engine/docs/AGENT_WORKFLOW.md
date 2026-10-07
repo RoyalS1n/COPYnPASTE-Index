@@ -104,6 +104,9 @@ Placing things precisely, without guessing coordinates:
   with `"area": "forest_north"` follows later changes to that area.
 - `object_duplicate` makes rows and rings; `object_update {"tag": "farm", "rotate_by_deg": 30, "pivot": "center"}`
   turns a whole group.
+- Prefabs: dress one farmstead (house, fence, well, lamp), `prefab_save {"name": "farmstead", "tag": "farm"}`, then
+  `prefab_place {"name": "farmstead", "position": [...], "yaw_deg": 40}` at each site `find_space` returns (its
+  `size` is the prefab's `size_m`). Each copy is tagged with its instance id, so it moves, turns and deletes as one.
 
 ### 8. Refine in small batches
 

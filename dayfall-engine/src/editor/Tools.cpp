@@ -46,8 +46,9 @@ vec2 xy(const json& p) {
     if (!p.is_array() || p.size() < 2) throw Error("a position must be [x, y] or [x, y, z]");
     return {p[0].get<float>(), p[1].get<float>()};
 }
-json r1(vec3 v) { return {std::round(v.x * 10) / 10, std::round(v.y * 10) / 10, std::round(v.z * 10) / 10}; }
-float rnd(float v, float s = 10.0f) { return std::round(v * s) / s; }
+// rounded in double: a float rounded in float and widened prints as 23.799999237
+double rnd(double v, double s = 10.0) { return std::round(v * s) / s; }
+json r1(vec3 v) { return {rnd(v.x), rnd(v.y), rnd(v.z)}; }
 
 json mergePatch(json target, const json& patch) {
     if (!patch.is_object()) return patch;

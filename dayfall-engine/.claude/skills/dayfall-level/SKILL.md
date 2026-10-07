@@ -54,6 +54,8 @@ Never change terrain, lighting and character in the same batch; the editor refus
   `{relative_to: id, offset: [dx, dy]}` (in its frame) instead of `position`; also in `object_update set`.
 - Groups: `object_update {tag, rotate_by_deg, pivot: "center"}` turns them together; `object_duplicate` makes
   rows (offset) and rings (rotate_by_deg about a pivot).
+- Prefabs: build a group once (a farmstead, a stall with crates, a lamp with its light), `prefab_save {name, tag}`,
+  then `prefab_place {name, position, yaw_deg}` anywhere; each copy is tagged with its instance id.
 - `undo` reverts edits; `batch_end` saves.
 
 Tool reference: `docs/TOOLS.md`. Map format: `docs/MAP_FORMAT.md`.

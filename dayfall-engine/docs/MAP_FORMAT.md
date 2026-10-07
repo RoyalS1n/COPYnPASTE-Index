@@ -41,6 +41,7 @@ except `format`.
 | `cameras` | named viewpoints `{"position", "target", "vfov_deg"}` |
 | `routes` | named test routes `{"points": [[x, y], ...]}` |
 | `areas` | named areas `{"town": {"rect": {...}}}`: any `area` argument or scatter rule can use the name |
+| `prefabs` | reusable groups of objects, entities and lights (`prefab_save`, `prefab_place`) |
 | `instance_files` | large instance sets in binary files (ported maps) |
 | `gltf_scenes` | whole glTF scenes placed as they are (levels exported from Unreal or Blender) |
 
@@ -167,6 +168,20 @@ height), `ramp`, `stairs` (size, steps), `gem` (size); all take `material`. Thei
 Named regions. Wherever a tool or scatter rule takes an `area`, a name can stand in for it (`"area": "town"`),
 and names can be used inside a `union`. A scatter rule that names an area follows later changes to it. Set
 them with `area_set`.
+
+## prefabs
+
+```json
+"prefabs": {"farmstead": {"description": "house, barrel, lamp", "size_m": [7.3, 4, 3.5],
+  "objects": [{"key": "house", "mesh": "cottage", "position": [0, 0], "yaw_deg": 0},
+              {"key": "barrel", "mesh": "barrel", "position": [3.8, 0]}],
+  "lights": [{"key": "lamp", "position": [0, -3, 2.5], "color": [1, 0.8, 0.5], "intensity": 8}]}}
+```
+
+Groups stored relative to an origin: `[x, y]` items sit on the ground where they land, `[x, y, z]` items are z metres
+above the ground at the origin; yaws are relative to the group's facing. `prefab_place` makes a copy with ids
+`<instance>_<key>`, the instance id as a tag and `"prefab": {"name", "instance"}` on every item. Content libraries can
+ship prefabs too (a `prefabs` section in `library.json`); a map prefab of the same name wins.
 
 ## scatter
 

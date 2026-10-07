@@ -31,7 +31,8 @@ json object(json props, std::vector<std::string> req = {}) {
 }
 json areaSchema(const char* what) { return {{"description", std::string(what) + " (an area object, \"all\" or a named area)"}}; }
 
-float rnd(float v, float s = 10.0f) { return std::round(v * s) / s; }
+// rounded in double: a float rounded in float and widened prints as 23.799999237
+double rnd(double v, double s = 10.0) { return std::round(v * s) / s; }
 json r2(vec2 v) { return {rnd(v.x), rnd(v.y)}; }
 json r3(vec3 v) { return {rnd(v.x), rnd(v.y), rnd(v.z)}; }
 vec2 xy(const json& p) {
@@ -925,6 +926,167 @@ void Editor::registerWorldTools() {
                  r.data = {{"since", since}, {"sections", sections}, {"settings_changed", settings},
                            {"terrain_edited", E.world.terrain.version != terrainBase}, {"items_changed", total}};
                  return r;
+             }});
+
+    // ------------------------------------------------------------------ prefabs
+    // A prefab is a group of objects, entities and lights stored relative to an origin: [x, y] items sit on the ground
+    // where they land, [x, y, z] items are z metres above the ground at the origin. Placed copies carry
+    // "prefab": {name, instance} and the instance id as a tag, so object_update {tag: instance} moves them as one.
+    static const char* kPrefabSections[] = {"objects", "entities", "lights"};
+    addTool({"prefab_save",
+             "Save a group of objects, entities and lights as a reusable prefab (a farmstead, a market stall with its crates, a "
+             "lamp post with its light): name, ids or tag, origin [x,y] (default: the group's centre), yaw_deg (the group's own "
+             "facing, default 0), description; replace: true overwrites, delete: true removes the prefab. Place copies with "
+             "prefab_place; catalog lists prefabs.",
+             ToolCategory::Meta,
+             object({{"name", str("prefab name")}, {"ids", arr(str(""), "items")}, {"tag", str("items with this tag")},
+                     {"origin", point("[x, y]")}, {"yaw_deg", num("the group's facing")}, {"description", str("")},
+                     {"replace", boolean("overwrite an existing prefab")}, {"delete", boolean("remove the prefab")}},
+                    {"name"}),
+             [&E](const json& a) {
+                 std::string name = a.at("name").get<std::string>();
+                 if (name.empty()) throw Error("give the prefab a name");
+                 json& prefabs = E.world.doc["prefabs"];
+                 if (!prefabs.is_object()) prefabs = json::object();
+                 ToolResult r;
+                 if (a.value("delete", false)) {
+                     if (!prefabs.contains(name)) throw Error("the map has no prefab '" + name + "'");
+                     E.world.beginEdit("prefab_save", false);
+                     prefabs.erase(name);
+                     E.world.endEdit();
+                     r.data = {{"deleted", name}};
+                     return r;
+                 }
+                 if (prefabs.contains(name) && !a.value("replace", false))
+                     throw Error("prefab '" + name + "' exists: pass replace: true to overwrite it");
+                 std::vector<std::pair<std::string, json>> items;   // section, item
+                 auto take = [&](const std::string& sec, const json& o) {
+                     for (auto& it : items) if (it.second.value("id", "") == o.value("id", "")) return;
+                     items.push_back({sec, o});
+                 };
+                 for (auto& i : a.value("ids", json::array())) {
+                     std::string sec;
+                     json* o = E.world.find(i.get<std::string>(), &sec);
+                     if (!o) throw Error("no item with id '" + i.get<std::string>() + "'");
+                     if (sec != "objects" && sec != "entities" && sec != "lights") throw Error("'" + i.get<std::string>() + "' is in " + sec + ": prefabs hold objects, entities and lights");
+                     take(sec, *o);
+                 }
+                 if (a.contains("tag"))
+                     for (const char* sec : kPrefabSections)
+                         for (const json& o : E.world.list(sec)) if (hasTag(o, a["tag"].get<std::string>())) take(sec, o);
+                 if (items.empty()) throw Error("nothing to save (give ids or tag)");
+                 vec3 lo(1e30f), hi(-1e30f);
+                 for (auto& [sec, o] : items) {
+                     ItemBox b = itemBox(E, o.value("id", ""));
+                     lo = glm::min(lo, b.lo);
+                     hi = glm::max(hi, b.hi);
+                 }
+                 vec2 origin = a.contains("origin") ? xy(a["origin"]) : vec2((lo + hi) * 0.5f);
+                 float yaw = a.value("yaw_deg", 0.0f);
+                 float g0 = E.world.terrain.empty() ? 0.0f : E.world.terrain.heightAt(origin.x, origin.y);
+                 json def = {{"objects", json::array()}, {"entities", json::array()}, {"lights", json::array()}};
+                 if (a.contains("description")) def["description"] = a["description"];
+                 for (auto& [sec, src] : items) {
+                     json o = src;
+                     std::string key = o.value("id", "item");
+                     // copies of another prefab: drop what tied them to it
+                     if (o.contains("prefab") && o["prefab"].is_object()) {
+                         std::string inst = o["prefab"].value("instance", "");
+                         if (o.contains("tags")) {
+                             json kept = json::array();
+                             for (auto& t : o["tags"]) if (t != json(inst)) kept.push_back(t);
+                             o["tags"] = kept;
+                             if (kept.empty()) o.erase("tags");
+                         }
+                         if (!inst.empty() && key.rfind(inst + "_", 0) == 0) key = key.substr(inst.size() + 1);
+                         o.erase("prefab");
+                     }
+                     o.erase("id");
+                     o["key"] = key;
+                     json p = o.value("position", json::array({0, 0}));
+                     vec2 d = xy(p) - origin;
+                     float c = std::cos(glm::radians(-yaw)), sn = std::sin(glm::radians(-yaw));
+                     vec2 l(d.x * c - d.y * sn, d.x * sn + d.y * c);
+                     o["position"] = p.size() >= 3 ? json{rnd(l.x, 1000), rnd(l.y, 1000), rnd(p[2].get<float>() - g0, 1000)}
+                                                   : json{rnd(l.x, 1000), rnd(l.y, 1000)};
+                     if (yaw != 0.0f) rotateItemAbout(o, vec2(o["position"][0].get<float>(), o["position"][1].get<float>()), -yaw);
+                     def[sec].push_back(o);
+                 }
+                 for (const char* sec : kPrefabSections) if (def[sec].empty()) def.erase(sec);
+                 def["size_m"] = r3(hi - lo);
+                 E.world.beginEdit("prefab_save", false);
+                 prefabs[name] = def;
+                 E.world.endEdit();
+                 r.data = {{"name", name}, {"items", items.size()}, {"size_m", def["size_m"]}, {"origin", r2(origin)},
+                           {"next", "prefab_place {name, position, yaw_deg} places copies; find_space {size: size_m} finds room for one"}};
+                 return r;
+             }});
+
+    addTool({"prefab_place",
+             "Place a copy of a prefab (the map's or the content library's; see catalog): name, position [x,y] (where its origin "
+             "lands), yaw_deg (turns the whole group), id_prefix (default the prefab name), tags. Items keep their layout, sit on "
+             "the ground where they land and get ids <instance>_<key>; the instance id is also a tag, so object_update {tag: "
+             "instance, rotate_by_deg, pivot: position} or delete {tag: instance} act on the whole copy.",
+             ToolCategory::Layout,
+             object({{"name", str("prefab name")}, {"position", point("[x, y]")}, {"yaw_deg", num("turns the group")},
+                     {"id_prefix", str("instance id prefix")}, {"tags", arr(str(""), "added to every item")}},
+                    {"name", "position"}),
+             [&E](const json& a) {
+                 std::string name = a.at("name").get<std::string>();
+                 const json* p = E.builder.prefab(E.world, name);
+                 if (!p) {
+                     json names = json::array();
+                     for (auto& [k, v] : E.builder.catalog(E.world)["prefabs"].items()) names.push_back(k);
+                     throw Error("no prefab '" + name + "' (prefabs: " + names.dump() + "); prefab_save makes one");
+                 }
+                 const json def = *p;   // a copy: the edit below may move the map's prefab table
+                 vec2 at = xy(a.at("position"));
+                 float yaw = a.value("yaw_deg", 0.0f);
+                 float g = E.world.terrain.empty() ? 0.0f : E.world.terrain.heightAt(at.x, at.y);
+                 auto unique = [&](const std::string& base) { return E.world.find(base) ? E.world.newId(base) : base; };
+                 E.world.beginEdit("prefab_place", false);
+                 json ids = json::array();
+                 std::string instance;
+                 try {
+                     // an instance id no item uses as an id or a tag (copies are tagged with it)
+                 std::string prefix = a.value("id_prefix", name);
+                 for (int n = 1; instance.empty(); ++n) {
+                     std::string c = std::format("{}_{}", prefix, n);
+                     bool used = E.world.find(c) != nullptr;
+                     for (const char* sec : kPrefabSections)
+                         for (const json& o : E.world.list(sec)) used = used || hasTag(o, c);
+                     if (!used) instance = c;
+                 }
+                     for (const char* sec : kPrefabSections)
+                         for (const json& src : def.value(sec, json::array())) {
+                             json o = src;
+                             std::string key = o.value("key", "item");
+                             o.erase("key");
+                             json lp = o.value("position", json::array({0, 0}));
+                             vec2 l = xy(lp);
+                             float c = std::cos(glm::radians(yaw)), sn = std::sin(glm::radians(yaw));
+                             vec2 w = at + vec2(l.x * c - l.y * sn, l.x * sn + l.y * c);
+                             o["position"] = lp.size() >= 3 ? json{rnd(w.x, 1000), rnd(w.y, 1000), rnd(g + lp[2].get<float>(), 1000)}
+                                                            : json{rnd(w.x, 1000), rnd(w.y, 1000)};
+                             if (yaw != 0.0f) rotateItemAbout(o, w, yaw);
+                             if (std::string(sec) == "objects") E.builder.resolveMesh(E.world, o.at("mesh"));
+                             o["id"] = unique(instance + "_" + key);
+                             if (!o.contains("tags")) o["tags"] = json::array();
+                             o["tags"].push_back(instance);
+                             for (auto& t : a.value("tags", json::array())) if (!hasTag(o, t.get<std::string>())) o["tags"].push_back(t);
+                             o["prefab"] = {{"name", name}, {"instance", instance}};
+                             E.world.list(sec).push_back(o);
+                             ids.push_back(o["id"]);
+                         }
+                 } catch (...) { E.world.cancelEdit(); throw; }
+                 E.world.endEdit();
+                 ToolResult r;
+                 r.data = {{"instance", instance}, {"origin", r2(at)}, {"yaw_deg", yaw}, {"created", ids}};
+                 return r;
+             },
+             [&E](const json& a) {   // a prefab with lights is a lighting edit
+                 const json* p = a.contains("name") && a["name"].is_string() ? E.builder.prefab(E.world, a["name"].get<std::string>()) : nullptr;
+                 return p && p->contains("lights") && !(*p)["lights"].empty() ? ToolCategory::Lighting : ToolCategory::Layout;
              }});
 }
 }  // namespace df

@@ -53,6 +53,8 @@ public:
     // Everything an agent can place: built-in primitives, content library, map meshes, materials.
     nlohmann::json catalog(const World& w) const;
     static CollisionDesc parseCollision(const nlohmann::json& j, CollisionDesc def);
+    // a prefab by name: the map's own, else the content library's (nullptr: none)
+    const nlohmann::json* prefab(const World& w, const std::string& name) const;
     // The rigged character a map "player" section names (a skinned mesh entry, plus its animation_files); cached
     std::shared_ptr<const CharacterAsset> resolveCharacter(const World& w, const nlohmann::json& player);   // throws df::Error
 
