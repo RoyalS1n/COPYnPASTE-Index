@@ -17,6 +17,7 @@
 #define MODEL_EMISSIVE 5u
 #define MODEL_UNLIT 6u
 #define MODEL_GRASS 7u
+#define MODEL_ROCK 8u
 
 #define MAT_TWOSIDED 1u
 #define MAT_MASKED 2u

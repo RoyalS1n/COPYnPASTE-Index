@@ -48,9 +48,16 @@ private:
     std::vector<std::pair<std::string, std::vector<uint32_t>>> groups_;
 };
 
-struct LodSpec { float ratio = 0.25f; float distance = 1e9f; bool sloppy = false; };
-// Extra LODs with meshoptimizer (index-only: the same vertices, fewer triangles).
-void generateLods(MeshAsset& m, float lod0Distance, const std::vector<LodSpec>& lods);
+struct LodSpec {
+    float ratio = 0.25f;
+    float distance = 1e9f;
+    bool sloppy = false;
+    bool dropFoliage = false;   // foliage parts: keep a fraction of whole cards / blades instead of simplifying
+};
+// Extra LODs (index-only: the same vertices, fewer triangles). Parts whose
+// material is in `foliageMaterials` use card dropping when the spec asks for it.
+void generateLods(MeshAsset& m, float lod0Distance, const std::vector<LodSpec>& lods,
+                  const std::vector<std::string>& foliageMaterials = {});
 // Recomputes smooth vertex normals from the triangles.
 void computeNormals(MeshAsset& m);
 }  // namespace df

@@ -27,6 +27,7 @@ void main() {
     else if (model == MODEL_FOLIAGE) s = shadeFoliage(m, n, vUv.xy, vColor0, vInst.w);
     else if (model == MODEL_GRASS) s = shadeGrass(m, n, vUv.xy, vInst);
     else if (model == MODEL_COURSES) s = shadeCourses(m, vPos, n, vUv.xy);
+    else if (model == MODEL_ROCK) s = shadeRock(m, vPos, n);
     else s = shadeLit(m, n, vTangent, vUv.xy, vColor0);
 
     float alpha = 1.0;

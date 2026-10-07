@@ -2,6 +2,8 @@
 #include <meshoptimizer.h>
 #include <algorithm>
 #include <cstring>
+#include <functional>
+#include <unordered_map>
 
 namespace df {
 uint32_t packColor(vec4 c) {
@@ -81,7 +83,35 @@ MeshAsset MeshBuilder::build(const std::string& name) {
     return m;
 }
 
-void generateLods(MeshAsset& m, float lod0Distance, const std::vector<LodSpec>& specs) {
+namespace {
+// keeps whole connected pieces (leaf cards, grass blades): a hash of each piece picks `ratio` of them
+std::vector<uint32_t> dropComponents(const uint32_t* idx, size_t count, float ratio) {
+    std::unordered_map<uint32_t, uint32_t> parent;
+    std::function<uint32_t(uint32_t)> find = [&](uint32_t v) {
+        auto it = parent.find(v);
+        if (it == parent.end()) { parent[v] = v; return v; }
+        uint32_t r = v;
+        while (parent[r] != r) r = parent[r];
+        while (parent[v] != r) { uint32_t n = parent[v]; parent[v] = r; v = n; }
+        return r;
+    };
+    for (size_t t = 0; t + 2 < count; t += 3) {
+        uint32_t a = find(idx[t]), b = find(idx[t + 1]), c = find(idx[t + 2]);
+        parent[b] = a;
+        parent[find(c)] = a;
+    }
+    std::vector<uint32_t> out;
+    for (size_t t = 0; t + 2 < count; t += 3) {
+        uint32_t r = find(idx[t]);
+        uint32_t h = r * 2654435761u;
+        h ^= h >> 15;
+        if ((h & 0xFFFF) < (uint32_t)(ratio * 65536.0f)) out.insert(out.end(), {idx[t], idx[t + 1], idx[t + 2]});
+    }
+    return out;
+}
+}  // namespace
+
+void generateLods(MeshAsset& m, float lod0Distance, const std::vector<LodSpec>& specs, const std::vector<std::string>& foliage) {
     if (specs.empty() || m.lods.empty()) return;
     m.lods.resize(1);
     m.lodDistances = {lod0Distance};
@@ -89,6 +119,16 @@ void generateLods(MeshAsset& m, float lod0Distance, const std::vector<LodSpec>& 
     for (const LodSpec& l : specs) {
         std::vector<MeshPart> lod;
         for (const MeshPart& src : base) {
+            if (l.dropFoliage && std::find(foliage.begin(), foliage.end(), src.material) != foliage.end()) {
+                std::vector<uint32_t> kept = dropComponents(&m.indices[src.firstIndex], src.indexCount, l.ratio);
+                if (kept.empty()) continue;
+                MeshPart p = src;
+                p.firstIndex = (uint32_t)m.indices.size();
+                p.indexCount = (uint32_t)kept.size();
+                m.indices.insert(m.indices.end(), kept.begin(), kept.end());
+                lod.push_back(p);
+                continue;
+            }
             size_t target = std::max<size_t>(3, (size_t)(src.indexCount * l.ratio) / 3 * 3);
             std::vector<uint32_t> out(src.indexCount);
             float err = 0.0f;

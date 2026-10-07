@@ -1,0 +1,1697 @@
+{
+ "format": "dayfall-content",
+ "source": "reference-world/blender/export_content.py",
+ "materials": {
+  "RW_Needles": {
+   "model": "foliage",
+   "color_a": [
+    0.022,
+    0.048,
+    0.016
+   ],
+   "color_b": [
+    0.033,
+    0.072,
+    0.024
+   ],
+   "tip": [
+    0.0572,
+    0.1248,
+    0.0416
+   ],
+   "translucency": 0.25,
+   "variation": 0.6,
+   "vertex_color": true,
+   "wind": {
+    "strength": 0.07,
+    "height": 12.0,
+    "speed": 1.2
+   }
+  },
+  "RW_Leaves": {
+   "model": "foliage",
+   "color_a": [
+    0.045,
+    0.095,
+    0.018
+   ],
+   "color_b": [
+    0.1,
+    0.11,
+    0.02
+   ],
+   "tip": [
+    0.3,
+    0.34,
+    0.06
+   ],
+   "translucency": 0.4,
+   "variation": 0.45,
+   "vertex_color": true,
+   "wind": {
+    "strength": 0.07,
+    "height": 12.0,
+    "speed": 1.2
+   }
+  },
+  "RW_Bush": {
+   "model": "foliage",
+   "color_a": [
+    0.0382,
+    0.0808,
+    0.0153
+   ],
+   "color_b": [
+    0.022,
+    0.048,
+    0.016
+   ],
+   "tip": [
+    0.22,
+    0.26,
+    0.05
+   ],
+   "translucency": 0.3,
+   "variation": 0.7,
+   "vertex_color": true,
+   "wind": {
+    "strength": 0.05,
+    "height": 1.6,
+    "speed": 1.6
+   }
+  },
+  "RW_Fern": {
+   "model": "foliage",
+   "color_a": [
+    0.0495,
+    0.1045,
+    0.0198
+   ],
+   "color_b": [
+    0.022,
+    0.048,
+    0.016
+   ],
+   "tip": [
+    0.25,
+    0.3,
+    0.06
+   ],
+   "translucency": 0.45,
+   "variation": 0.5,
+   "vertex_color": true,
+   "wind": {
+    "strength": 0.1,
+    "height": 0.6,
+    "speed": 2.0
+   }
+  },
+  "RW_Ivy": {
+   "model": "foliage",
+   "color_a": [
+    0.025,
+    0.06,
+    0.015
+   ],
+   "color_b": [
+    0.05,
+    0.09,
+    0.02
+   ],
+   "tip": [
+    0.12,
+    0.16,
+    0.04
+   ],
+   "translucency": 0.3,
+   "variation": 0.6,
+   "vertex_color": true,
+   "wind": {
+    "strength": 0.01,
+    "height": 3.0,
+    "speed": 1.5
+   }
+  },
+  "RW_Reed": {
+   "model": "foliage",
+   "color_a": [
+    0.06,
+    0.1,
+    0.028
+   ],
+   "color_b": [
+    0.13,
+    0.15,
+    0.045
+   ],
+   "tip": [
+    0.25,
+    0.24,
+    0.08
+   ],
+   "translucency": 0.4,
+   "variation": 0.7,
+   "vertex_color": true,
+   "wind": {
+    "strength": 0.12,
+    "height": 2.0,
+    "speed": 1.8
+   }
+  },
+  "RW_ReedPlume": {
+   "model": "foliage",
+   "color_a": [
+    0.16,
+    0.1,
+    0.1
+   ],
+   "color_b": [
+    0.3,
+    0.24,
+    0.16
+   ],
+   "tip": [
+    0.4,
+    0.33,
+    0.24
+   ],
+   "translucency": 0.55,
+   "variation": 0.7,
+   "vertex_color": true,
+   "wind": {
+    "strength": 0.12,
+    "height": 2.0,
+    "speed": 1.8
+   }
+  },
+  "RW_Grass": {
+   "model": "grass",
+   "color_a": [
+    0.055,
+    0.105,
+    0.02
+   ],
+   "color_b": [
+    0.22,
+    0.17,
+    0.05
+   ],
+   "wind": {
+    "strength": 0.1,
+    "height": 0.6,
+    "speed": 2.0
+   }
+  },
+  "RW_Sedge": {
+   "model": "grass",
+   "color_a": [
+    0.03,
+    0.065,
+    0.028
+   ],
+   "color_b": [
+    0.11,
+    0.1,
+    0.045
+   ],
+   "wind": {
+    "strength": 0.1,
+    "height": 0.6,
+    "speed": 2.0
+   }
+  },
+  "RW_Flowers": {
+   "model": "foliage",
+   "color_a": [
+    0.85,
+    0.82,
+    0.75
+   ],
+   "color_b": [
+    0.85,
+    0.6,
+    0.06
+   ],
+   "tip": [
+    0.85,
+    0.82,
+    0.75
+   ],
+   "translucency": 0.3,
+   "variation": 1.0,
+   "wind": {
+    "strength": 0.1,
+    "height": 0.6,
+    "speed": 2.0
+   }
+  },
+  "RW_Bark": {
+   "model": "lit",
+   "base_color": [
+    0.065,
+    0.0468,
+    0.0338
+   ],
+   "roughness": 0.92
+  },
+  "RW_DeadWood": {
+   "model": "lit",
+   "base_color": [
+    0.075,
+    0.068,
+    0.058
+   ],
+   "roughness": 0.9
+  },
+  "RW_Rock": {
+   "model": "rock",
+   "color": [
+    0.1437,
+    0.1323,
+    0.115
+   ],
+   "color_dark": [
+    0.049,
+    0.0448,
+    0.0406
+   ],
+   "moss": [
+    0.055,
+    0.085,
+    0.02
+   ],
+   "lichen": [
+    0.3,
+    0.29,
+    0.2
+   ],
+   "moss_amount": 0.55,
+   "lichen_amount": 0.5,
+   "bump": 0.05
+  },
+  "RW_Moss": {
+   "model": "lit",
+   "base_color": [
+    0.055,
+    0.085,
+    0.02
+   ],
+   "roughness": 0.95
+  },
+  "RW_Stone": {
+   "model": "courses",
+   "color_a": [
+    0.25,
+    0.215,
+    0.17
+   ],
+   "color_b": [
+    0.154,
+    0.14,
+    0.119
+   ],
+   "mortar_color": [
+    0.14,
+    0.12,
+    0.09
+   ],
+   "block_width": 0.95,
+   "block_height": 0.44,
+   "mortar_width": 0.014,
+   "grime": 0.5,
+   "roughness": 0.86,
+   "normal_strength": 0.03,
+   "row_offset": 0.5
+  },
+  "RW_Rubble": {
+   "model": "courses",
+   "color_a": [
+    0.15,
+    0.14,
+    0.12
+   ],
+   "color_b": [
+    0.09,
+    0.085,
+    0.075
+   ],
+   "mortar_color": [
+    0.08,
+    0.075,
+    0.065
+   ],
+   "block_width": 0.46,
+   "block_height": 0.27,
+   "mortar_width": 0.02,
+   "grime": 0.6,
+   "roughness": 0.86,
+   "normal_strength": 0.03,
+   "row_offset": 0.5
+  },
+  "RW_Roof": {
+   "model": "courses",
+   "color_a": [
+    0.045,
+    0.055,
+    0.07
+   ],
+   "color_b": [
+    0.027,
+    0.033,
+    0.042
+   ],
+   "mortar_color": [
+    0.02,
+    0.02,
+    0.02
+   ],
+   "block_width": 0.3,
+   "block_height": 0.22,
+   "mortar_width": 0.02,
+   "grime": 0.2,
+   "roughness": 0.55,
+   "normal_strength": 0.05,
+   "row_offset": 0.5
+  },
+  "RW_RoofAlt": {
+   "model": "courses",
+   "color_a": [
+    0.22,
+    0.085,
+    0.045
+   ],
+   "color_b": [
+    0.143,
+    0.0553,
+    0.0292
+   ],
+   "mortar_color": [
+    0.05,
+    0.03,
+    0.02
+   ],
+   "block_width": 0.3,
+   "block_height": 0.22,
+   "mortar_width": 0.02,
+   "grime": 0.2,
+   "roughness": 0.7,
+   "normal_strength": 0.06,
+   "row_offset": 0.5
+  },
+  "RW_Wood": {
+   "model": "courses",
+   "color_a": [
+    0.112,
+    0.07,
+    0.042
+   ],
+   "color_b": [
+    0.064,
+    0.04,
+    0.024
+   ],
+   "mortar_color": [
+    0.03,
+    0.02,
+    0.012
+   ],
+   "block_width": 2.4,
+   "block_height": 0.2,
+   "mortar_width": 0.008,
+   "grime": 0.4,
+   "roughness": 0.75,
+   "normal_strength": 0.02,
+   "row_offset": 0.37
+  },
+  "RW_Iron": {
+   "model": "lit",
+   "base_color": [
+    0.03,
+    0.03,
+    0.032
+   ],
+   "roughness": 0.45,
+   "metallic": 1.0
+  },
+  "RW_Fire": {
+   "model": "emissive",
+   "base_color": [
+    1.0,
+    0.42,
+    0.1
+   ],
+   "emissive": [
+    1.0,
+    0.42,
+    0.1
+   ],
+   "emissive_strength": 12.0
+  },
+  "RW_WindowDark": {
+   "model": "lit",
+   "base_color": [
+    0.01,
+    0.01,
+    0.012
+   ],
+   "roughness": 0.2
+  },
+  "RW_WindowLit": {
+   "model": "emissive",
+   "base_color": [
+    0.05,
+    0.03,
+    0.01
+   ],
+   "emissive": [
+    1.0,
+    0.55,
+    0.22
+   ],
+   "emissive_strength": 6.0
+  },
+  "RW_Cloth": {
+   "model": "lit",
+   "base_color": [
+    0.3,
+    0.018,
+    0.022
+   ],
+   "roughness": 0.7
+  },
+  "RW_Hay": {
+   "model": "lit",
+   "base_color": [
+    0.42,
+    0.33,
+    0.12
+   ],
+   "roughness": 0.9
+  },
+  "RW_Cattail": {
+   "model": "lit",
+   "base_color": [
+    0.065,
+    0.037,
+    0.02
+   ],
+   "roughness": 0.9
+  },
+  "RW_LilyPad": {
+   "model": "lit",
+   "base_color": [
+    0.035,
+    0.08,
+    0.018
+   ],
+   "roughness": 0.35,
+   "specular": 0.6
+  },
+  "RW_LilyFlower": {
+   "model": "foliage",
+   "color_a": [
+    0.82,
+    0.8,
+    0.74
+   ],
+   "color_b": [
+    0.8,
+    0.38,
+    0.5
+   ],
+   "tip": [
+    0.9,
+    0.85,
+    0.8
+   ],
+   "translucency": 0.4,
+   "variation": 1.0
+  },
+  "RW_LilyCenter": {
+   "model": "lit",
+   "base_color": [
+    0.75,
+    0.45,
+    0.04
+   ],
+   "roughness": 0.6
+  }
+ },
+ "meshes": {
+  "barn_ruin": {
+   "file": "meshes/barn_ruin.glb",
+   "category": "buildings",
+   "size_m": [
+    30.32,
+    32.9,
+    8.54
+   ],
+   "triangles": 2112,
+   "description": "Ruined timber barn on a stone base",
+   "collision": "mesh",
+   "front": "-y",
+   "footprint_m": 11.0,
+   "cull_distance_m": 1200,
+   "lod0_distance_m": 70,
+   "lods": [
+    {
+     "ratio": 0.4,
+     "distance_m": 220
+    }
+   ],
+   "note": "base at z = -0.43"
+  },
+  "cart": {
+   "file": "meshes/cart.glb",
+   "category": "buildings",
+   "size_m": [
+    5.47,
+    2.68,
+    1.18
+   ],
+   "triangles": 694,
+   "description": "Abandoned wooden cart",
+   "collision": "mesh",
+   "front": "-y",
+   "footprint_m": 4.0,
+   "cull_distance_m": 1200,
+   "lod0_distance_m": 70,
+   "lods": [
+    {
+     "ratio": 0.4,
+     "distance_m": 220
+    }
+   ]
+  },
+  "chapel_ruin": {
+   "file": "meshes/chapel_ruin.glb",
+   "category": "buildings",
+   "size_m": [
+    17.13,
+    13.83,
+    10.96
+   ],
+   "triangles": 5784,
+   "description": "Ruined stone chapel",
+   "collision": "mesh",
+   "front": "-y",
+   "footprint_m": 12.0,
+   "cull_distance_m": 1200,
+   "lod0_distance_m": 70,
+   "lods": [
+    {
+     "ratio": 0.4,
+     "distance_m": 220
+    }
+   ],
+   "note": "base at z = -0.50"
+  },
+  "chimney_ruin": {
+   "file": "meshes/chimney_ruin.glb",
+   "category": "buildings",
+   "size_m": [
+    13.01,
+    7.77,
+    8.49
+   ],
+   "triangles": 2880,
+   "description": "Lone chimney stack of a burnt house",
+   "collision": "mesh",
+   "front": "-y",
+   "footprint_m": 8.0,
+   "cull_distance_m": 1200,
+   "lod0_distance_m": 70,
+   "lods": [
+    {
+     "ratio": 0.4,
+     "distance_m": 220
+    }
+   ],
+   "note": "base at z = -0.44"
+  },
+  "cottage_ruin": {
+   "file": "meshes/cottage_ruin.glb",
+   "category": "buildings",
+   "size_m": [
+    13.79,
+    8.77,
+    6.43
+   ],
+   "triangles": 6040,
+   "description": "Ruined stone cottage, 9 x 6.5 m, ivy, fallen rafters",
+   "collision": "mesh",
+   "front": "-y",
+   "footprint_m": 9.0,
+   "cull_distance_m": 1200,
+   "lod0_distance_m": 70,
+   "lods": [
+    {
+     "ratio": 0.4,
+     "distance_m": 220
+    }
+   ],
+   "note": "base at z = -0.45"
+  },
+  "well_ruin": {
+   "file": "meshes/well_ruin.glb",
+   "category": "buildings",
+   "size_m": [
+    3.67,
+    2.51,
+    2.7
+   ],
+   "triangles": 396,
+   "description": "Old stone well with a broken frame",
+   "collision": "mesh",
+   "front": "-y",
+   "footprint_m": 3.0,
+   "cull_distance_m": 1200,
+   "lod0_distance_m": 70,
+   "lods": [
+    {
+     "ratio": 0.4,
+     "distance_m": 220
+    }
+   ],
+   "note": "base at z = -0.40"
+  },
+  "bush_a": {
+   "file": "meshes/bush_a.glb",
+   "category": "bushes",
+   "size_m": [
+    1.9,
+    1.54,
+    1.12
+   ],
+   "triangles": 320,
+   "description": "Leafy bush, 1.2-2.2 m",
+   "collision": "none",
+   "cull_distance_m": 300,
+   "lod0_distance_m": 30,
+   "lods": [
+    {
+     "ratio": 0.4,
+     "distance_m": 90,
+     "foliage": "drop"
+    }
+   ],
+   "note": "base at z = -0.11"
+  },
+  "bush_b": {
+   "file": "meshes/bush_b.glb",
+   "category": "bushes",
+   "size_m": [
+    3.04,
+    3.26,
+    1.59
+   ],
+   "triangles": 320,
+   "description": "Leafy bush, 1.2-2.2 m",
+   "collision": "none",
+   "cull_distance_m": 300,
+   "lod0_distance_m": 30,
+   "lods": [
+    {
+     "ratio": 0.4,
+     "distance_m": 90,
+     "foliage": "drop"
+    }
+   ],
+   "note": "base at z = -0.26"
+  },
+  "bush_c": {
+   "file": "meshes/bush_c.glb",
+   "category": "bushes",
+   "size_m": [
+    3.98,
+    6.47,
+    1.97
+   ],
+   "triangles": 560,
+   "description": "Leafy bush, 1.2-2.2 m",
+   "collision": "none",
+   "cull_distance_m": 300,
+   "lod0_distance_m": 30,
+   "lods": [
+    {
+     "ratio": 0.4,
+     "distance_m": 90,
+     "foliage": "drop"
+    }
+   ],
+   "note": "base at z = -0.37"
+  },
+  "fence_segment": {
+   "file": "meshes/fence_segment.glb",
+   "category": "fences",
+   "size_m": [
+    12.27,
+    0.22,
+    1.66
+   ],
+   "triangles": 192,
+   "description": "Weathered timber fence, 12 m along +X (use place_along_path with spacing 12)",
+   "collision": "mesh",
+   "front": "-y",
+   "footprint_m": 4.0,
+   "cull_distance_m": 1200,
+   "lod0_distance_m": 70,
+   "lods": [
+    {
+     "ratio": 0.4,
+     "distance_m": 220
+    }
+   ],
+   "note": "base at z = -0.36"
+  },
+  "stone_wall_segment": {
+   "file": "meshes/stone_wall_segment.glb",
+   "category": "fences",
+   "size_m": [
+    12.28,
+    0.75,
+    1.71
+   ],
+   "triangles": 300,
+   "description": "Dry-stone field wall, 12 m along +X",
+   "collision": "mesh",
+   "front": "-y",
+   "footprint_m": 4.0,
+   "cull_distance_m": 1200,
+   "lod0_distance_m": 70,
+   "lods": [
+    {
+     "ratio": 0.4,
+     "distance_m": 220
+    }
+   ],
+   "note": "base at z = -0.40"
+  },
+  "fern_a": {
+   "file": "meshes/fern_a.glb",
+   "category": "ferns",
+   "size_m": [
+    1.57,
+    1.37,
+    0.58
+   ],
+   "triangles": 468,
+   "description": "Fern, 0.8-1.4 m (shade, forest floor)",
+   "collision": "none",
+   "cull_distance_m": 120,
+   "lod0_distance_m": 18,
+   "lods": [
+    {
+     "ratio": 0.4,
+     "distance_m": 50,
+     "foliage": "drop"
+    }
+   ]
+  },
+  "fern_b": {
+   "file": "meshes/fern_b.glb",
+   "category": "ferns",
+   "size_m": [
+    1.77,
+    2.02,
+    0.66
+   ],
+   "triangles": 520,
+   "description": "Fern, 0.8-1.4 m (shade, forest floor)",
+   "collision": "none",
+   "cull_distance_m": 120,
+   "lod0_distance_m": 18,
+   "lods": [
+    {
+     "ratio": 0.4,
+     "distance_m": 50,
+     "foliage": "drop"
+    }
+   ],
+   "note": "base at z = 0.08"
+  },
+  "fern_c": {
+   "file": "meshes/fern_c.glb",
+   "category": "ferns",
+   "size_m": [
+    2.63,
+    2.48,
+    0.95
+   ],
+   "triangles": 520,
+   "description": "Fern, 0.8-1.4 m (shade, forest floor)",
+   "collision": "none",
+   "cull_distance_m": 120,
+   "lod0_distance_m": 18,
+   "lods": [
+    {
+     "ratio": 0.4,
+     "distance_m": 50,
+     "foliage": "drop"
+    }
+   ],
+   "note": "base at z = 0.10"
+  },
+  "flowers_a": {
+   "file": "meshes/flowers_a.glb",
+   "category": "grass",
+   "size_m": [
+    0.94,
+    0.89,
+    0.67
+   ],
+   "triangles": 376,
+   "collision": "none",
+   "cull_distance_m": 90,
+   "lod0_distance_m": 14,
+   "lods": [
+    {
+     "ratio": 0.5,
+     "distance_m": 35,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.22,
+     "distance_m": 90,
+     "foliage": "drop"
+    }
+   ],
+   "description": "Grass clump with wildflowers"
+  },
+  "flowers_b": {
+   "file": "meshes/flowers_b.glb",
+   "category": "grass",
+   "size_m": [
+    0.89,
+    0.76,
+    0.55
+   ],
+   "triangles": 436,
+   "collision": "none",
+   "cull_distance_m": 90,
+   "lod0_distance_m": 14,
+   "lods": [
+    {
+     "ratio": 0.5,
+     "distance_m": 35,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.22,
+     "distance_m": 90,
+     "foliage": "drop"
+    }
+   ],
+   "description": "Grass clump with wildflowers"
+  },
+  "grass_clump_a": {
+   "file": "meshes/grass_clump_a.glb",
+   "category": "grass",
+   "size_m": [
+    0.74,
+    0.8,
+    0.58
+   ],
+   "triangles": 352,
+   "collision": "none",
+   "cull_distance_m": 90,
+   "lod0_distance_m": 14,
+   "lods": [
+    {
+     "ratio": 0.5,
+     "distance_m": 35,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.22,
+     "distance_m": 90,
+     "foliage": "drop"
+    }
+   ],
+   "description": "Meadow grass clump (scatter densely)"
+  },
+  "grass_clump_b": {
+   "file": "meshes/grass_clump_b.glb",
+   "category": "grass",
+   "size_m": [
+    0.94,
+    0.8,
+    0.58
+   ],
+   "triangles": 384,
+   "collision": "none",
+   "cull_distance_m": 90,
+   "lod0_distance_m": 14,
+   "lods": [
+    {
+     "ratio": 0.5,
+     "distance_m": 35,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.22,
+     "distance_m": 90,
+     "foliage": "drop"
+    }
+   ],
+   "description": "Meadow grass clump (scatter densely)"
+  },
+  "grass_clump_c": {
+   "file": "meshes/grass_clump_c.glb",
+   "category": "grass",
+   "size_m": [
+    0.76,
+    0.84,
+    0.58
+   ],
+   "triangles": 296,
+   "collision": "none",
+   "cull_distance_m": 90,
+   "lod0_distance_m": 14,
+   "lods": [
+    {
+     "ratio": 0.5,
+     "distance_m": 35,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.22,
+     "distance_m": 90,
+     "foliage": "drop"
+    }
+   ],
+   "description": "Meadow grass clump (scatter densely)"
+  },
+  "grass_short_a": {
+   "file": "meshes/grass_short_a.glb",
+   "category": "grass",
+   "size_m": [
+    0.76,
+    0.89,
+    0.24
+   ],
+   "triangles": 284,
+   "collision": "none",
+   "cull_distance_m": 90,
+   "lod0_distance_m": 14,
+   "lods": [
+    {
+     "ratio": 0.5,
+     "distance_m": 35,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.22,
+     "distance_m": 90,
+     "foliage": "drop"
+    }
+   ],
+   "description": "Short grass tuft (paths, under trees)"
+  },
+  "grass_tall_a": {
+   "file": "meshes/grass_tall_a.glb",
+   "category": "grass",
+   "size_m": [
+    0.73,
+    0.92,
+    1.06
+   ],
+   "triangles": 540,
+   "collision": "none",
+   "cull_distance_m": 90,
+   "lod0_distance_m": 14,
+   "lods": [
+    {
+     "ratio": 0.5,
+     "distance_m": 35,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.22,
+     "distance_m": 90,
+     "foliage": "drop"
+    }
+   ],
+   "description": "Tall grass clump"
+  },
+  "grass_tall_b": {
+   "file": "meshes/grass_tall_b.glb",
+   "category": "grass",
+   "size_m": [
+    0.86,
+    0.87,
+    1.11
+   ],
+   "triangles": 504,
+   "collision": "none",
+   "cull_distance_m": 90,
+   "lod0_distance_m": 14,
+   "lods": [
+    {
+     "ratio": 0.5,
+     "distance_m": 35,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.22,
+     "distance_m": 90,
+     "foliage": "drop"
+    }
+   ],
+   "description": "Tall grass clump"
+  },
+  "cattail_a": {
+   "file": "meshes/cattail_a.glb",
+   "category": "marsh",
+   "size_m": [
+    0.86,
+    1.11,
+    2.15
+   ],
+   "triangles": 1222,
+   "description": "Cattail clump (water's edge)",
+   "collision": "none",
+   "cull_distance_m": 120
+  },
+  "cattail_b": {
+   "file": "meshes/cattail_b.glb",
+   "category": "marsh",
+   "size_m": [
+    0.76,
+    1.05,
+    2.13
+   ],
+   "triangles": 1316,
+   "description": "Cattail clump (water's edge)",
+   "collision": "none",
+   "cull_distance_m": 120
+  },
+  "cattail_c": {
+   "file": "meshes/cattail_c.glb",
+   "category": "marsh",
+   "size_m": [
+    1.06,
+    0.95,
+    2.04
+   ],
+   "triangles": 1174,
+   "description": "Cattail clump (water's edge)",
+   "collision": "none",
+   "cull_distance_m": 120
+  },
+  "lily_a": {
+   "file": "meshes/lily_a.glb",
+   "category": "marsh",
+   "size_m": [
+    1.81,
+    1.64,
+    0.07
+   ],
+   "triangles": 404,
+   "description": "Water lily cluster (place at the water level)",
+   "collision": "none",
+   "cull_distance_m": 120
+  },
+  "lily_b": {
+   "file": "meshes/lily_b.glb",
+   "category": "marsh",
+   "size_m": [
+    1.99,
+    1.62,
+    0.1
+   ],
+   "triangles": 692,
+   "description": "Water lily cluster (place at the water level)",
+   "collision": "none",
+   "cull_distance_m": 120
+  },
+  "lily_c": {
+   "file": "meshes/lily_c.glb",
+   "category": "marsh",
+   "size_m": [
+    1.93,
+    1.14,
+    0.07
+   ],
+   "triangles": 478,
+   "description": "Water lily cluster (place at the water level)",
+   "collision": "none",
+   "cull_distance_m": 120
+  },
+  "reed_a": {
+   "file": "meshes/reed_a.glb",
+   "category": "marsh",
+   "size_m": [
+    1.34,
+    1.19,
+    2.78
+   ],
+   "triangles": 3066,
+   "description": "Reed clump with plumes",
+   "collision": "none",
+   "cull_distance_m": 120
+  },
+  "reed_b": {
+   "file": "meshes/reed_b.glb",
+   "category": "marsh",
+   "size_m": [
+    1.2,
+    1.37,
+    2.76
+   ],
+   "triangles": 2994,
+   "description": "Reed clump with plumes",
+   "collision": "none",
+   "cull_distance_m": 120
+  },
+  "sedge_a": {
+   "file": "meshes/sedge_a.glb",
+   "category": "marsh",
+   "size_m": [
+    0.63,
+    0.7,
+    0.99
+   ],
+   "triangles": 640,
+   "description": "Sedge tussock (wet ground)",
+   "collision": "none",
+   "cull_distance_m": 100
+  },
+  "sedge_b": {
+   "file": "meshes/sedge_b.glb",
+   "category": "marsh",
+   "size_m": [
+    0.68,
+    0.7,
+    0.99
+   ],
+   "triangles": 900,
+   "description": "Sedge tussock (wet ground)",
+   "collision": "none",
+   "cull_distance_m": 100
+  },
+  "sedge_c": {
+   "file": "meshes/sedge_c.glb",
+   "category": "marsh",
+   "size_m": [
+    0.7,
+    0.73,
+    0.89
+   ],
+   "triangles": 660,
+   "description": "Sedge tussock (wet ground)",
+   "collision": "none",
+   "cull_distance_m": 100
+  },
+  "outcrop_a": {
+   "file": "meshes/outcrop_a.glb",
+   "category": "rocks",
+   "size_m": [
+    8.08,
+    7.83,
+    5.1
+   ],
+   "triangles": 5120,
+   "description": "Rock outcrop, about 9 m",
+   "collision": "mesh",
+   "cull_distance_m": 2500,
+   "lod0_distance_m": 60,
+   "lods": [
+    {
+     "ratio": 0.3,
+     "distance_m": 220
+    },
+    {
+     "ratio": 0.1,
+     "distance_m": 700
+    }
+   ],
+   "note": "base at z = -1.08"
+  },
+  "outcrop_b": {
+   "file": "meshes/outcrop_b.glb",
+   "category": "rocks",
+   "size_m": [
+    8.49,
+    7.45,
+    5.24
+   ],
+   "triangles": 5120,
+   "description": "Rock outcrop, about 9 m",
+   "collision": "mesh",
+   "cull_distance_m": 2500,
+   "lod0_distance_m": 60,
+   "lods": [
+    {
+     "ratio": 0.3,
+     "distance_m": 220
+    },
+    {
+     "ratio": 0.1,
+     "distance_m": 700
+    }
+   ],
+   "note": "base at z = -1.08"
+  },
+  "outcrop_c": {
+   "file": "meshes/outcrop_c.glb",
+   "category": "rocks",
+   "size_m": [
+    7.23,
+    6.62,
+    5.39
+   ],
+   "triangles": 5120,
+   "description": "Rock outcrop, about 9 m",
+   "collision": "mesh",
+   "cull_distance_m": 2500,
+   "lod0_distance_m": 60,
+   "lods": [
+    {
+     "ratio": 0.3,
+     "distance_m": 220
+    },
+    {
+     "ratio": 0.1,
+     "distance_m": 700
+    }
+   ],
+   "note": "base at z = -1.08"
+  },
+  "pebble_a": {
+   "file": "meshes/pebble_a.glb",
+   "category": "rocks",
+   "size_m": [
+    0.4,
+    0.37,
+    0.16
+   ],
+   "triangles": 320,
+   "description": "Pebble / small stone, 0.35 m",
+   "collision": "none",
+   "cull_distance_m": 80
+  },
+  "pebble_b": {
+   "file": "meshes/pebble_b.glb",
+   "category": "rocks",
+   "size_m": [
+    0.38,
+    0.27,
+    0.14
+   ],
+   "triangles": 320,
+   "description": "Pebble / small stone, 0.35 m",
+   "collision": "none",
+   "cull_distance_m": 80
+  },
+  "pebble_c": {
+   "file": "meshes/pebble_c.glb",
+   "category": "rocks",
+   "size_m": [
+    0.34,
+    0.31,
+    0.18
+   ],
+   "triangles": 320,
+   "description": "Pebble / small stone, 0.35 m",
+   "collision": "none",
+   "cull_distance_m": 80
+  },
+  "pebble_d": {
+   "file": "meshes/pebble_d.glb",
+   "category": "rocks",
+   "size_m": [
+    0.29,
+    0.31,
+    0.17
+   ],
+   "triangles": 320,
+   "description": "Pebble / small stone, 0.35 m",
+   "collision": "none",
+   "cull_distance_m": 80
+  },
+  "rock_a": {
+   "file": "meshes/rock_a.glb",
+   "category": "rocks",
+   "size_m": [
+    1.33,
+    1.52,
+    0.99
+   ],
+   "triangles": 5120,
+   "description": "Fractured boulder, 1.5-4.7 m",
+   "collision": "convex",
+   "cull_distance_m": 900,
+   "lod0_distance_m": 40,
+   "lods": [
+    {
+     "ratio": 0.35,
+     "distance_m": 140
+    },
+    {
+     "ratio": 0.1,
+     "distance_m": 400
+    }
+   ],
+   "note": "base at z = -0.18"
+  },
+  "rock_b": {
+   "file": "meshes/rock_b.glb",
+   "category": "rocks",
+   "size_m": [
+    2.51,
+    2.05,
+    1.08
+   ],
+   "triangles": 5120,
+   "description": "Fractured boulder, 1.5-4.7 m",
+   "collision": "convex",
+   "cull_distance_m": 900,
+   "lod0_distance_m": 40,
+   "lods": [
+    {
+     "ratio": 0.35,
+     "distance_m": 140
+    },
+    {
+     "ratio": 0.1,
+     "distance_m": 400
+    }
+   ],
+   "note": "base at z = -0.28"
+  },
+  "rock_c": {
+   "file": "meshes/rock_c.glb",
+   "category": "rocks",
+   "size_m": [
+    2.92,
+    3.47,
+    1.55
+   ],
+   "triangles": 5120,
+   "description": "Fractured boulder, 1.5-4.7 m",
+   "collision": "convex",
+   "cull_distance_m": 900,
+   "lod0_distance_m": 40,
+   "lods": [
+    {
+     "ratio": 0.35,
+     "distance_m": 140
+    },
+    {
+     "ratio": 0.1,
+     "distance_m": 400
+    }
+   ],
+   "note": "base at z = -0.37"
+  },
+  "rock_d": {
+   "file": "meshes/rock_d.glb",
+   "category": "rocks",
+   "size_m": [
+    3.34,
+    5.18,
+    2.11
+   ],
+   "triangles": 5120,
+   "description": "Fractured boulder, 1.5-4.7 m",
+   "collision": "convex",
+   "cull_distance_m": 900,
+   "lod0_distance_m": 40,
+   "lods": [
+    {
+     "ratio": 0.35,
+     "distance_m": 140
+    },
+    {
+     "ratio": 0.1,
+     "distance_m": 400
+    }
+   ],
+   "note": "base at z = -0.47"
+  },
+  "rock_e": {
+   "file": "meshes/rock_e.glb",
+   "category": "rocks",
+   "size_m": [
+    4.31,
+    5.16,
+    2.65
+   ],
+   "triangles": 5120,
+   "description": "Fractured boulder, 1.5-4.7 m",
+   "collision": "convex",
+   "cull_distance_m": 900,
+   "lod0_distance_m": 40,
+   "lods": [
+    {
+     "ratio": 0.35,
+     "distance_m": 140
+    },
+    {
+     "ratio": 0.1,
+     "distance_m": 400
+    }
+   ],
+   "note": "base at z = -0.56"
+  },
+  "broadleaf_a": {
+   "file": "meshes/broadleaf_a.glb",
+   "category": "trees",
+   "size_m": [
+    9.17,
+    9.32,
+    9.28
+   ],
+   "triangles": 48980,
+   "lod0_distance_m": 45,
+   "lods": [
+    {
+     "ratio": 0.45,
+     "distance_m": 110,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.18,
+     "distance_m": 320,
+     "foliage": "drop",
+     "sloppy": true
+    }
+   ],
+   "cull_distance_m": 1500,
+   "front": "-y",
+   "description": "Broadleaf tree (oak / beech), 10-15 m",
+   "collision": {
+    "type": "cylinder",
+    "radius": 0.4,
+    "height": 5
+   },
+   "footprint_m": 3,
+   "note": "base at z = -0.50"
+  },
+  "broadleaf_b": {
+   "file": "meshes/broadleaf_b.glb",
+   "category": "trees",
+   "size_m": [
+    9.8,
+    12.07,
+    11.68
+   ],
+   "triangles": 56296,
+   "lod0_distance_m": 45,
+   "lods": [
+    {
+     "ratio": 0.45,
+     "distance_m": 110,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.18,
+     "distance_m": 320,
+     "foliage": "drop",
+     "sloppy": true
+    }
+   ],
+   "cull_distance_m": 1500,
+   "front": "-y",
+   "description": "Broadleaf tree (oak / beech), 10-15 m",
+   "collision": {
+    "type": "cylinder",
+    "radius": 0.4,
+    "height": 5
+   },
+   "footprint_m": 3,
+   "note": "base at z = -0.51"
+  },
+  "broadleaf_c": {
+   "file": "meshes/broadleaf_c.glb",
+   "category": "trees",
+   "size_m": [
+    12.38,
+    11.79,
+    16.56
+   ],
+   "triangles": 52644,
+   "lod0_distance_m": 45,
+   "lods": [
+    {
+     "ratio": 0.45,
+     "distance_m": 110,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.18,
+     "distance_m": 320,
+     "foliage": "drop",
+     "sloppy": true
+    }
+   ],
+   "cull_distance_m": 1500,
+   "front": "-y",
+   "description": "Broadleaf tree (oak / beech), 10-15 m",
+   "collision": {
+    "type": "cylinder",
+    "radius": 0.4,
+    "height": 5
+   },
+   "footprint_m": 3,
+   "note": "base at z = -0.50"
+  },
+  "conifer_a": {
+   "file": "meshes/conifer_a.glb",
+   "category": "trees",
+   "size_m": [
+    8.9,
+    8.78,
+    14.6
+   ],
+   "triangles": 8744,
+   "lod0_distance_m": 45,
+   "lods": [
+    {
+     "ratio": 0.45,
+     "distance_m": 110,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.18,
+     "distance_m": 320,
+     "foliage": "drop",
+     "sloppy": true
+    }
+   ],
+   "cull_distance_m": 1500,
+   "front": "-y",
+   "description": "Conifer (spruce / fir), 14-23 m",
+   "collision": {
+    "type": "cylinder",
+    "radius": 0.35,
+    "height": 8
+   },
+   "footprint_m": 2.5,
+   "note": "base at z = -0.60"
+  },
+  "conifer_b": {
+   "file": "meshes/conifer_b.glb",
+   "category": "trees",
+   "size_m": [
+    11.15,
+    11.66,
+    17.6
+   ],
+   "triangles": 8028,
+   "lod0_distance_m": 45,
+   "lods": [
+    {
+     "ratio": 0.45,
+     "distance_m": 110,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.18,
+     "distance_m": 320,
+     "foliage": "drop",
+     "sloppy": true
+    }
+   ],
+   "cull_distance_m": 1500,
+   "front": "-y",
+   "description": "Conifer (spruce / fir), 14-23 m",
+   "collision": {
+    "type": "cylinder",
+    "radius": 0.35,
+    "height": 8
+   },
+   "footprint_m": 2.5,
+   "note": "base at z = -0.60"
+  },
+  "conifer_c": {
+   "file": "meshes/conifer_c.glb",
+   "category": "trees",
+   "size_m": [
+    14.06,
+    12.56,
+    20.6
+   ],
+   "triangles": 8498,
+   "lod0_distance_m": 45,
+   "lods": [
+    {
+     "ratio": 0.45,
+     "distance_m": 110,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.18,
+     "distance_m": 320,
+     "foliage": "drop",
+     "sloppy": true
+    }
+   ],
+   "cull_distance_m": 1500,
+   "front": "-y",
+   "description": "Conifer (spruce / fir), 14-23 m",
+   "collision": {
+    "type": "cylinder",
+    "radius": 0.35,
+    "height": 8
+   },
+   "footprint_m": 2.5,
+   "note": "base at z = -0.60"
+  },
+  "conifer_d": {
+   "file": "meshes/conifer_d.glb",
+   "category": "trees",
+   "size_m": [
+    14.85,
+    15.3,
+    23.6
+   ],
+   "triangles": 8424,
+   "lod0_distance_m": 45,
+   "lods": [
+    {
+     "ratio": 0.45,
+     "distance_m": 110,
+     "foliage": "drop"
+    },
+    {
+     "ratio": 0.18,
+     "distance_m": 320,
+     "foliage": "drop",
+     "sloppy": true
+    }
+   ],
+   "cull_distance_m": 1500,
+   "front": "-y",
+   "description": "Conifer (spruce / fir), 14-23 m",
+   "collision": {
+    "type": "cylinder",
+    "radius": 0.35,
+    "height": 8
+   },
+   "footprint_m": 2.5,
+   "note": "base at z = -0.60"
+  }
+ }
+}

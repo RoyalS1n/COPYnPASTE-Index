@@ -111,8 +111,20 @@ std::shared_ptr<const MeshAsset> SceneBuilder::loadFileAsset(const fs::path& fil
     }
     if (entry.contains("lods")) {
         std::vector<LodSpec> specs;
-        for (auto& l : entry["lods"]) specs.push_back({l.value("ratio", 0.25f), l.value("distance_m", 1e9f), l.value("sloppy", false)});
-        generateLods(a, entry.value("lod0_distance_m", 1e9f), specs);
+        for (auto& l : entry["lods"])
+            specs.push_back({l.value("ratio", 0.25f), l.value("distance_m", 1e9f), l.value("sloppy", false), l.value("foliage", "") == "drop"});
+        // materials shaded as foliage or grass: their pieces are cards / blades
+        std::vector<std::string> foliage;
+        auto collect = [&](const json& mats) {
+            if (!mats.is_object()) return;
+            for (auto& [k, v] : mats.items()) {
+                std::string model = v.value("model", "lit");
+                if (model == "foliage" || model == "grass") foliage.push_back(k);
+            }
+        };
+        collect(builtinMaterials());
+        collect(lib_.value("materials", json::object()));
+        generateLods(a, entry.value("lod0_distance_m", 1e9f), specs, foliage);
     }
     auto ptr = std::make_shared<const MeshAsset>(std::move(a));
     assets_[key] = ptr;
@@ -218,6 +230,12 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
         }
     if (auto it = s.materialByName.find("terrain"); it != s.materialByName.end()) s.materials[it->second].gpu.p[0].x = s.env.waterLevel;
 
+    auto meshCull = [&](const json& ref, float def) {
+        if (!ref.is_string()) return def;
+        fs::path base;
+        const json* e = meshEntry(w, ref.get<std::string>(), base);
+        return e ? e->value("cull_distance_m", def) : def;
+    };
     std::unordered_map<const MeshAsset*, uint32_t> meshIds;
     auto sceneMesh = [&](const std::shared_ptr<const MeshAsset>& a) {
         if (auto it = meshIds.find(a.get()); it != meshIds.end()) return it->second;
@@ -309,7 +327,7 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
                 q = glm::rotation(vec3(0, 0, 1), T.normalAt(xy.x, xy.y)) * q;
             float scale = o.value("scale", 1.0f);
             if (!(scale > 0)) throw Error("scale must be > 0");
-            float cull = o.value("cull_distance_m", autoCull(*a, scale));
+            float cull = o.value("cull_distance_m", meshCull(o["mesh"], autoCull(*a, scale)));
             uint32_t first = s.addInstance(m, vec3(xy, z), q, scale, o.value("shadow", true), cull);
             InstanceSet set{id, m, first, 1, parseCollision(o.value("collision", json()), defaultCollision(w, o["mesh"]))};
             s.sets.push_back(set);
@@ -353,7 +371,7 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
             // one instance set per variant so collision and picking stay per mesh
             for (uint32_t vi = 0; vi < ids.size(); ++vi) {
                 InstanceSet set{id, ids[vi], (uint32_t)s.instances.size(), 0, col};
-                float cull = rule.value("cull_distance_m", autoCull(*assets[vi], 1.0f));
+                float cull = rule.value("cull_distance_m", meshCull(variants[vi]["mesh"], autoCull(*assets[vi], 1.0f)));
                 for (const ScatterPoint& p : cache.points) {
                     if (p.variant != vi) continue;
                     s.addInstance(ids[vi], p.position, p.rotation, p.scale, shadow, cull);

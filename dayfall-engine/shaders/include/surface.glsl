@@ -165,6 +165,32 @@ Surface shadeCourses(Material m, vec3 p, vec3 n, vec2 uv) {
     return s;
 }
 
+// Boulders and outcrops: world-space strata, tonal patches and cracks, moss on
+// upward faces and lichen spots (the reference-world RW_Rock shader).
+Surface shadeRock(Material m, vec3 p, vec3 n) {
+    Surface s = defaultSurface(n);
+    vec3 rock = m.c[0].rgb, dark = m.c[1].rgb, moss = m.c[2].rgb, lichen = m.c[3].rgb;
+    float large = fbm(p * 0.22, 4), mid = fbm(p * 1.4, 4), fine = fbm(p * 7.0, 3);
+    float strata = sin(p.z * 2.6 + fbm(p * 0.5, 4) * 9.0) * 0.5 + 0.5;
+    vec3 col = mix(rock, dark, smoothrange(strata, 0.25, 0.95) * 0.3);
+    col = mix(col, rock * 0.62, smoothrange(large, 0.32, 0.72) * 0.55);
+    col *= mix(0.82, 1.14, fine);
+    float crack = 1.0 - smoothrange(voronoiEdge(p.xy * 0.75 + vec2(p.z * 0.6, -p.z * 0.3)), 0.0, 0.07);
+    crack *= smoothrange(fbm(p * 0.6 + 1.7, 3), 0.35, 0.6);   // cracks in places, not a net over the whole stone
+    col = mix(col, dark * 0.8, crack * 0.32);
+    float up = smoothrange(n.z, 0.5, 0.92);
+    float mossF = up * smoothrange(fbm(p * 0.8 + 3.1, 4), 0.42, 0.6) * m.p[0].x;
+    col = mix(col, moss * mix(0.7, 1.2, fine), mossF);
+    float lich = smoothrange(fbm(p * 3.1 + 7.7, 3), 0.66, 0.72) * m.p[0].y * (1.0 - mossF);
+    col = mix(col, lichen, lich);
+    s.albedo = col;
+    s.rough = mix(0.82, 0.96, mossF);
+    s.spec = 0.4;
+    float h = mid * 0.6 + fine * 0.25 - crack * 0.6;
+    s.n = perturbNormal(n, p, h * m.p[0].z, 1.0);
+    return s;
+}
+
 vec3 envBRDFApprox(vec3 f0, float rough, float NoV) {
     const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);
     const vec4 c1 = vec4(1.0, 0.0425, 1.04, -0.04);

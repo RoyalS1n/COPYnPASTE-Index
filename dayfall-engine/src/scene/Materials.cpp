@@ -25,7 +25,8 @@ uint32_t modelFromName(const std::string& m) {
     if (m == "water") return ModelWater;
     if (m == "emissive") return ModelEmissive;
     if (m == "unlit") return ModelUnlit;
-    throw Error("unknown material model '" + m + "' (lit, terrain, foliage, grass, courses, water, emissive, unlit)");
+    if (m == "rock") return ModelRock;
+    throw Error("unknown material model '" + m + "' (lit, terrain, rock, foliage, grass, courses, water, emissive, unlit)");
 }
 }  // namespace
 
@@ -77,6 +78,13 @@ MaterialDef parseMaterial(const std::string& name, const json& j, const TextureR
             g.c[3] = col(j, "grime_color", vec4(0.055f, 0.085f, 0.02f, 1));
             g.p[0] = vec4(f(j, "block_width", 0.95f), f(j, "block_height", 0.44f), f(j, "mortar_width", 0.014f), f(j, "row_offset", 0.5f));
             g.p[1] = vec4(f(j, "grime", 0.5f), f(j, "roughness", 0.86f), f(j, "normal_strength", 0.03f), f(j, "specular", 0.3f));
+            break;
+        case ModelRock:
+            g.c[0] = col(j, "color", vec4(0.14f, 0.13f, 0.115f, 1));
+            g.c[1] = col(j, "color_dark", vec4(0.05f, 0.046f, 0.04f, 1));
+            g.c[2] = col(j, "moss", vec4(0.055f, 0.085f, 0.02f, 1));
+            g.c[3] = col(j, "lichen", vec4(0.32f, 0.3f, 0.2f, 1));
+            g.p[0] = vec4(f(j, "moss_amount", 0.6f), f(j, "lichen_amount", 0.5f), f(j, "bump", 0.05f), 0);
             break;
         case ModelWater:
             g.c[0] = col(j, "color", vec4(0.55f, 0.6f, 0.55f, 1));
@@ -136,7 +144,7 @@ const json& builtinMaterials() {
       "cloth_blue":   {"model": "lit", "base_color": [0.04, 0.08, 0.25], "roughness": 0.95},
       "hay":          {"model": "lit", "base_color": [0.45, 0.35, 0.12], "roughness": 0.95},
       "dirt":         {"model": "lit", "base_color": [0.12, 0.085, 0.055], "roughness": 0.95},
-      "rock":         {"model": "lit", "base_color": [0.2, 0.19, 0.17], "roughness": 0.85},
+      "rock":         {"model": "rock", "color": [0.16, 0.15, 0.13], "color_dark": [0.06, 0.055, 0.05], "moss_amount": 0.5},
       "leaves":       {"model": "foliage", "color_a": [0.045, 0.09, 0.018], "color_b": [0.11, 0.12, 0.03], "tip": [0.3, 0.34, 0.06],
                        "wind": {"strength": 0.08, "height": 8.0, "speed": 1.4}},
       "needles":      {"model": "foliage", "color_a": [0.025, 0.055, 0.02], "color_b": [0.05, 0.07, 0.025], "tip": [0.12, 0.17, 0.04],
