@@ -361,15 +361,15 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
             footprints.push_back({vec2(e["position"][0].get<float>(), e["position"][1].get<float>()), e.value("radius_m", 1.5f)});
 
     // scatter rules
-    ScatterContext ctx{T.empty() ? nullptr : &T, s.env.waterLevel, footprints};
-    std::string fpKey;
-    for (auto& f : footprints) fpKey += std::format("{:.1f},{:.1f},{:.1f};", f.center.x, f.center.y, f.radius);
+    // evaluated without footprints and cached, then filtered: moving an object does not re-run the rules
+    ScatterContext ctx{T.empty() ? nullptr : &T, s.env.waterLevel, {}};
+    FootprintIndex fpIndex(footprints);
     for (const json& raw : doc.value("scatter", json::array())) {
         std::string id = raw.value("id", "?");
         if (raw.value("hidden", false)) continue;
         try {
             json rule = normalizeScatterRule(raw);
-            std::string key = rule.dump() + std::format("|t{}|", T.version) + chunkPathsKey_ + "|" + fpKey;
+            std::string key = rule.dump() + std::format("|t{}|", T.version) + chunkPathsKey_;
             auto& cache = scatter_[id];
             if (cache.key != key) {
                 cache.points = evaluateScatter(rule, ctx, rule.value("max_instances", 2000000u));
@@ -386,12 +386,13 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
             }
             CollisionDesc col = parseCollision(rule.value("collision", json("none")), {CollisionKind::None});
             bool shadow = rule.value("shadow", true);
+            float avoid = rule.value("avoid_objects_m", 1.0f);
             // one instance set per variant so collision and picking stay per mesh
             for (uint32_t vi = 0; vi < ids.size(); ++vi) {
                 InstanceSet set{id, ids[vi], (uint32_t)s.instances.size(), 0, col};
                 float cull = rule.value("cull_distance_m", meshCull(variants[vi]["mesh"], autoCull(*assets[vi], 1.0f)));
                 for (const ScatterPoint& p : cache.points) {
-                    if (p.variant != vi) continue;
+                    if (p.variant != vi || fpIndex.blocked(vec2(p.position), avoid)) continue;
                     s.addInstance(ids[vi], p.position, p.rotation, p.scale, shadow, cull);
                     ++set.count;
                 }

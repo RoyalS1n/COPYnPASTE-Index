@@ -42,6 +42,30 @@ json normalizeScatterRule(const json& in) {
     return r;
 }
 
+FootprintIndex::FootprintIndex(const std::vector<Footprint>& fps, float cell) : fps_(fps), cell_(cell) {
+    for (uint32_t i = 0; i < fps_.size(); ++i) {
+        const Footprint& f = fps_[i];
+        int x0 = (int)std::floor((f.center.x - f.radius) / cell_), x1 = (int)std::floor((f.center.x + f.radius) / cell_);
+        int y0 = (int)std::floor((f.center.y - f.radius) / cell_), y1 = (int)std::floor((f.center.y + f.radius) / cell_);
+        for (int y = y0; y <= y1; ++y)
+            for (int x = x0; x <= x1; ++x) grid_[((uint64_t)(uint32_t)x << 32) | (uint32_t)y].push_back(i);
+    }
+}
+
+bool FootprintIndex::blocked(vec2 p, float margin) const {
+    if (fps_.empty()) return false;
+    int r = (int)std::ceil(margin / cell_);
+    int cx = (int)std::floor(p.x / cell_), cy = (int)std::floor(p.y / cell_);
+    for (int y = cy - r; y <= cy + r; ++y)
+        for (int x = cx - r; x <= cx + r; ++x) {
+            auto it = grid_.find(((uint64_t)(uint32_t)x << 32) | (uint32_t)y);
+            if (it == grid_.end()) continue;
+            for (uint32_t i : it->second)
+                if (glm::length(p - fps_[i].center) < fps_[i].radius + margin) return true;
+        }
+    return false;
+}
+
 std::vector<ScatterPoint> evaluateScatter(const json& rule, const ScatterContext& ctx, size_t maxPoints) {
     std::vector<ScatterPoint> out;
     const Terrain* t = ctx.terrain;
@@ -85,6 +109,7 @@ std::vector<ScatterPoint> evaluateScatter(const json& rule, const ScatterContext
     float gcell = std::max(minSpacing, 0.01f);
     auto key = [&](int x, int y) { return ((uint64_t)(uint32_t)x << 32) | (uint32_t)y; };
     float pathProbe = avoidPaths;
+    FootprintIndex fpIndex(ctx.footprints);
     for (int gy = 0; gy < ny; ++gy)
         for (int gx = 0; gx < nx; ++gx) {
             uint32_t h0 = hash32((uint32_t)gx * 73856093u ^ (uint32_t)gy * 19349663u ^ seed * 83492791u);
@@ -119,9 +144,6 @@ std::vector<ScatterPoint> evaluateScatter(const json& rule, const ScatterContext
                 }
             }
             bool blocked = false;
-            for (const Footprint& f : ctx.footprints)
-                if (glm::length(p - f.center) < f.radius + avoidObjects) { blocked = true; break; }
-            if (blocked) continue;
             if (minSpacing > 0) {
                 int cx = (int)std::floor(p.x / gcell), cy = (int)std::floor(p.y / gcell);
                 for (int dy = -1; dy <= 1 && !blocked; ++dy)
@@ -133,6 +155,7 @@ std::vector<ScatterPoint> evaluateScatter(const json& rule, const ScatterContext
                 if (blocked) continue;
                 grid[key(cx, cy)].push_back(p);
             }
+            if (fpIndex.blocked(p, avoidObjects)) continue;   // after spacing: see Scatter.h
             ScatterPoint sp;
             float pick = hash01(h0, 2) * wsum;
             sp.variant = 0;

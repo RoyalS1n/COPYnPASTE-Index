@@ -1,6 +1,7 @@
 #include "editor/Editor.h"
 #include "core/Error.h"
 #include "core/Log.h"
+#include <chrono>
 #include <format>
 
 namespace df {
@@ -77,14 +78,24 @@ void Editor::newMap(const fs::path& dir, const std::string& name, const json& te
 bool Editor::rebuildIfNeeded() {
     if (world.version == builtVersion_ && world.terrain.version == builtTerrainVersion_) return false;
     bool wasPlaying = game.active();
+    auto t0 = std::chrono::steady_clock::now();
+    auto lap = [&t0] {
+        auto t = std::chrono::steady_clock::now();
+        double ms = std::chrono::duration<double, std::milli>(t - t0).count();
+        t0 = t;
+        return ms;
+    };
     builder.build(world, scene, entities, lastBuild);
+    double msBuild = lap();
     engine->setScene(scene);
     if (builder.takeTerrainChanged() || terrainUploaded_ != &world.terrain)
         engine->renderer.setTerrain(world.terrain.empty() ? nullptr : &world.terrain, scene.terrainMaterial);
     else if (!world.terrain.empty())
         engine->renderer.setTerrainMaterial(scene.terrainMaterial);
     terrainUploaded_ = &world.terrain;
+    double msUpload = lap();
     physics.buildStatic(scene, world.terrain);
+    double msPhysics = lap();
     game.rebind(builder);
     if (wasPlaying) {   // keep playing from the same spot
         for (auto& id : game.collectedIds)
@@ -97,8 +108,8 @@ bool Editor::rebuildIfNeeded() {
     }
     builtVersion_ = world.version;
     builtTerrainVersion_ = world.terrain.version;
-    logInfo("scene rebuilt in {:.0f} ms: {} instances, {} meshes, {} warnings", lastBuild.ms, lastBuild.instances, lastBuild.meshes,
-            lastBuild.warnings.size());
+    logInfo("scene rebuilt in {:.0f} ms (build {:.0f}, GPU upload {:.0f}, physics {:.0f}): {} instances, {} meshes, {} warnings",
+            msBuild + msUpload + msPhysics, msBuild, msUpload, msPhysics, lastBuild.instances, lastBuild.meshes, lastBuild.warnings.size());
     return true;
 }
 
