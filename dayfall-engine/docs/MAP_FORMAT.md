@@ -383,7 +383,9 @@ the same name to override it for that map:
 
 The content library is `content/library.json` (written by `reference-world/blender/export_content.py`) plus every
 `content/<folder>/library.json` (one per source, each with its own `meshes` and `materials`, paths relative to its
-folder): `content/fortress` holds the FloatingIslet fortress kit (`fk_*` meshes, `FT_*` materials). A name defined
+folder): `content/fortress` holds the FloatingIslet fortress kit (`fk_*` meshes, `FT_*` materials), and
+`content/textures` 100 tileable texture materials (`TX_<category>_<name>`, world-space, from
+`tools/make_texture_library.py`; `maps/texture_gallery` shows them all on 3 m boxes). A name defined
 twice keeps its first definition (the root library, then folders in alphabetical order).
 
 ## instance_files

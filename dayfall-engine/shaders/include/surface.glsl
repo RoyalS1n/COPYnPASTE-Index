@@ -81,7 +81,7 @@ Surface shadeTriplanar(Material m, vec3 p, vec3 n, vec4 c0) {
         // walls sample with v = -z so the image's top is up (as Unreal's world-aligned textures)
         vec3 d = tex(m.h0.z, vec2(P.y, -P.z)).rgb * b.x + tex(m.h0.z, vec2(P.x, -P.z)).rgb * b.y + tex(m.h0.z, P.xy).rgb * b.z;
         l = dot(d, LUMA);
-        col *= max(1.0 + (l / 0.40 - 1.0) * k2.y, 0.15) * mix(vec3(1.0), d / max(l, 0.03), k2.z);
+        col *= max(1.0 + (l / 0.40 - 1.0) * k2.y, 0.05) * mix(vec3(1.0), d / max(l, 0.01), k2.z);
     }
     vec3 q = p * 0.4;
     col *= 1.0 + k3.z * sin(q.x * 1.7 + sin(q.y * 1.3)) * sin(q.y * 1.9 + sin(q.z * 1.1)) * sin(q.z * 1.5 + sin(q.x * 0.9));

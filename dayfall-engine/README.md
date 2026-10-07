@@ -125,6 +125,6 @@ python3 tools/test_mcp.py                            # the MCP server: protocol,
 | `src/editor` | the editor, the agent tools, the MCP server |
 | `shaders` | GLSL, compiled to SPIR-V at build time |
 | `maps` | maps; `maps/starter` is the template |
-| `content` | the shared content library (meshes, materials); `content/fortress` is the FloatingIslet fortress kit |
+| `content` | the shared content library (meshes, materials); `content/fortress` is the FloatingIslet fortress kit, `content/textures` 100 tileable texture materials (`maps/texture_gallery` shows them) |
 | `tools` | scripts: `make_starter.json` rebuilds the starter map; `unreal/` ports Unreal levels |
 | `docs` | workflow, map format, tool reference, porting |

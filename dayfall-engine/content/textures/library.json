@@ -1,0 +1,1906 @@
+{
+ "format": "dayfall-content",
+ "source": "tools/make_texture_library.py",
+ "materials": {
+  "TX_stone_ashlar_grey": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "textures": {
+    "base": "stone_ashlar_grey.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_stone_ashlar_sandstone": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.88,
+   "metallic": 0.0,
+   "textures": {
+    "base": "stone_ashlar_sandstone.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_stone_rubble_wall": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.92,
+   "metallic": 0.0,
+   "textures": {
+    "base": "stone_rubble_wall.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_stone_fieldstone": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "stone_fieldstone.jpg"
+   },
+   "triplanar": {
+    "tile_m": 4.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_stone_drystone": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "stone_drystone.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_stone_castle_blocks": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.86,
+   "metallic": 0.0,
+   "textures": {
+    "base": "stone_castle_blocks.jpg"
+   },
+   "triplanar": {
+    "tile_m": 4.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_stone_flint_wall": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.7,
+   "metallic": 0.0,
+   "textures": {
+    "base": "stone_flint_wall.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_stone_cyclopean": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.82,
+   "metallic": 0.0,
+   "textures": {
+    "base": "stone_cyclopean.jpg"
+   },
+   "triplanar": {
+    "tile_m": 6.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_stone_runic_blocks": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.8,
+   "metallic": 0.0,
+   "textures": {
+    "base": "stone_runic_blocks.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_stone_mossy_ruins": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "stone_mossy_ruins.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_brick_red_running": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "textures": {
+    "base": "brick_red_running.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.8,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_brick_flemish": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.82,
+   "metallic": 0.0,
+   "textures": {
+    "base": "brick_flemish.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_brick_weathered": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "brick_weathered.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_brick_painted_white": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.8,
+   "metallic": 0.0,
+   "textures": {
+    "base": "brick_painted_white.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.8,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_brick_herringbone": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.88,
+   "metallic": 0.0,
+   "textures": {
+    "base": "brick_herringbone.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_brick_yellow_stock": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.88,
+   "metallic": 0.0,
+   "textures": {
+    "base": "brick_yellow_stock.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.8,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_brick_roman_thin": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.86,
+   "metallic": 0.0,
+   "textures": {
+    "base": "brick_roman_thin.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_brick_engineering_blue": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.6,
+   "metallic": 0.0,
+   "textures": {
+    "base": "brick_engineering_blue.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.8,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_brick_adobe": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "textures": {
+    "base": "brick_adobe.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.3,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_brick_clinker": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.8,
+   "metallic": 0.0,
+   "textures": {
+    "base": "brick_clinker.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_wood_planks_oak": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.6,
+   "metallic": 0.0,
+   "textures": {
+    "base": "wood_planks_oak.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_wood_barn_boards": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "wood_barn_boards.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_wood_log_ends": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "textures": {
+    "base": "wood_log_ends.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_wood_bark_pine": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "textures": {
+    "base": "wood_bark_pine.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_wood_bark_birch": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.7,
+   "metallic": 0.0,
+   "textures": {
+    "base": "wood_bark_birch.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_wood_painted_blue": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.75,
+   "metallic": 0.0,
+   "textures": {
+    "base": "wood_painted_blue.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_wood_parquet_herringbone": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.45,
+   "metallic": 0.0,
+   "textures": {
+    "base": "wood_parquet_herringbone.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_wood_parquet_basket": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.5,
+   "metallic": 0.0,
+   "textures": {
+    "base": "wood_parquet_basket.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_wood_log_cabin": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "textures": {
+    "base": "wood_log_cabin.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_wood_mahogany_panels": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.4,
+   "metallic": 0.0,
+   "textures": {
+    "base": "wood_mahogany_panels.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_metal_rusted_iron": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.8,
+   "metallic": 0.1,
+   "textures": {
+    "base": "metal_rusted_iron.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_metal_corrugated_painted": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.6,
+   "metallic": 0.0,
+   "textures": {
+    "base": "metal_corrugated_painted.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_metal_riveted_plates": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.6,
+   "metallic": 0.0,
+   "textures": {
+    "base": "metal_riveted_plates.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_metal_copper_patina": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.5,
+   "metallic": 0.3,
+   "textures": {
+    "base": "metal_copper_patina.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_metal_brushed_steel": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.35,
+   "metallic": 1.0,
+   "textures": {
+    "base": "metal_brushed_steel.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_metal_hammered_bronze": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.4,
+   "metallic": 1.0,
+   "textures": {
+    "base": "metal_hammered_bronze.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_metal_diamond_plate": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.45,
+   "metallic": 1.0,
+   "textures": {
+    "base": "metal_diamond_plate.jpg"
+   },
+   "triplanar": {
+    "tile_m": 0.8,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_metal_galvanized": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.5,
+   "metallic": 1.0,
+   "textures": {
+    "base": "metal_galvanized.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_metal_damascus": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.3,
+   "metallic": 1.0,
+   "textures": {
+    "base": "metal_damascus.jpg"
+   },
+   "triplanar": {
+    "tile_m": 0.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_metal_chainmail": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.45,
+   "metallic": 0.9,
+   "textures": {
+    "base": "metal_chainmail.jpg"
+   },
+   "triplanar": {
+    "tile_m": 0.4,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_roof_slate": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.7,
+   "metallic": 0.0,
+   "textures": {
+    "base": "roof_slate.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_roof_wood_shingles": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "textures": {
+    "base": "roof_wood_shingles.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_roof_clay_pantiles": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.8,
+   "metallic": 0.0,
+   "textures": {
+    "base": "roof_clay_pantiles.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_roof_thatch": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "textures": {
+    "base": "roof_thatch.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_roof_fishscale": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.7,
+   "metallic": 0.0,
+   "textures": {
+    "base": "roof_fishscale.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_roof_spanish_barrel": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.75,
+   "metallic": 0.0,
+   "textures": {
+    "base": "roof_spanish_barrel.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_roof_copper_seam": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.55,
+   "metallic": 0.1,
+   "textures": {
+    "base": "roof_copper_seam.jpg"
+   },
+   "triplanar": {
+    "tile_m": 4.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_roof_stone_slates": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.88,
+   "metallic": 0.0,
+   "textures": {
+    "base": "roof_stone_slates.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_roof_plain_tiles": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.8,
+   "metallic": 0.0,
+   "textures": {
+    "base": "roof_plain_tiles.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_roof_asphalt_shingles": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "roof_asphalt_shingles.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_ground_dirt": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "textures": {
+    "base": "ground_dirt.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_ground_gravel": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "ground_gravel.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_ground_sand_ripples": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "textures": {
+    "base": "ground_sand_ripples.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_ground_mud": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.4,
+   "metallic": 0.0,
+   "textures": {
+    "base": "ground_mud.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_ground_cracked_earth": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "textures": {
+    "base": "ground_cracked_earth.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_ground_forest_floor": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "ground_forest_floor.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_ground_cobblestones": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.75,
+   "metallic": 0.0,
+   "textures": {
+    "base": "ground_cobblestones.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_ground_flagstone_path": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "textures": {
+    "base": "ground_flagstone_path.jpg"
+   },
+   "triplanar": {
+    "tile_m": 4.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_ground_granite_setts": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.7,
+   "metallic": 0.0,
+   "textures": {
+    "base": "ground_granite_setts.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_ground_grass": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "ground_grass.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_natural_rock_face": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "textures": {
+    "base": "natural_rock_face.jpg"
+   },
+   "triplanar": {
+    "tile_m": 8.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_natural_moss": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "textures": {
+    "base": "natural_moss.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_natural_lichen_rock": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "textures": {
+    "base": "natural_lichen_rock.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_natural_snow": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.6,
+   "metallic": 0.0,
+   "textures": {
+    "base": "natural_snow.jpg"
+   },
+   "triplanar": {
+    "tile_m": 4.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_natural_ice": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.15,
+   "metallic": 0.0,
+   "textures": {
+    "base": "natural_ice.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_natural_lava_rock": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "natural_lava_rock.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_natural_sandstone_strata": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "natural_sandstone_strata.jpg"
+   },
+   "triplanar": {
+    "tile_m": 6.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_natural_river_pebbles": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.6,
+   "metallic": 0.0,
+   "textures": {
+    "base": "natural_river_pebbles.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_natural_crystal": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.25,
+   "metallic": 0.0,
+   "textures": {
+    "base": "natural_crystal.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_natural_basalt_columns": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "textures": {
+    "base": "natural_basalt_columns.jpg"
+   },
+   "triplanar": {
+    "tile_m": 6.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_fabric_canvas": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "fabric_canvas.jpg"
+   },
+   "triplanar": {
+    "tile_m": 0.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_fabric_burlap": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "textures": {
+    "base": "fabric_burlap.jpg"
+   },
+   "triplanar": {
+    "tile_m": 0.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_fabric_wool_twill": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "textures": {
+    "base": "fabric_wool_twill.jpg"
+   },
+   "triplanar": {
+    "tile_m": 0.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_fabric_leather_brown": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.6,
+   "metallic": 0.0,
+   "textures": {
+    "base": "fabric_leather_brown.jpg"
+   },
+   "triplanar": {
+    "tile_m": 0.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_fabric_quilted": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.7,
+   "metallic": 0.0,
+   "textures": {
+    "base": "fabric_quilted.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_fabric_tartan": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "fabric_tartan.jpg"
+   },
+   "triplanar": {
+    "tile_m": 0.6,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_fabric_knit": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "textures": {
+    "base": "fabric_knit.jpg"
+   },
+   "triplanar": {
+    "tile_m": 0.4,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_fabric_ticking_stripes": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "textures": {
+    "base": "fabric_ticking_stripes.jpg"
+   },
+   "triplanar": {
+    "tile_m": 0.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_fabric_dragon_hide": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.5,
+   "metallic": 0.0,
+   "textures": {
+    "base": "fabric_dragon_hide.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_fabric_fur_pelt": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "textures": {
+    "base": "fabric_fur_pelt.jpg"
+   },
+   "triplanar": {
+    "tile_m": 0.8,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_plaster_lime": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "plaster_lime.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_plaster_cracked_render": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "plaster_cracked_render.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_plaster_concrete_formwork": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "textures": {
+    "base": "plaster_concrete_formwork.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_plaster_adobe": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "textures": {
+    "base": "plaster_adobe.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_plaster_stucco_knockdown": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "textures": {
+    "base": "plaster_stucco_knockdown.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_plaster_pebbledash": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.95,
+   "metallic": 0.0,
+   "textures": {
+    "base": "plaster_pebbledash.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_plaster_half_timber": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "textures": {
+    "base": "plaster_half_timber.jpg"
+   },
+   "triplanar": {
+    "tile_m": 4.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_plaster_cinder_blocks": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.9,
+   "metallic": 0.0,
+   "textures": {
+    "base": "plaster_cinder_blocks.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.4,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_plaster_painted_peeling": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.85,
+   "metallic": 0.0,
+   "textures": {
+    "base": "plaster_painted_peeling.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_plaster_concrete_weathered": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.92,
+   "metallic": 0.0,
+   "textures": {
+    "base": "plaster_concrete_weathered.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_floor_terracotta": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.7,
+   "metallic": 0.0,
+   "textures": {
+    "base": "floor_terracotta.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_floor_checker_marble": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.25,
+   "metallic": 0.0,
+   "textures": {
+    "base": "floor_checker_marble.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.4,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_floor_mosaic": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.6,
+   "metallic": 0.0,
+   "textures": {
+    "base": "floor_mosaic.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.5,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_floor_hex_tiles": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.4,
+   "metallic": 0.0,
+   "textures": {
+    "base": "floor_hex_tiles.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.2,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_floor_polished_marble": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.15,
+   "metallic": 0.0,
+   "textures": {
+    "base": "floor_polished_marble.jpg"
+   },
+   "triplanar": {
+    "tile_m": 3.6,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_floor_slate_tiles": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.75,
+   "metallic": 0.0,
+   "textures": {
+    "base": "floor_slate_tiles.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.4,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_floor_encaustic": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.55,
+   "metallic": 0.0,
+   "textures": {
+    "base": "floor_encaustic.jpg"
+   },
+   "triplanar": {
+    "tile_m": 1.6,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_floor_octagon_dot": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.45,
+   "metallic": 0.0,
+   "textures": {
+    "base": "floor_octagon_dot.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_floor_dungeon_flagstones": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.8,
+   "metallic": 0.0,
+   "textures": {
+    "base": "floor_dungeon_flagstones.jpg"
+   },
+   "triplanar": {
+    "tile_m": 4.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  },
+  "TX_floor_terrazzo": {
+   "model": "lit",
+   "base_color": [
+    0.4,
+    0.4,
+    0.4
+   ],
+   "roughness": 0.35,
+   "metallic": 0.0,
+   "textures": {
+    "base": "floor_terrazzo.jpg"
+   },
+   "triplanar": {
+    "tile_m": 2.0,
+    "albedo_strength": 1.0,
+    "chroma_mix": 1.0,
+    "normal_strength": 0.0
+   }
+  }
+ }
+}

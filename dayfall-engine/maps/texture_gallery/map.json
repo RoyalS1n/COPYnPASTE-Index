@@ -1,0 +1,642 @@
+{
+  "cameras": {
+    "overview": {"position": [0.0, -71.35, 85.03], "target": [0.0, 0.0, 0.0], "vfov_deg": 45.0},
+    "row_brick": {"position": [0.0, -0.5, 16.0], "target": [0.0, 31.5, 1.5], "vfov_deg": 45.0},
+    "row_fabric": {"position": [0.0, -54.5, 16.0], "target": [0.0, -22.5, 1.5], "vfov_deg": 45.0},
+    "row_floor": {"position": [0.0, -72.5, 16.0], "target": [0.0, -40.5, 1.5], "vfov_deg": 45.0},
+    "row_ground": {"position": [0.0, -36.5, 16.0], "target": [0.0, -4.5, 1.5], "vfov_deg": 45.0},
+    "row_metal": {"position": [0.0, -18.5, 16.0], "target": [0.0, 13.5, 1.5], "vfov_deg": 45.0},
+    "row_natural": {"position": [0.0, -45.5, 16.0], "target": [0.0, -13.5, 1.5], "vfov_deg": 45.0},
+    "row_plaster": {"position": [0.0, -63.5, 16.0], "target": [0.0, -31.5, 1.5], "vfov_deg": 45.0},
+    "row_roof": {"position": [0.0, -27.5, 16.0], "target": [0.0, 4.5, 1.5], "vfov_deg": 45.0},
+    "row_stone": {"position": [0.0, 8.5, 16.0], "target": [0.0, 40.5, 1.5], "vfov_deg": 45.0},
+    "row_wood": {"position": [0.0, -9.5, 16.0], "target": [0.0, 22.5, 1.5], "vfov_deg": 45.0}
+  },
+  "entities": [],
+  "environment": {"preset": "noon"},
+  "format": "dayfall-map",
+  "lights": [],
+  "name": "Texture gallery",
+  "objects": [
+    {
+      "id": "sw_stone_ashlar_grey",
+      "mesh": {"material": "TX_stone_ashlar_grey", "size": [3, 3, 3], "type": "box"},
+      "position": [-20.25, 40.5],
+      "tags": ["gallery", "stone"]
+    },
+    {
+      "id": "sw_stone_ashlar_sandstone",
+      "mesh": {"material": "TX_stone_ashlar_sandstone", "size": [3, 3, 3], "type": "box"},
+      "position": [-15.75, 40.5],
+      "tags": ["gallery", "stone"]
+    },
+    {
+      "id": "sw_stone_rubble_wall",
+      "mesh": {"material": "TX_stone_rubble_wall", "size": [3, 3, 3], "type": "box"},
+      "position": [-11.25, 40.5],
+      "tags": ["gallery", "stone"]
+    },
+    {
+      "id": "sw_stone_fieldstone",
+      "mesh": {"material": "TX_stone_fieldstone", "size": [3, 3, 3], "type": "box"},
+      "position": [-6.75, 40.5],
+      "tags": ["gallery", "stone"]
+    },
+    {
+      "id": "sw_stone_drystone",
+      "mesh": {"material": "TX_stone_drystone", "size": [3, 3, 3], "type": "box"},
+      "position": [-2.25, 40.5],
+      "tags": ["gallery", "stone"]
+    },
+    {
+      "id": "sw_stone_castle_blocks",
+      "mesh": {"material": "TX_stone_castle_blocks", "size": [3, 3, 3], "type": "box"},
+      "position": [2.25, 40.5],
+      "tags": ["gallery", "stone"]
+    },
+    {
+      "id": "sw_stone_flint_wall",
+      "mesh": {"material": "TX_stone_flint_wall", "size": [3, 3, 3], "type": "box"},
+      "position": [6.75, 40.5],
+      "tags": ["gallery", "stone"]
+    },
+    {
+      "id": "sw_stone_cyclopean",
+      "mesh": {"material": "TX_stone_cyclopean", "size": [3, 3, 3], "type": "box"},
+      "position": [11.25, 40.5],
+      "tags": ["gallery", "stone"]
+    },
+    {
+      "id": "sw_stone_runic_blocks",
+      "mesh": {"material": "TX_stone_runic_blocks", "size": [3, 3, 3], "type": "box"},
+      "position": [15.75, 40.5],
+      "tags": ["gallery", "stone"]
+    },
+    {
+      "id": "sw_stone_mossy_ruins",
+      "mesh": {"material": "TX_stone_mossy_ruins", "size": [3, 3, 3], "type": "box"},
+      "position": [20.25, 40.5],
+      "tags": ["gallery", "stone"]
+    },
+    {
+      "id": "sw_brick_red_running",
+      "mesh": {"material": "TX_brick_red_running", "size": [3, 3, 3], "type": "box"},
+      "position": [-20.25, 31.5],
+      "tags": ["gallery", "brick"]
+    },
+    {
+      "id": "sw_brick_flemish",
+      "mesh": {"material": "TX_brick_flemish", "size": [3, 3, 3], "type": "box"},
+      "position": [-15.75, 31.5],
+      "tags": ["gallery", "brick"]
+    },
+    {
+      "id": "sw_brick_weathered",
+      "mesh": {"material": "TX_brick_weathered", "size": [3, 3, 3], "type": "box"},
+      "position": [-11.25, 31.5],
+      "tags": ["gallery", "brick"]
+    },
+    {
+      "id": "sw_brick_painted_white",
+      "mesh": {"material": "TX_brick_painted_white", "size": [3, 3, 3], "type": "box"},
+      "position": [-6.75, 31.5],
+      "tags": ["gallery", "brick"]
+    },
+    {
+      "id": "sw_brick_herringbone",
+      "mesh": {"material": "TX_brick_herringbone", "size": [3, 3, 3], "type": "box"},
+      "position": [-2.25, 31.5],
+      "tags": ["gallery", "brick"]
+    },
+    {
+      "id": "sw_brick_yellow_stock",
+      "mesh": {"material": "TX_brick_yellow_stock", "size": [3, 3, 3], "type": "box"},
+      "position": [2.25, 31.5],
+      "tags": ["gallery", "brick"]
+    },
+    {
+      "id": "sw_brick_roman_thin",
+      "mesh": {"material": "TX_brick_roman_thin", "size": [3, 3, 3], "type": "box"},
+      "position": [6.75, 31.5],
+      "tags": ["gallery", "brick"]
+    },
+    {
+      "id": "sw_brick_engineering_blue",
+      "mesh": {"material": "TX_brick_engineering_blue", "size": [3, 3, 3], "type": "box"},
+      "position": [11.25, 31.5],
+      "tags": ["gallery", "brick"]
+    },
+    {
+      "id": "sw_brick_adobe",
+      "mesh": {"material": "TX_brick_adobe", "size": [3, 3, 3], "type": "box"},
+      "position": [15.75, 31.5],
+      "tags": ["gallery", "brick"]
+    },
+    {
+      "id": "sw_brick_clinker",
+      "mesh": {"material": "TX_brick_clinker", "size": [3, 3, 3], "type": "box"},
+      "position": [20.25, 31.5],
+      "tags": ["gallery", "brick"]
+    },
+    {
+      "id": "sw_wood_planks_oak",
+      "mesh": {"material": "TX_wood_planks_oak", "size": [3, 3, 3], "type": "box"},
+      "position": [-20.25, 22.5],
+      "tags": ["gallery", "wood"]
+    },
+    {
+      "id": "sw_wood_barn_boards",
+      "mesh": {"material": "TX_wood_barn_boards", "size": [3, 3, 3], "type": "box"},
+      "position": [-15.75, 22.5],
+      "tags": ["gallery", "wood"]
+    },
+    {
+      "id": "sw_wood_log_ends",
+      "mesh": {"material": "TX_wood_log_ends", "size": [3, 3, 3], "type": "box"},
+      "position": [-11.25, 22.5],
+      "tags": ["gallery", "wood"]
+    },
+    {
+      "id": "sw_wood_bark_pine",
+      "mesh": {"material": "TX_wood_bark_pine", "size": [3, 3, 3], "type": "box"},
+      "position": [-6.75, 22.5],
+      "tags": ["gallery", "wood"]
+    },
+    {
+      "id": "sw_wood_bark_birch",
+      "mesh": {"material": "TX_wood_bark_birch", "size": [3, 3, 3], "type": "box"},
+      "position": [-2.25, 22.5],
+      "tags": ["gallery", "wood"]
+    },
+    {
+      "id": "sw_wood_painted_blue",
+      "mesh": {"material": "TX_wood_painted_blue", "size": [3, 3, 3], "type": "box"},
+      "position": [2.25, 22.5],
+      "tags": ["gallery", "wood"]
+    },
+    {
+      "id": "sw_wood_parquet_herringbone",
+      "mesh": {"material": "TX_wood_parquet_herringbone", "size": [3, 3, 3], "type": "box"},
+      "position": [6.75, 22.5],
+      "tags": ["gallery", "wood"]
+    },
+    {
+      "id": "sw_wood_parquet_basket",
+      "mesh": {"material": "TX_wood_parquet_basket", "size": [3, 3, 3], "type": "box"},
+      "position": [11.25, 22.5],
+      "tags": ["gallery", "wood"]
+    },
+    {
+      "id": "sw_wood_log_cabin",
+      "mesh": {"material": "TX_wood_log_cabin", "size": [3, 3, 3], "type": "box"},
+      "position": [15.75, 22.5],
+      "tags": ["gallery", "wood"]
+    },
+    {
+      "id": "sw_wood_mahogany_panels",
+      "mesh": {"material": "TX_wood_mahogany_panels", "size": [3, 3, 3], "type": "box"},
+      "position": [20.25, 22.5],
+      "tags": ["gallery", "wood"]
+    },
+    {
+      "id": "sw_metal_rusted_iron",
+      "mesh": {"material": "TX_metal_rusted_iron", "size": [3, 3, 3], "type": "box"},
+      "position": [-20.25, 13.5],
+      "tags": ["gallery", "metal"]
+    },
+    {
+      "id": "sw_metal_corrugated_painted",
+      "mesh": {"material": "TX_metal_corrugated_painted", "size": [3, 3, 3], "type": "box"},
+      "position": [-15.75, 13.5],
+      "tags": ["gallery", "metal"]
+    },
+    {
+      "id": "sw_metal_riveted_plates",
+      "mesh": {"material": "TX_metal_riveted_plates", "size": [3, 3, 3], "type": "box"},
+      "position": [-11.25, 13.5],
+      "tags": ["gallery", "metal"]
+    },
+    {
+      "id": "sw_metal_copper_patina",
+      "mesh": {"material": "TX_metal_copper_patina", "size": [3, 3, 3], "type": "box"},
+      "position": [-6.75, 13.5],
+      "tags": ["gallery", "metal"]
+    },
+    {
+      "id": "sw_metal_brushed_steel",
+      "mesh": {"material": "TX_metal_brushed_steel", "size": [3, 3, 3], "type": "box"},
+      "position": [-2.25, 13.5],
+      "tags": ["gallery", "metal"]
+    },
+    {
+      "id": "sw_metal_hammered_bronze",
+      "mesh": {"material": "TX_metal_hammered_bronze", "size": [3, 3, 3], "type": "box"},
+      "position": [2.25, 13.5],
+      "tags": ["gallery", "metal"]
+    },
+    {
+      "id": "sw_metal_diamond_plate",
+      "mesh": {"material": "TX_metal_diamond_plate", "size": [3, 3, 3], "type": "box"},
+      "position": [6.75, 13.5],
+      "tags": ["gallery", "metal"]
+    },
+    {
+      "id": "sw_metal_galvanized",
+      "mesh": {"material": "TX_metal_galvanized", "size": [3, 3, 3], "type": "box"},
+      "position": [11.25, 13.5],
+      "tags": ["gallery", "metal"]
+    },
+    {
+      "id": "sw_metal_damascus",
+      "mesh": {"material": "TX_metal_damascus", "size": [3, 3, 3], "type": "box"},
+      "position": [15.75, 13.5],
+      "tags": ["gallery", "metal"]
+    },
+    {
+      "id": "sw_metal_chainmail",
+      "mesh": {"material": "TX_metal_chainmail", "size": [3, 3, 3], "type": "box"},
+      "position": [20.25, 13.5],
+      "tags": ["gallery", "metal"]
+    },
+    {
+      "id": "sw_roof_slate",
+      "mesh": {"material": "TX_roof_slate", "size": [3, 3, 3], "type": "box"},
+      "position": [-20.25, 4.5],
+      "tags": ["gallery", "roof"]
+    },
+    {
+      "id": "sw_roof_wood_shingles",
+      "mesh": {"material": "TX_roof_wood_shingles", "size": [3, 3, 3], "type": "box"},
+      "position": [-15.75, 4.5],
+      "tags": ["gallery", "roof"]
+    },
+    {
+      "id": "sw_roof_clay_pantiles",
+      "mesh": {"material": "TX_roof_clay_pantiles", "size": [3, 3, 3], "type": "box"},
+      "position": [-11.25, 4.5],
+      "tags": ["gallery", "roof"]
+    },
+    {
+      "id": "sw_roof_thatch",
+      "mesh": {"material": "TX_roof_thatch", "size": [3, 3, 3], "type": "box"},
+      "position": [-6.75, 4.5],
+      "tags": ["gallery", "roof"]
+    },
+    {
+      "id": "sw_roof_fishscale",
+      "mesh": {"material": "TX_roof_fishscale", "size": [3, 3, 3], "type": "box"},
+      "position": [-2.25, 4.5],
+      "tags": ["gallery", "roof"]
+    },
+    {
+      "id": "sw_roof_spanish_barrel",
+      "mesh": {"material": "TX_roof_spanish_barrel", "size": [3, 3, 3], "type": "box"},
+      "position": [2.25, 4.5],
+      "tags": ["gallery", "roof"]
+    },
+    {
+      "id": "sw_roof_copper_seam",
+      "mesh": {"material": "TX_roof_copper_seam", "size": [3, 3, 3], "type": "box"},
+      "position": [6.75, 4.5],
+      "tags": ["gallery", "roof"]
+    },
+    {
+      "id": "sw_roof_stone_slates",
+      "mesh": {"material": "TX_roof_stone_slates", "size": [3, 3, 3], "type": "box"},
+      "position": [11.25, 4.5],
+      "tags": ["gallery", "roof"]
+    },
+    {
+      "id": "sw_roof_plain_tiles",
+      "mesh": {"material": "TX_roof_plain_tiles", "size": [3, 3, 3], "type": "box"},
+      "position": [15.75, 4.5],
+      "tags": ["gallery", "roof"]
+    },
+    {
+      "id": "sw_roof_asphalt_shingles",
+      "mesh": {"material": "TX_roof_asphalt_shingles", "size": [3, 3, 3], "type": "box"},
+      "position": [20.25, 4.5],
+      "tags": ["gallery", "roof"]
+    },
+    {
+      "id": "sw_ground_dirt",
+      "mesh": {"material": "TX_ground_dirt", "size": [3, 3, 3], "type": "box"},
+      "position": [-20.25, -4.5],
+      "tags": ["gallery", "ground"]
+    },
+    {
+      "id": "sw_ground_gravel",
+      "mesh": {"material": "TX_ground_gravel", "size": [3, 3, 3], "type": "box"},
+      "position": [-15.75, -4.5],
+      "tags": ["gallery", "ground"]
+    },
+    {
+      "id": "sw_ground_sand_ripples",
+      "mesh": {"material": "TX_ground_sand_ripples", "size": [3, 3, 3], "type": "box"},
+      "position": [-11.25, -4.5],
+      "tags": ["gallery", "ground"]
+    },
+    {
+      "id": "sw_ground_mud",
+      "mesh": {"material": "TX_ground_mud", "size": [3, 3, 3], "type": "box"},
+      "position": [-6.75, -4.5],
+      "tags": ["gallery", "ground"]
+    },
+    {
+      "id": "sw_ground_cracked_earth",
+      "mesh": {"material": "TX_ground_cracked_earth", "size": [3, 3, 3], "type": "box"},
+      "position": [-2.25, -4.5],
+      "tags": ["gallery", "ground"]
+    },
+    {
+      "id": "sw_ground_forest_floor",
+      "mesh": {"material": "TX_ground_forest_floor", "size": [3, 3, 3], "type": "box"},
+      "position": [2.25, -4.5],
+      "tags": ["gallery", "ground"]
+    },
+    {
+      "id": "sw_ground_cobblestones",
+      "mesh": {"material": "TX_ground_cobblestones", "size": [3, 3, 3], "type": "box"},
+      "position": [6.75, -4.5],
+      "tags": ["gallery", "ground"]
+    },
+    {
+      "id": "sw_ground_flagstone_path",
+      "mesh": {"material": "TX_ground_flagstone_path", "size": [3, 3, 3], "type": "box"},
+      "position": [11.25, -4.5],
+      "tags": ["gallery", "ground"]
+    },
+    {
+      "id": "sw_ground_granite_setts",
+      "mesh": {"material": "TX_ground_granite_setts", "size": [3, 3, 3], "type": "box"},
+      "position": [15.75, -4.5],
+      "tags": ["gallery", "ground"]
+    },
+    {
+      "id": "sw_ground_grass",
+      "mesh": {"material": "TX_ground_grass", "size": [3, 3, 3], "type": "box"},
+      "position": [20.25, -4.5],
+      "tags": ["gallery", "ground"]
+    },
+    {
+      "id": "sw_natural_rock_face",
+      "mesh": {"material": "TX_natural_rock_face", "size": [3, 3, 3], "type": "box"},
+      "position": [-20.25, -13.5],
+      "tags": ["gallery", "natural"]
+    },
+    {
+      "id": "sw_natural_moss",
+      "mesh": {"material": "TX_natural_moss", "size": [3, 3, 3], "type": "box"},
+      "position": [-15.75, -13.5],
+      "tags": ["gallery", "natural"]
+    },
+    {
+      "id": "sw_natural_lichen_rock",
+      "mesh": {"material": "TX_natural_lichen_rock", "size": [3, 3, 3], "type": "box"},
+      "position": [-11.25, -13.5],
+      "tags": ["gallery", "natural"]
+    },
+    {
+      "id": "sw_natural_snow",
+      "mesh": {"material": "TX_natural_snow", "size": [3, 3, 3], "type": "box"},
+      "position": [-6.75, -13.5],
+      "tags": ["gallery", "natural"]
+    },
+    {
+      "id": "sw_natural_ice",
+      "mesh": {"material": "TX_natural_ice", "size": [3, 3, 3], "type": "box"},
+      "position": [-2.25, -13.5],
+      "tags": ["gallery", "natural"]
+    },
+    {
+      "id": "sw_natural_lava_rock",
+      "mesh": {"material": "TX_natural_lava_rock", "size": [3, 3, 3], "type": "box"},
+      "position": [2.25, -13.5],
+      "tags": ["gallery", "natural"]
+    },
+    {
+      "id": "sw_natural_sandstone_strata",
+      "mesh": {"material": "TX_natural_sandstone_strata", "size": [3, 3, 3], "type": "box"},
+      "position": [6.75, -13.5],
+      "tags": ["gallery", "natural"]
+    },
+    {
+      "id": "sw_natural_river_pebbles",
+      "mesh": {"material": "TX_natural_river_pebbles", "size": [3, 3, 3], "type": "box"},
+      "position": [11.25, -13.5],
+      "tags": ["gallery", "natural"]
+    },
+    {
+      "id": "sw_natural_crystal",
+      "mesh": {"material": "TX_natural_crystal", "size": [3, 3, 3], "type": "box"},
+      "position": [15.75, -13.5],
+      "tags": ["gallery", "natural"]
+    },
+    {
+      "id": "sw_natural_basalt_columns",
+      "mesh": {"material": "TX_natural_basalt_columns", "size": [3, 3, 3], "type": "box"},
+      "position": [20.25, -13.5],
+      "tags": ["gallery", "natural"]
+    },
+    {
+      "id": "sw_fabric_canvas",
+      "mesh": {"material": "TX_fabric_canvas", "size": [3, 3, 3], "type": "box"},
+      "position": [-20.25, -22.5],
+      "tags": ["gallery", "fabric"]
+    },
+    {
+      "id": "sw_fabric_burlap",
+      "mesh": {"material": "TX_fabric_burlap", "size": [3, 3, 3], "type": "box"},
+      "position": [-15.75, -22.5],
+      "tags": ["gallery", "fabric"]
+    },
+    {
+      "id": "sw_fabric_wool_twill",
+      "mesh": {"material": "TX_fabric_wool_twill", "size": [3, 3, 3], "type": "box"},
+      "position": [-11.25, -22.5],
+      "tags": ["gallery", "fabric"]
+    },
+    {
+      "id": "sw_fabric_leather_brown",
+      "mesh": {"material": "TX_fabric_leather_brown", "size": [3, 3, 3], "type": "box"},
+      "position": [-6.75, -22.5],
+      "tags": ["gallery", "fabric"]
+    },
+    {
+      "id": "sw_fabric_quilted",
+      "mesh": {"material": "TX_fabric_quilted", "size": [3, 3, 3], "type": "box"},
+      "position": [-2.25, -22.5],
+      "tags": ["gallery", "fabric"]
+    },
+    {
+      "id": "sw_fabric_tartan",
+      "mesh": {"material": "TX_fabric_tartan", "size": [3, 3, 3], "type": "box"},
+      "position": [2.25, -22.5],
+      "tags": ["gallery", "fabric"]
+    },
+    {
+      "id": "sw_fabric_knit",
+      "mesh": {"material": "TX_fabric_knit", "size": [3, 3, 3], "type": "box"},
+      "position": [6.75, -22.5],
+      "tags": ["gallery", "fabric"]
+    },
+    {
+      "id": "sw_fabric_ticking_stripes",
+      "mesh": {"material": "TX_fabric_ticking_stripes", "size": [3, 3, 3], "type": "box"},
+      "position": [11.25, -22.5],
+      "tags": ["gallery", "fabric"]
+    },
+    {
+      "id": "sw_fabric_dragon_hide",
+      "mesh": {"material": "TX_fabric_dragon_hide", "size": [3, 3, 3], "type": "box"},
+      "position": [15.75, -22.5],
+      "tags": ["gallery", "fabric"]
+    },
+    {
+      "id": "sw_fabric_fur_pelt",
+      "mesh": {"material": "TX_fabric_fur_pelt", "size": [3, 3, 3], "type": "box"},
+      "position": [20.25, -22.5],
+      "tags": ["gallery", "fabric"]
+    },
+    {
+      "id": "sw_plaster_lime",
+      "mesh": {"material": "TX_plaster_lime", "size": [3, 3, 3], "type": "box"},
+      "position": [-20.25, -31.5],
+      "tags": ["gallery", "plaster"]
+    },
+    {
+      "id": "sw_plaster_cracked_render",
+      "mesh": {"material": "TX_plaster_cracked_render", "size": [3, 3, 3], "type": "box"},
+      "position": [-15.75, -31.5],
+      "tags": ["gallery", "plaster"]
+    },
+    {
+      "id": "sw_plaster_concrete_formwork",
+      "mesh": {"material": "TX_plaster_concrete_formwork", "size": [3, 3, 3], "type": "box"},
+      "position": [-11.25, -31.5],
+      "tags": ["gallery", "plaster"]
+    },
+    {
+      "id": "sw_plaster_adobe",
+      "mesh": {"material": "TX_plaster_adobe", "size": [3, 3, 3], "type": "box"},
+      "position": [-6.75, -31.5],
+      "tags": ["gallery", "plaster"]
+    },
+    {
+      "id": "sw_plaster_stucco_knockdown",
+      "mesh": {"material": "TX_plaster_stucco_knockdown", "size": [3, 3, 3], "type": "box"},
+      "position": [-2.25, -31.5],
+      "tags": ["gallery", "plaster"]
+    },
+    {
+      "id": "sw_plaster_pebbledash",
+      "mesh": {"material": "TX_plaster_pebbledash", "size": [3, 3, 3], "type": "box"},
+      "position": [2.25, -31.5],
+      "tags": ["gallery", "plaster"]
+    },
+    {
+      "id": "sw_plaster_half_timber",
+      "mesh": {"material": "TX_plaster_half_timber", "size": [3, 3, 3], "type": "box"},
+      "position": [6.75, -31.5],
+      "tags": ["gallery", "plaster"]
+    },
+    {
+      "id": "sw_plaster_cinder_blocks",
+      "mesh": {"material": "TX_plaster_cinder_blocks", "size": [3, 3, 3], "type": "box"},
+      "position": [11.25, -31.5],
+      "tags": ["gallery", "plaster"]
+    },
+    {
+      "id": "sw_plaster_painted_peeling",
+      "mesh": {"material": "TX_plaster_painted_peeling", "size": [3, 3, 3], "type": "box"},
+      "position": [15.75, -31.5],
+      "tags": ["gallery", "plaster"]
+    },
+    {
+      "id": "sw_plaster_concrete_weathered",
+      "mesh": {"material": "TX_plaster_concrete_weathered", "size": [3, 3, 3], "type": "box"},
+      "position": [20.25, -31.5],
+      "tags": ["gallery", "plaster"]
+    },
+    {
+      "id": "sw_floor_terracotta",
+      "mesh": {"material": "TX_floor_terracotta", "size": [3, 3, 3], "type": "box"},
+      "position": [-20.25, -40.5],
+      "tags": ["gallery", "floor"]
+    },
+    {
+      "id": "sw_floor_checker_marble",
+      "mesh": {"material": "TX_floor_checker_marble", "size": [3, 3, 3], "type": "box"},
+      "position": [-15.75, -40.5],
+      "tags": ["gallery", "floor"]
+    },
+    {
+      "id": "sw_floor_mosaic",
+      "mesh": {"material": "TX_floor_mosaic", "size": [3, 3, 3], "type": "box"},
+      "position": [-11.25, -40.5],
+      "tags": ["gallery", "floor"]
+    },
+    {
+      "id": "sw_floor_hex_tiles",
+      "mesh": {"material": "TX_floor_hex_tiles", "size": [3, 3, 3], "type": "box"},
+      "position": [-6.75, -40.5],
+      "tags": ["gallery", "floor"]
+    },
+    {
+      "id": "sw_floor_polished_marble",
+      "mesh": {"material": "TX_floor_polished_marble", "size": [3, 3, 3], "type": "box"},
+      "position": [-2.25, -40.5],
+      "tags": ["gallery", "floor"]
+    },
+    {
+      "id": "sw_floor_slate_tiles",
+      "mesh": {"material": "TX_floor_slate_tiles", "size": [3, 3, 3], "type": "box"},
+      "position": [2.25, -40.5],
+      "tags": ["gallery", "floor"]
+    },
+    {
+      "id": "sw_floor_encaustic",
+      "mesh": {"material": "TX_floor_encaustic", "size": [3, 3, 3], "type": "box"},
+      "position": [6.75, -40.5],
+      "tags": ["gallery", "floor"]
+    },
+    {
+      "id": "sw_floor_octagon_dot",
+      "mesh": {"material": "TX_floor_octagon_dot", "size": [3, 3, 3], "type": "box"},
+      "position": [11.25, -40.5],
+      "tags": ["gallery", "floor"]
+    },
+    {
+      "id": "sw_floor_dungeon_flagstones",
+      "mesh": {"material": "TX_floor_dungeon_flagstones", "size": [3, 3, 3], "type": "box"},
+      "position": [15.75, -40.5],
+      "tags": ["gallery", "floor"]
+    },
+    {
+      "id": "sw_floor_terrazzo",
+      "mesh": {"material": "TX_floor_terrazzo", "size": [3, 3, 3], "type": "box"},
+      "position": [20.25, -40.5],
+      "tags": ["gallery", "floor"]
+    }
+  ],
+  "paths": [],
+  "player": {},
+  "player_start": {"position": [0, -52], "yaw_deg": 90},
+  "routes": {},
+  "scatter": [],
+  "terrain": {
+    "dry_amount": 0.5,
+    "height_file": "terrain/height.png",
+    "height_range_m": [-0.0939514, 0.116839],
+    "material": "terrain",
+    "origin": [-256.0, -256.0],
+    "paint_files": ["terrain/paint_a.png", "terrain/paint_b.png"],
+    "png_rows": "north_first",
+    "rock_slope_deg": 40.0,
+    "samples_per_side": 513,
+    "seed": 1,
+    "snowline_m": 100000.0,
+    "spacing_m": 1.0
+  },
+  "version": 2
+}
