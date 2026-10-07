@@ -27,6 +27,7 @@
 #define MAT_VERTEXCOLOR 32u
 
 #define INST_SHADOW 1u
+#define INST_AXIS_SCALE 2u   // flags >> 8 indexes instanceScales
 
 struct Vertex {
     vec4 p0;   // position.xyz, uv0.x
@@ -35,7 +36,7 @@ struct Vertex {
     vec4 p3;   // uv1.xy, color0 (rgba8 bits), color1 (rgba8 bits)
 };
 struct Instance {
-    vec4 posScale;   // world position, uniform scale
+    vec4 posScale;   // world position, uniform scale (the largest axis when INST_AXIS_SCALE)
     vec4 rot;        // quaternion xyzw
     uint mesh;
     uint flags;
@@ -134,7 +135,12 @@ layout(set = 0, binding = 18) uniform sampler2D terrainPaint0;   // dirt, rock, 
 layout(set = 0, binding = 19) uniform sampler2D terrainPaint1;   // dry, grass, -, -
 layout(set = 0, binding = 20) uniform sampler2D terrainPaths;    // path mask, lane mask, lane signed distance (m), -
 // binding 21: terrain patches (terrain.vert)
-layout(set = 0, binding = 22) uniform sampler2D textures[];      // must stay the last binding (variable count)
+layout(std430, set = 0, binding = 22) readonly buffer InstanceScales { vec4 instanceScales[]; };   // per-axis scales
+layout(set = 0, binding = 23) uniform sampler2D textures[];      // must stay the last binding (variable count)
+
+vec3 instanceScale(Instance inst) {
+    return (inst.flags & INST_AXIS_SCALE) != 0u ? instanceScales[inst.flags >> 8].xyz : vec3(inst.posScale.w);
+}
 
 layout(push_constant) uniform Push {
     uint batchBase;

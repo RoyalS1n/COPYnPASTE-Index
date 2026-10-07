@@ -98,12 +98,27 @@ uint32_t Scene::addInstance(uint32_t mesh, vec3 pos, quat rot, float scale, bool
     return (uint32_t)instances.size() - 1;
 }
 
+uint32_t Scene::addInstance(uint32_t mesh, vec3 pos, quat rot, vec3 scale, bool shadow, float cullDistance) {
+    vec3 a = glm::abs(scale);
+    float big = std::max(a.x, std::max(a.y, a.z));
+    bool uniform = scale.x > 0 && std::abs(scale.x - scale.y) <= 1e-5f * big && std::abs(scale.x - scale.z) <= 1e-5f * big;
+    if (uniform) return addInstance(mesh, pos, rot, scale.x, shadow, cullDistance);
+    uint32_t id = addInstance(mesh, pos, rot, big, shadow, cullDistance);
+    instances[id].flags |= InstAxisScale | ((uint32_t)instanceScales.size() << 8);
+    instanceScales.push_back(vec4(scale, 0.0f));
+    return id;
+}
+
+vec3 Scene::axisScale(const GpuInstance& inst) const {
+    return (inst.flags & InstAxisScale) ? vec3(instanceScales[inst.flags >> 8]) : vec3(inst.posScale.w);
+}
+
 void Scene::computeBounds() {
     boundsMin = vec3(1e30f);
     boundsMax = vec3(-1e30f);
     for (auto& inst : instances) {
         const Mesh& m = meshes[inst.mesh];
-        vec3 c = vec3(inst.posScale) + glm::rotate(quat(inst.rot.w, inst.rot.x, inst.rot.y, inst.rot.z), vec3(m.bounds) * inst.posScale.w);
+        vec3 c = vec3(inst.posScale) + glm::rotate(quat(inst.rot.w, inst.rot.x, inst.rot.y, inst.rot.z), vec3(m.bounds) * axisScale(inst));
         float r = m.bounds.w * inst.posScale.w;
         boundsMin = glm::min(boundsMin, c - r);
         boundsMax = glm::max(boundsMax, c + r);

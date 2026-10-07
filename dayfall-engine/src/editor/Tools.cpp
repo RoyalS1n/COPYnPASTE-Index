@@ -652,8 +652,9 @@ void Editor::registerTools() {
             if (id.empty()) { id = E.world.newId(idPrefixFor(o["mesh"])); o["id"] = id; }
             else ensureUnique(id);
             E.world.list("objects").push_back(o);
-            float sc = o.value("scale", 1.0f);
-            vec3 size = (asset->aabbMax - asset->aabbMin) * sc;
+            const json& sj = o.value("scale", json(1.0f));
+            vec3 sc = sj.is_array() && sj.size() == 3 ? vec3(sj[0].get<float>(), sj[1].get<float>(), sj[2].get<float>()) : vec3(sj.get<float>());
+            vec3 size = glm::abs((asset->aabbMax - asset->aabbMin) * sc);
             bool onGround = o.value("on_ground", o["position"].size() < 3);
             float z = onGround ? groundAt(p) + o.value("offset_z", 0.0f) : o["position"][2].get<float>();
             added.push_back({{"id", id}, {"position", r1(vec3(p, z))}, {"size_m", r1(size)}});
@@ -662,8 +663,9 @@ void Editor::registerTools() {
 
     addTool({"object_add",
              "Place objects. Each: mesh (name from catalog, or a primitive spec like {\"type\": \"box\", \"size\": [4,6,3], "
-             "\"material\": \"plaster\"}), position [x,y] (on the ground) or [x,y,z], yaw_deg, pitch_deg, roll_deg, scale "
-             "(uniform), face_towards [x,y], offset_z, align_to_ground, collision auto|none|mesh|convex|box|cylinder, shadow, "
+             "\"material\": \"plaster\"}), position [x,y] (on the ground) or [x,y,z], yaw_deg, pitch_deg, roll_deg (or "
+             "rotation [qx,qy,qz,qw]), scale (number or per-axis [x,y,z]), materials {\"mesh material\": \"replacement\"}, "
+             "face_towards [x,y], offset_z, align_to_ground, collision auto|none|mesh|convex|box|cylinder, shadow, "
              "cull_distance_m, tags [..], id. Pass one object's fields or objects: [...] (any number).",
              ToolCategory::Layout, object({{"objects", arr(anyObj("an object"), "objects to add")}, {"mesh", {{"description", "mesh name or primitive spec"}}},
                                            {"position", point("[x,y] or [x,y,z]")}}),
@@ -722,7 +724,12 @@ void Editor::registerTools() {
                              }
                          }
                          if (a.contains("rotate_by_deg")) (*o)["yaw_deg"] = o->value("yaw_deg", 0.0f) + a["rotate_by_deg"].get<float>();
-                         if (a.contains("scale_by")) (*o)["scale"] = o->value("scale", 1.0f) * a["scale_by"].get<float>();
+                         if (a.contains("scale_by")) {
+                             float k = a["scale_by"].get<float>();
+                             json& sj = (*o)["scale"];
+                             if (sj.is_array()) for (auto& c : sj) c = c.get<float>() * k;
+                             else sj = (sj.is_number() ? sj.get<float>() : 1.0f) * k;
+                         }
                      }
                  } catch (...) { E.world.cancelEdit(); throw; }
                  E.world.endEdit();

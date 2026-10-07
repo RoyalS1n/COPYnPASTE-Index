@@ -275,7 +275,7 @@ GltfScene loadGltfScene(const std::filesystem::path& file) {
         p.mesh = mesh;
         p.position = gltfToWorld(t);
         p.rotation = gltfToWorld(r);
-        p.scale = (sc.x + sc.y + sc.z) / 3.0f;   // non-uniform scale is averaged
+        p.scale = vec3(sc.x, sc.z, sc.y);   // glTF axes (x, y up, z) -> world (x, y, z up); scale has no sign flip
         gs.placements.push_back(p);
     };
     for (size_t i = 0; i < data->nodes_count; ++i) {

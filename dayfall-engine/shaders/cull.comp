@@ -33,9 +33,8 @@ void main() {
     if (id >= frame.counts.x) return;
     Instance inst = instances[id];
     MeshInfo m = meshes[inst.mesh];
-    float s = inst.posScale.w;
-    vec3 c = inst.posScale.xyz + quatRotate(inst.rot, m.bounds.xyz * s);
-    float r = m.bounds.w * s;
+    vec3 c = inst.posScale.xyz + quatRotate(inst.rot, m.bounds.xyz * instanceScale(inst));
+    float r = m.bounds.w * inst.posScale.w;
     float dist = max(distance(c, frame.cameraPos.xyz) - r, 0.0);
     if (dist > inst.cullDistance * frame.lodBias.y) return;
     uint lod = m.lodCount - 1u;

@@ -73,6 +73,7 @@ struct Scene {
     std::vector<MaterialDef> materials;
     std::vector<Texture> textures;
     std::vector<GpuInstance> instances;
+    std::vector<vec4> instanceScales;        // per-axis scales of stretched instances (InstAxisScale)
     std::vector<InstanceSet> sets;
     std::vector<LightDef> lights;
     std::map<std::string, CameraDef> cameras;
@@ -93,6 +94,8 @@ struct Scene {
     // texture if it has none), otherwise the asset's own definition is added.
     uint32_t addMeshAsset(const MeshAsset& a, const std::string& name);
     uint32_t addInstance(uint32_t mesh, vec3 pos, quat rot, float scale, bool shadow = true, float cullDistance = 1e9f);
+    uint32_t addInstance(uint32_t mesh, vec3 pos, quat rot, vec3 scale, bool shadow = true, float cullDistance = 1e9f);
+    vec3 axisScale(const GpuInstance& inst) const;
     void computeBounds();
 };
 }  // namespace df

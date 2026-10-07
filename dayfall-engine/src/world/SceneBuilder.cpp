@@ -23,6 +23,13 @@ std::string hexColor(vec3 c) {
     auto b = [](float v) { return (int)std::lround(std::clamp(v, 0.0f, 1.0f) * 255.0f); };
     return std::format("{:02x}{:02x}{:02x}", b(c.r), b(c.g), b(c.b));
 }
+// "scale": a number or per-axis [x, y, z]
+vec3 parseScale(const json& j) {
+    vec3 s = j.is_array() ? vec3(j.at(0).get<float>(), j.at(1).get<float>(), j.at(2).get<float>()) : vec3(j.get<float>());
+    if (!(glm::abs(s.x) > 0 && glm::abs(s.y) > 0 && glm::abs(s.z) > 0)) throw Error("scale must not be 0");
+    return s;
+}
+float maxAxis(vec3 s) { return std::max(std::abs(s.x), std::max(std::abs(s.y), std::abs(s.z))); }
 float autoCull(const MeshAsset& a, float scale) {
     float r = a.bounds.w * scale;
     return std::clamp(r * 160.0f, 60.0f, 4000.0f);
@@ -160,6 +167,20 @@ std::shared_ptr<const MeshAsset> SceneBuilder::resolveMesh(const World& w, const
     for (auto& s : some) list += (list.empty() ? "" : ", ") + s;
     throw Error(std::format("unknown mesh '{}'. Use a primitive spec like {{\"type\": \"box\", \"size\": [2,2,2]}} or one of: {}{}", name,
                             list, some.size() >= 24 ? ", ... (see catalog)" : ""));
+}
+
+std::shared_ptr<const MeshAsset> SceneBuilder::withMaterials(const std::shared_ptr<const MeshAsset>& a, const json& overrides) {
+    if (!overrides.is_object() || overrides.empty()) return a;
+    std::string key = std::format("mat:{}|{}", (const void*)a.get(), overrides.dump());
+    if (auto it = assets_.find(key); it != assets_.end()) return it->second;
+    MeshAsset m = *a;
+    m.name = std::format("{}|{:08x}", a->name, (uint32_t)std::hash<std::string>{}(overrides.dump()));
+    for (auto& lod : m.lods)
+        for (auto& part : lod)
+            if (auto it = overrides.find(part.material); it != overrides.end() && it->is_string()) part.material = it->get<std::string>();
+    auto ptr = std::make_shared<const MeshAsset>(std::move(m));
+    assets_[key] = ptr;
+    return ptr;
 }
 
 json SceneBuilder::catalog(const World& w) const {
@@ -300,7 +321,7 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
         if (o.value("hidden", false)) continue;
         try {
             if (!o.contains("mesh")) throw Error("no \"mesh\"");
-            auto a = resolveMesh(w, o["mesh"]);
+            auto a = withMaterials(resolveMesh(w, o["mesh"]), o.value("materials", json()));
             keepAlive.push_back(a);
             uint32_t m = sceneMesh(a);
             const json& p = o.value("position", json::array({0, 0}));
@@ -319,15 +340,14 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
             }
             if (o.value("align_to_ground", false) && !T.empty())
                 q = glm::rotation(vec3(0, 0, 1), T.normalAt(xy.x, xy.y)) * q;
-            float scale = o.value("scale", 1.0f);
-            if (!(scale > 0)) throw Error("scale must be > 0");
-            float cull = o.value("cull_distance_m", meshCull(o["mesh"], autoCull(*a, scale)));
+            vec3 scale = parseScale(o.value("scale", json(1.0f)));
+            float cull = o.value("cull_distance_m", meshCull(o["mesh"], autoCull(*a, maxAxis(scale))));
             uint32_t first = s.addInstance(m, vec3(xy, z), q, scale, o.value("shadow", true), cull);
             InstanceSet set{id, m, first, 1, parseCollision(o.value("collision", json()), defaultCollision(w, o["mesh"]))};
             s.sets.push_back(set);
             // keep-out circle for scatter: footprint_m, or automatic for objects under 50 m (merged
             // structures like a whole castle or a meadow's ruins must not clear the map)
-            vec2 ext = glm::max(glm::abs(vec2(a->aabbMin)), glm::abs(vec2(a->aabbMax))) * scale;
+            vec2 ext = glm::max(glm::abs(vec2(a->aabbMin) * vec2(scale)), glm::abs(vec2(a->aabbMax) * vec2(scale)));
             const json& fp = o.value("footprint_m", json());
             if (fp.is_number()) { if (fp.get<float>() > 0) footprints.push_back({xy, fp.get<float>()}); }
             else if (!fp.is_boolean() && glm::length(ext) < 50.0f) footprints.push_back({xy, glm::length(ext) * 0.85f});
@@ -383,24 +403,32 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
         }
     }
 
-    // binary instance files (ported maps): 32 bytes per instance: position xyz, scale, quaternion xyzw
+    // binary instance files (ported maps), little-endian float32:
+    //   layout "pos_scale_quat" (default): 32 bytes per instance: position xyz, scale, quaternion xyzw
+    //   layout "pos_quat_scale3":          40 bytes per instance: position xyz, quaternion xyzw, scale xyz
     for (const json& f : doc.value("instance_files", json::array())) {
         std::string id = f.value("id", f.value("file", "?"));
         try {
-            auto a = resolveMesh(w, f.at("mesh"));
+            auto a = withMaterials(resolveMesh(w, f.at("mesh")), f.value("materials", json()));
             keepAlive.push_back(a);
             uint32_t m = sceneMesh(a);
+            std::string layout = f.value("layout", "pos_scale_quat");
+            if (layout != "pos_scale_quat" && layout != "pos_quat_scale3") throw Error("layout must be pos_scale_quat or pos_quat_scale3");
+            bool axis = layout == "pos_quat_scale3";
+            size_t stride = axis ? 10 : 8;
             auto raw = readBinary(w.dir / f["file"].get<std::string>());
-            size_t n = raw.size() / 32;
-            std::vector<float> fp(n * 8);
-            std::memcpy(fp.data(), raw.data(), n * 32);
+            size_t n = raw.size() / (stride * 4);
+            std::vector<float> fp(n * stride);
+            std::memcpy(fp.data(), raw.data(), n * stride * 4);
             InstanceSet set{id, m, (uint32_t)s.instances.size(), (uint32_t)n,
                             parseCollision(f.value("collision", json("none")), {CollisionKind::None})};
             bool shadow = f.value("shadow", true);
             float cull = f.value("cull_distance_m", autoCull(*a, 1.0f));
-            for (size_t i = 0; i < n; ++i)
-                s.addInstance(m, vec3(fp[i * 8], fp[i * 8 + 1], fp[i * 8 + 2]), quat(fp[i * 8 + 7], fp[i * 8 + 4], fp[i * 8 + 5], fp[i * 8 + 6]),
-                              fp[i * 8 + 3], shadow, cull);
+            for (size_t i = 0; i < n; ++i) {
+                const float* r = &fp[i * stride];
+                if (axis) s.addInstance(m, vec3(r[0], r[1], r[2]), quat(r[6], r[3], r[4], r[5]), vec3(r[7], r[8], r[9]), shadow, cull);
+                else s.addInstance(m, vec3(r[0], r[1], r[2]), quat(r[7], r[4], r[5], r[6]), r[3], shadow, cull);
+            }
             s.sets.push_back(set);
         } catch (const std::exception& e) {
             warn(std::format("instance file '{}': {}", id, e.what()));

@@ -11,7 +11,7 @@ MeshAsset loadGltfAsset(const std::filesystem::path& file, const std::string& na
 // mesh becomes a mesh asset, each node a placement (EXT_mesh_gpu_instancing
 // supported), KHR_lights_punctual point lights become lights.
 struct GltfScene {
-    struct Placement { uint32_t mesh; vec3 position; quat rotation; float scale; };
+    struct Placement { uint32_t mesh; vec3 position; quat rotation; vec3 scale; };   // per-axis scale in world axes
     std::vector<MeshAsset> meshes;
     std::vector<Placement> placements;
     std::vector<LightDef> lights;

@@ -75,7 +75,7 @@ private:
     VkSampleCountFlagBits samples_ = VK_SAMPLE_COUNT_1_BIT;
 
     // scene buffers
-    Buffer vertices_, indices_, instances_, meshInfos_, lods_, batchRefs_, batches_, materials_, lights_, lightGrid_;
+    Buffer vertices_, indices_, instances_, instanceScales_, meshInfos_, lods_, batchRefs_, batches_, materials_, lights_, lightGrid_;
     std::array<Buffer, kFrames> ubo_, visible_, cmds_;
     std::vector<Image> textures_;
     Image skyLut_;

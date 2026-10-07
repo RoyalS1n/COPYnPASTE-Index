@@ -36,6 +36,8 @@ public:
     void build(World& w, Scene& out, std::vector<EntityState>& entities, BuildInfo& info);
     // A mesh reference: a name (map "meshes", the content library, built-ins) or a primitive spec object.
     std::shared_ptr<const MeshAsset> resolveMesh(const World& w, const nlohmann::json& ref);   // throws df::Error
+    // the same mesh with some materials swapped: {"old material": "new material"}; cached
+    std::shared_ptr<const MeshAsset> withMaterials(const std::shared_ptr<const MeshAsset>& a, const nlohmann::json& overrides);
     // Default collision of a mesh reference (from the library entry; primitives: mesh)
     CollisionDesc defaultCollision(const World& w, const nlohmann::json& ref) const;
     // Everything an agent can place: built-in primitives, content library, map meshes, materials.

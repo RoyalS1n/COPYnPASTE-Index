@@ -245,7 +245,7 @@ Create or replace a path (dirt road, trail, lane) along points; it flattens and 
 
 *layout*
 
-Place objects. Each: mesh (name from catalog, or a primitive spec like {"type": "box", "size": [4,6,3], "material": "plaster"}), position [x,y] (on the ground) or [x,y,z], yaw_deg, pitch_deg, roll_deg, scale (uniform), face_towards [x,y], offset_z, align_to_ground, collision auto|none|mesh|convex|box|cylinder, shadow, cull_distance_m, tags [..], id. Pass one object's fields or objects: [...] (any number).
+Place objects. Each: mesh (name from catalog, or a primitive spec like {"type": "box", "size": [4,6,3], "material": "plaster"}), position [x,y] (on the ground) or [x,y,z], yaw_deg, pitch_deg, roll_deg (or rotation [qx,qy,qz,qw]), scale (number or per-axis [x,y,z]), materials {"mesh material": "replacement"}, face_towards [x,y], offset_z, align_to_ground, collision auto|none|mesh|convex|box|cylinder, shadow, cull_distance_m, tags [..], id. Pass one object's fields or objects: [...] (any number).
 
 | argument | type | notes |
 |---|---|---|

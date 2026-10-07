@@ -109,7 +109,8 @@ comes back.
 | `position` | `[x, y]` on the ground (+ `offset_z`), or `[x, y, z]` |
 | `yaw_deg`, `pitch_deg`, `roll_deg` or `rotation` | orientation (`rotation` is a quaternion `[x, y, z, w]`) |
 | `align_to_ground` | tilt to the terrain normal |
-| `scale` | uniform scale |
+| `scale` | a number, or per-axis `[x, y, z]` in the mesh's own axes (stretched kit pieces) |
+| `materials` | swap materials on this object only: `{"mesh material": "replacement"}` |
 | `collision` | `auto`, `none`, `mesh`, `convex`, `box`, `cylinder` (`{"type": "cylinder", "radius", "height"}`), `sphere` |
 | `footprint_m` | radius kept clear of scatter (default: automatic for objects under 50 m; `false` for none) |
 | `shadow`, `cull_distance_m`, `hidden`, `tags` | |
@@ -179,6 +180,33 @@ Built-in materials: see `catalog`.
 ```
 
 `front` is the side that `face_towards` turns towards a target (`-y` for Blender exports).
+
+## instance_files
+
+Large sets of one mesh (foliage, rocks, repeated kit pieces) in a binary file next to `map.json`:
+
+```json
+"instance_files": [
+  {"id": "pines", "file": "instances/conifer_a.bin", "mesh": "conifer_a", "collision": "cylinder",
+   "shadow": true, "cull_distance_m": 900},
+  {"id": "walls", "file": "instances/sm_wall.bin", "mesh": "SM_Wall", "layout": "pos_quat_scale3",
+   "collision": "mesh", "materials": {"M_Stone": "M_Stone_Mossy"}}
+]
+```
+
+Little-endian float32 records. `layout` `pos_scale_quat` (default, 32 bytes): position xyz, uniform scale,
+quaternion xyzw. `pos_quat_scale3` (40 bytes): position xyz, quaternion xyzw, scale xyz. Positions are absolute
+(they do not follow terrain edits). `materials` works as on objects.
+
+## gltf_scenes
+
+```json
+"gltf_scenes": [{"id": "castle", "file": "assets/castle_level.glb", "collision": "mesh", "shadow": true}]
+```
+
+Every node with a mesh in the file is placed where the file puts it (glTF's Y up is converted; per-axis scale
+and `EXT_mesh_gpu_instancing` are kept), and its point lights are added. Use it for a level exported in one
+piece; split it into `meshes` + `objects` / `instance_files` when agents need to edit the parts.
 
 ## player
 

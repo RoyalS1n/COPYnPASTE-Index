@@ -14,7 +14,7 @@ constexpr VkFormat kHdrFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 constexpr VkFormat kDepthFormat = VK_FORMAT_D32_SFLOAT;
 constexpr VkFormat kShadowFormat = VK_FORMAT_D32_SFLOAT;
 constexpr VkBufferUsageFlags kSsbo = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-constexpr uint32_t kBindingCount = 23;   // 0 UBO, 1-11 buffers, 12-20 images, 21 terrain patches, 22 bindless textures
+constexpr uint32_t kBindingCount = 24;   // 0 UBO, 1-11 buffers, 12-20 images, 21 terrain patches, 22 instance scales, 23 bindless textures
 
 struct Push { uint32_t batchBase, view, flags, pad; };
 
@@ -130,11 +130,11 @@ void Renderer::init(Device& dev, const RenderSettings& s, const std::string& sha
         b[i].descriptorCount = 1;
         b[i].stageFlags = VK_SHADER_STAGE_ALL;
         b[i].descriptorType = i == 0 ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
-                              : (i <= 11 || i == 21) ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+                              : (i <= 11 || i == 21 || i == 22) ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
                                                      : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     }
-    b[22].descriptorCount = maxTextures_;
-    flags[22] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
+    b[23].descriptorCount = maxTextures_;
+    flags[23] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
     VkDescriptorSetLayoutBindingFlagsCreateInfo bf{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO};
     bf.bindingCount = kBindingCount;
     bf.pBindingFlags = flags;
@@ -144,7 +144,7 @@ void Renderer::init(Device& dev, const RenderSettings& s, const std::string& sha
     VK_CHECK(vkCreateDescriptorSetLayout(dev.device, &lci, nullptr, &setLayout_));
 
     VkDescriptorPoolSize sizes[] = {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, kFrames},
-                                    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 12 * kFrames},
+                                    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 13 * kFrames},
                                     {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (9 + maxTextures_) * kFrames}};
     VkDescriptorPoolCreateInfo pci{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     pci.maxSets = kFrames;
@@ -360,7 +360,7 @@ void Renderer::setScene(const Scene& scene) {
     Device& d = *d_;
     d.waitIdle();
     // release the previous scene
-    for (Buffer* b : {&vertices_, &indices_, &instances_, &meshInfos_, &lods_, &batchRefs_, &batches_, &materials_, &lights_, &lightGrid_})
+    for (Buffer* b : {&vertices_, &indices_, &instances_, &instanceScales_, &meshInfos_, &lods_, &batchRefs_, &batches_, &materials_, &lights_, &lightGrid_})
         if (b->buffer) destroyBuffer(d, *b);
     for (uint32_t f = 0; f < kFrames; ++f) {
         if (visible_[f].buffer) destroyBuffer(d, visible_[f]);
@@ -433,6 +433,9 @@ void Renderer::setScene(const Scene& scene) {
     vertices_ = upload(d, scene.vertices, kSsbo);
     indices_ = upload(d, scene.indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
     instances_ = upload(d, scene.instances, kSsbo);
+    std::vector<vec4> scales = scene.instanceScales;
+    if (scales.empty()) scales.push_back(vec4(1.0f));
+    instanceScales_ = upload(d, scales, kSsbo);
     meshInfos_ = upload(d, infos, kSsbo);
     lods_ = upload(d, lods, kSsbo);
     batchRefs_ = upload(d, batchRefs, kSsbo);
@@ -545,10 +548,15 @@ void Renderer::writeDescriptors() {
         pw.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         pw.pBufferInfo = &pbi;
         w.push_back(pw);
+        VkDescriptorBufferInfo sbi{instanceScales_.buffer, 0, VK_WHOLE_SIZE};
+        VkWriteDescriptorSet sw = pw;
+        sw.dstBinding = 22;
+        sw.pBufferInfo = &sbi;
+        w.push_back(sw);
         for (uint32_t i = 0; i < texCount; ++i) ti[i] = {linearRepeat_, textures_[i].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkWriteDescriptorSet x{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
         x.dstSet = sets_[f];
-        x.dstBinding = 22;
+        x.dstBinding = 23;
         x.descriptorCount = texCount;
         x.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         x.pImageInfo = ti.data();
@@ -1066,7 +1074,7 @@ void Renderer::shutdown() {
     Device& d = *d_;
     d.waitIdle();
     destroyTargets();
-    for (Buffer* b : {&vertices_, &indices_, &instances_, &meshInfos_, &lods_, &batchRefs_, &batches_, &materials_, &lights_, &lightGrid_})
+    for (Buffer* b : {&vertices_, &indices_, &instances_, &instanceScales_, &meshInfos_, &lods_, &batchRefs_, &batches_, &materials_, &lights_, &lightGrid_})
         if (b->buffer) destroyBuffer(d, *b);
     for (uint32_t f = 0; f < kFrames; ++f)
         for (Buffer* b : {&ubo_[f], &visible_[f], &cmds_[f]})

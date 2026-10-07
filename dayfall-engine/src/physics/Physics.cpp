@@ -186,7 +186,8 @@ void Physics::buildStatic(const Scene& scene, const Terrain& terrain) {
             uint32_t idx = set.first + k;
             const GpuInstance& inst = scene.instances[idx];
             const Mesh& m = scene.meshes[inst.mesh];
-            float sc = inst.posScale.w;
+            vec3 s3 = scene.axisScale(inst);
+            float sc = inst.posScale.w;   // largest axis
             vec3 pos = vec3(inst.posScale);
             quat rot(inst.rot.w, inst.rot.x, inst.rot.y, inst.rot.z);
             JPH::ShapeRefC shape;
@@ -195,22 +196,23 @@ void Physics::buildStatic(const Scene& scene, const Terrain& terrain) {
                 case CollisionKind::Convex: {
                     JPH::ShapeRefC base = meshShape(inst.mesh, set.collision.kind == CollisionKind::Convex);
                     if (!base) continue;
-                    shape = std::abs(sc - 1.0f) > 1e-4f ? JPH::ShapeRefC(new JPH::ScaledShape(base, JPH::Vec3::sReplicate(sc))) : base;
+                    bool unit = glm::all(glm::lessThan(glm::abs(s3 - 1.0f), vec3(1e-4f)));
+                    shape = unit ? base : JPH::ShapeRefC(new JPH::ScaledShape(base, J(s3)));
                     break;
                 }
                 case CollisionKind::Box: {
-                    vec3 he = glm::max((m.aabbMax - m.aabbMin) * 0.5f * sc, vec3(0.02f));
-                    vec3 c = (m.aabbMax + m.aabbMin) * 0.5f * sc;
+                    vec3 he = glm::max(glm::abs((m.aabbMax - m.aabbMin) * 0.5f * s3), vec3(0.02f));
+                    vec3 c = (m.aabbMax + m.aabbMin) * 0.5f * s3;
                     shape = new JPH::RotatedTranslatedShape(J(c), JPH::Quat::sIdentity(), new JPH::BoxShape(J(he), std::min(0.05f, glm::min(he.x, glm::min(he.y, he.z)) * 0.5f)));
                     break;
                 }
                 case CollisionKind::Cylinder: {
-                    float r = set.collision.radius * sc, h = set.collision.height * sc;
+                    float r = set.collision.radius * std::max(std::abs(s3.x), std::abs(s3.y)), h = set.collision.height * std::abs(s3.z);
                     shape = new JPH::RotatedTranslatedShape(JPH::Vec3(0, 0, h * 0.5f), kYtoZ, new JPH::CylinderShape(h * 0.5f, r, std::min(0.05f, r * 0.5f)));
                     break;
                 }
                 case CollisionKind::Sphere:
-                    shape = new JPH::RotatedTranslatedShape(J(vec3(m.bounds) * sc), JPH::Quat::sIdentity(), new JPH::SphereShape(m.bounds.w * sc));
+                    shape = new JPH::RotatedTranslatedShape(J(vec3(m.bounds) * s3), JPH::Quat::sIdentity(), new JPH::SphereShape(m.bounds.w * sc));
                     break;
                 default: continue;
             }
