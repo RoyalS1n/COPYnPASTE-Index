@@ -75,8 +75,9 @@ what a given Unreal version's Python API returns, so the first real export must 
 ### Steps
 
 1. **Build the engine** on the machine (README: `cmake --preset windows`, `cmake --build build/windows --config Release`).
-   The engine was developed and tested on Linux; if the first Windows build fails, fix the compile errors in the
-   engine (they will be small: headers, warnings as errors, path types) and note them in the change log.
+   The engine was developed and run on Linux; its Windows build compiles and links with MinGW (GCC 13) but has
+   not been built with Visual Studio or run on Windows yet. If MSVC reports errors, they will be small (a header,
+   a conversion): fix them in the engine and note them in the change log.
 2. **Export.** In the Unreal Editor, open the level and run in the Output Log (Python):
    ```
    py "C:/<repo>/dayfall-engine/tools/unreal/export_level_to_dayfall.py" --out "C:/<repo>/dayfall-engine/maps/islet_fortress" --name "Islet Fortress"

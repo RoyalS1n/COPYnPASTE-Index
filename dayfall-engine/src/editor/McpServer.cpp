@@ -7,10 +7,11 @@
 #include <random>
 #include <sstream>
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
 #include <winsock2.h>
-#include <ws2tcpip.h>
-#pragma comment(lib, "ws2_32.lib")
+#include <ws2tcpip.h>   // ws2_32 is linked by CMakeLists.txt
 using socklen_t = int;
 #else
 #include <arpa/inet.h>

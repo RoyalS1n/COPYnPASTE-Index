@@ -36,6 +36,7 @@ target_compile_definitions(dayfall PRIVATE
   $<$<BOOL:${DF_ENABLE_VALIDATION}>:DF_VALIDATION_DEFAULT=1>)
 if(WIN32)
   target_compile_definitions(dayfall PRIVATE VK_USE_PLATFORM_WIN32_KHR NOMINMAX WIN32_LEAN_AND_MEAN _CRT_SECURE_NO_WARNINGS)
+  target_link_libraries(dayfall PRIVATE ws2_32)   # the MCP HTTP server
 endif()
 if(MSVC)
   target_compile_options(dayfall PRIVATE /W3 /permissive- /Zc:__cplusplus /MP)
