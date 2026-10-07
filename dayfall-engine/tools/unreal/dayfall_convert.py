@@ -255,6 +255,32 @@ def material_doc(info):
     return d
 
 
+# Unreal master materials the engine has ported, and the content sub-library holding the port
+LIBRARY_MASTERS = {"M_FT_Master": "fortress"}
+
+
+def library_material(mi_name, master, params, library):
+    """An instance of a ported master (M_FT_Master -> content/fortress FT_*) becomes {"extends": <library
+    material>} with the instance's current base colour, roughness, metallic and emissive strength; the library
+    material carries the rest (triplanar detail, painterly layer). None for anything else.
+    params: {"vectors": {name: [r, g, b, ...]}, "scalars": {name: value}}; library: that sub-library's names."""
+    if master not in LIBRARY_MASTERS:
+        return None
+    key = mi_name[3:] if mi_name.startswith("MI_") else mi_name
+    if key not in library and key.endswith("_Wind") and key[:-5] in library:   # wind variants share the look
+        key = key[:-5]
+    if key not in library:
+        return None
+    d = {"extends": key}
+    vectors, scalars = params.get("vectors") or {}, params.get("scalars") or {}
+    if "BaseColor" in vectors:
+        d["base_color"] = [round(float(c), 4) for c in vectors["BaseColor"][:3]]
+    for p, k in (("Roughness", "roughness"), ("Metallic", "metallic"), ("EmissiveStrength", "emissive_strength")):
+        if p in scalars:
+            d[k] = round(float(scalars[p]), 4)
+    return d
+
+
 # ---------------------------------------------------------------- meshes
 
 def lod_entry(radius_m, triangles):

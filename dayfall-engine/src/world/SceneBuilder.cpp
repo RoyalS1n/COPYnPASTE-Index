@@ -7,6 +7,7 @@
 #include "scene/Materials.h"
 #include "scene/Primitives.h"
 #include "world/EnvironmentDoc.h"
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <format>
@@ -28,6 +29,36 @@ vec3 parseScale(const json& j) {
     vec3 s = j.is_array() ? vec3(j.at(0).get<float>(), j.at(1).get<float>(), j.at(2).get<float>()) : vec3(j.get<float>());
     if (!(glm::abs(s.x) > 0 && glm::abs(s.y) > 0 && glm::abs(s.z) > 0)) throw Error("scale must not be 0");
     return s;
+}
+// "extends": start from another material (the map's, the content library's or a built-in) and replace the keys given
+// here; "triplanar", "wind" and "textures" merge key by key. A map material's inherited library textures become
+// absolute paths so they still resolve from the map's folder.
+json extendMaterial(const std::string& name, const json& v, const json* mapMats, const json& libMats,
+                    const fs::path& contentDir, int depth = 0) {
+    if (!v.is_object() || !v.contains("extends")) return v;
+    if (!v["extends"].is_string()) throw Error("extends must be a material name");
+    if (depth > 8) throw Error("extends: chain too long (a loop?)");
+    std::string base = v["extends"].get<std::string>();
+    json b;
+    if (mapMats && base != name && mapMats->contains(base)) {
+        b = extendMaterial(base, (*mapMats)[base], mapMats, libMats, contentDir, depth + 1);
+    } else if (libMats.contains(base) && !(mapMats == nullptr && base == name)) {
+        b = extendMaterial(base, libMats[base], nullptr, libMats, contentDir, depth + 1);
+        if (mapMats && b.contains("textures") && b["textures"].is_object())
+            for (auto& [tk, tv] : b["textures"].items())
+                if (tv.is_string()) tv = (contentDir / tv.get<std::string>()).generic_string();
+    } else if (builtinMaterials().contains(base)) {
+        b = builtinMaterials()[base];
+    } else {
+        throw Error("extends: no material '" + base + "'");
+    }
+    for (auto& [k, x] : v.items()) {
+        if (k == "extends") continue;
+        bool merge = (k == "triplanar" || k == "wind" || k == "textures") && x.is_object() && b.contains(k) && b[k].is_object();
+        if (merge) b[k].update(x);
+        else b[k] = x;
+    }
+    return b;
 }
 float maxAxis(vec3 s) { return std::max(std::abs(s.x), std::max(std::abs(s.y), std::abs(s.z))); }
 float autoCull(const MeshAsset& a, float scale) {
@@ -57,6 +88,38 @@ void SceneBuilder::init(const fs::path& dir) {
         }
     } else {
         logWarn("no content library at {} (built-in primitives only)", libFile.string());
+    }
+    // sub-libraries: content/<folder>/library.json, each written by its own tool (fortress kit, texture set);
+    // their paths are relative to their folder. Names already defined keep their first definition.
+    std::vector<fs::path> subs;
+    if (fs::is_directory(dir))
+        for (auto& e : fs::directory_iterator(dir))
+            if (e.is_directory() && fs::exists(e.path() / "library.json")) subs.push_back(e.path());
+    std::sort(subs.begin(), subs.end());
+    for (auto& sub : subs) {
+        std::string prefix = sub.filename().generic_string() + "/";
+        try {
+            json part = json::parse(readText(sub / "library.json"));
+            size_t added = 0;
+            for (const char* kind : {"meshes", "materials"}) {
+                if (!part.contains(kind)) continue;
+                json& into = lib_[kind];
+                if (!into.is_object()) into = json::object();
+                for (auto& [k, v] : part[kind].items()) {
+                    if (into.contains(k)) { logWarn("content library {}: '{}' is already defined, skipped", prefix, k); continue; }
+                    json e = v;
+                    if (e.contains("file") && e["file"].is_string()) e["file"] = prefix + e["file"].get<std::string>();
+                    if (e.contains("textures") && e["textures"].is_object())
+                        for (auto& [tk, tv] : e["textures"].items())
+                            if (tv.is_string()) tv = prefix + tv.get<std::string>();
+                    into[k] = std::move(e);
+                    ++added;
+                }
+            }
+            logInfo("content library {}: {} entries", prefix, added);
+        } catch (const std::exception& e) {
+            logWarn("content library {}: {}", (sub / "library.json").string(), e.what());
+        }
     }
 }
 
@@ -288,12 +351,20 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
     };
     for (auto& [k, v] : builtinMaterials().items()) s.addMaterial(parseMaterial(k, v, nullptr));
     // library materials with textures load on first use (the library holds far more textures than a map uses)
+    static const json noMaterials = json::object();
+    const json& libMats = lib_.contains("materials") && lib_["materials"].is_object() ? lib_["materials"] : noMaterials;
     auto addLibMaterial = [&, res = texResolver(contentDir)](const std::string& k, const json& v) {
-        try { s.addMaterial(parseMaterial(k, v, res)); } catch (const Error& e) { warn(std::format("material '{}': {}", k, e.what())); }
+        try {
+            s.addMaterial(parseMaterial(k, extendMaterial(k, v, nullptr, libMats, contentDir), res));
+        } catch (const Error& e) {
+            warn(std::format("material '{}': {}", k, e.what()));
+        }
     };
-    if (lib_.contains("materials"))
-        for (auto& [k, v] : lib_["materials"].items())
-            if (!v.contains("textures") || s.materialByName.count(k)) addLibMaterial(k, v);
+    for (auto& [k, v] : libMats.items()) {
+        bool textured = v.contains("textures");
+        try { textured = extendMaterial(k, v, nullptr, libMats, contentDir).contains("textures"); } catch (const Error&) {}
+        if (!textured || s.materialByName.count(k)) addLibMaterial(k, v);
+    }
     struct SourceGuard { Scene& s; ~SourceGuard() { s.materialSource = nullptr; } } sourceGuard{s};
     s.materialSource = [&](Scene&, const std::string& k) {
         if (doc.contains("materials") && doc["materials"].contains(k)) return;   // the map's own definition follows
@@ -301,7 +372,11 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
     };
     if (doc.contains("materials") && doc["materials"].is_object())
         for (auto& [k, v] : doc["materials"].items()) {
-            try { s.addMaterial(parseMaterial(k, v, texResolver(w.dir))); } catch (const Error& e) { warn(std::format("material '{}': {}", k, e.what())); }
+            try {
+                s.addMaterial(parseMaterial(k, extendMaterial(k, v, &doc["materials"], libMats, contentDir), texResolver(w.dir)));
+            } catch (const Error& e) {
+                warn(std::format("material '{}': {}", k, e.what()));
+            }
         }
     if (auto it = s.materialByName.find("terrain"); it != s.materialByName.end()) s.materials[it->second].gpu.p[0].x = s.env.waterLevel;
 

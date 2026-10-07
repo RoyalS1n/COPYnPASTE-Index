@@ -134,6 +134,32 @@ what a given Unreal version's Python API returns, so the first real export must 
 8. Once ported, the DAYFALL map is the source of truth. A later re-export goes to a new folder and is merged
    by hand; it would overwrite edits made in DAYFALL.
 
+## The fortress kit and materials (already ported)
+
+`content/fortress` holds the fortress building kit and its materials, so the fortress can be built and the Unreal
+level's materials matched without Unreal:
+
+- **Meshes** (`fk_*`, 59 pieces: walls, towers, gate hall and gate block, keeps, church, houses, shops, market
+  props, ivy, sky islands). Built from `ForgeBuilding/estate/fort_kit` with Blender's Python module through the
+  same steps as `kit_common.finish` (`_bake_colours`, `_height_alpha`, `_wind_uv`), exported as glTF instead of
+  FBX and shrunk with `tools/quantize_glb.py`. COLOR_0 holds the numbers Unreal received (rgb = tint x 0.625,
+  alpha = height above the piece's ground / 12 m); TEXCOORD_0 is the kit's wind data, not texture coordinates.
+  Front is -Y; foundations reach below z = 0 (down to -12 m) to sit into slopes.
+- **Materials** (`FT_*`): `tools/unreal/fortress_materials.py` reads `import_fortress.py`'s LOOKS, DETAIL,
+  WEATHER and EMISSIVE_DETAIL tables and `tune_fortress_look.py`'s colour overrides (as text, without running
+  them) and writes one triplanar material per MI_FT_* (MAP_FORMAT.md, `triplanar`). Not ported: the
+  distance-field grime and the UV0 wind.
+- **Textures**: `make_fort_textures.py`'s T_FT_* set, albedo 1024 px JPEG, normal maps 512 px PNG (JPEG artefacts
+  bend normals by ~5 degrees). FT_Rock and FT_CragRock used a third-party set (Pack_Bonus Stone_1) that is not
+  included; they keep the master's colour, noise and painterly layer without a texture.
+
+When `export_level_to_dayfall.py` meets an instance of `M_FT_Master` whose name matches a library material
+(`MI_FT_Sand` -> `FT_Sand`, `_Wind` variants included), it writes `{"extends": "FT_Sand"}` with the instance's
+current base colour, roughness, metallic and emissive strength instead of exporting its textures. Check in the
+first export that the meshes' vertex colours arrived as Unreal used them: on stone walls COLOR_0 rgb should be about
+0.55-0.7 (tint x 0.625). Values near 0.25-0.45 mean the exporter linearised them, and the walls render darker
+than in Unreal; then convert them back (sRGB encode) in the mesh conversion, not in the material.
+
 ## Prompt for a local agent
 
 > Port the current DAYFALL Unreal level into the DAYFALL engine. First read

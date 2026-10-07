@@ -87,7 +87,8 @@ Until a rigged character is assigned, the default jointed mannequin is used, ani
 `asset_import` registers each model (with LODs and collision), `object_update` swaps a blockout's mesh in place,
 `place_along_path` lines paths with props and `scatter_set` plants forests, rocks and grass by rules (slope,
 height, distance from paths and buildings). The engine's content library already holds the trees, rocks, grass
-and buildings from the Blender worlds (see `catalog`).
+and buildings from the Blender worlds, and the FloatingIslet fortress kit (`fk_*`: walls, towers, gate hall, keeps,
+houses, market props, with their `FT_*` materials); see `catalog` and `maps/fortress_kit`.
 
 ### 8. Refine in small batches
 

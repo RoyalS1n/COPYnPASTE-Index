@@ -63,7 +63,8 @@ Without a window (cloud agents, CI): `bin/dayfall maps/x --headless --mcp http:7
 
 ## Porting maps
 
-`maps/golden_valley` and `maps/serene_meadow` are the Blender reference worlds, ported. The Unreal level is ported
+`maps/golden_valley` and `maps/serene_meadow` are the Blender reference worlds, ported; `maps/fortress_kit` is a
+courtyard castle built from the Unreal project's fortress kit and materials (`content/fortress`). The Unreal level is ported
 on the developer's machine with `tools/unreal/export_level_to_dayfall.py` (runs inside the Unreal Editor) and,
 when Unreal's glTF Exporter plugin is off, `tools/unreal/fbx_to_glb.py` (Blender). Steps, checks and a prompt for
 a local agent: [docs/PORTING.md](docs/PORTING.md).
@@ -91,6 +92,6 @@ bin/dayfall --list-tools                             # the tool reference (docs/
 | `src/editor` | the editor, the agent tools, the MCP server |
 | `shaders` | GLSL, compiled to SPIR-V at build time |
 | `maps` | maps; `maps/starter` is the template |
-| `content` | the shared content library (meshes, materials) |
+| `content` | the shared content library (meshes, materials); `content/fortress` is the FloatingIslet fortress kit |
 | `tools` | scripts: `make_starter.json` rebuilds the starter map; `unreal/` ports Unreal levels |
 | `docs` | workflow, map format, tool reference, porting |

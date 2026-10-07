@@ -599,15 +599,51 @@ class Exporter:
             info["unread_textures"] = sorted(set(unused))
         return info
 
+    def library_names(self, sub):
+        """Material names of the engine's content sub-library (content/<sub>/library.json), if this script runs from
+        the repository."""
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "content", sub, "library.json")
+        try:
+            with open(path, encoding="utf-8") as f:
+                return set(json.load(f).get("materials", {}))
+        except (OSError, ValueError):
+            return set()
+
+    def material_params(self, mi):
+        mel = unreal.MaterialEditingLibrary
+        out = {"vectors": {}, "scalars": {}}
+        try:
+            for n in mel.get_vector_parameter_names(mi):
+                c = mel.get_material_instance_vector_parameter_value(mi, n)
+                out["vectors"][str(n)] = [float(c.r), float(c.g), float(c.b), float(c.a)]
+            for n in mel.get_scalar_parameter_names(mi):
+                out["scalars"][str(n)] = float(mel.get_material_instance_scalar_parameter_value(mi, n))
+        except Exception as e:
+            self.note(f"material {mi.get_name()}: parameters unreadable ({e})")
+        return out
+
     def export_materials(self):
         mats, details = {}, {}
         names = sorted(self.material_objs)
+        libraries = {m: self.library_names(sub) for m, sub in C.LIBRARY_MASTERS.items()}
         with unreal.ScopedSlowTask(len(names), "DAYFALL: materials and textures") as task:
             task.make_dialog(True)
             for name in names:
                 task.enter_progress_frame(1, f"material {name}")
+                mi = self.material_objs[name]
                 try:
-                    info = self.material_info(name, self.material_objs[name])
+                    # instances of a master the engine has ported: use the port (no texture export needed)
+                    base = mi.get_base_material() if hasattr(mi, "get_base_material") else mi
+                    master = base.get_name() if base is not None else ""
+                    if master in libraries and isinstance(mi, unreal.MaterialInstance):
+                        d = C.library_material(name, master, self.material_params(mi), libraries[master])
+                        if d:
+                            mats[name] = d
+                            details[name] = {"library": d["extends"], "source": mi.get_path_name()}
+                            continue
+                        self.note(f"material {name}: an instance of {master} with no '{name[3:]}' in "
+                                  f"content/{C.LIBRARY_MASTERS[master]}; exported as a plain material")
+                    info = self.material_info(name, mi)
                     mats[name] = C.material_doc(info)
                     details[name] = {k: v for k, v in info.items() if k in ("blend", "shading", "two_sided", "unread_textures")}
                     details[name]["source"] = self.material_objs[name].get_path_name()

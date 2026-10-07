@@ -41,7 +41,8 @@ Use `--validation` when you touch Vulkan code: validation errors are bugs.
 
 Porting the Unreal level or the Blender worlds: `docs/PORTING.md`. After changing anything in `tools/unreal/`, run
 its tests (`python tools/unreal/test_dayfall_convert.py --engine`, `python tools/unreal/test_export_mock.py --engine`,
-and `test_fbx_to_glb.py` with a Python that has bpy).
+`test_fortress_materials.py`, and `test_fbx_to_glb.py` with a Python that has bpy). `tools/quantize_glb.py` (shrinks
+GLBs for `content/`) has `tools/test_quantize_glb.py`.
 
 Conventions:
 

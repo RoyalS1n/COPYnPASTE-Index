@@ -259,6 +259,15 @@ texture's own colours.
 Content-library materials with textures load when something first uses them, so the library can hold many
 textured materials without costing memory on maps that don't use them.
 
+`extends` starts from another material (the map's, the content library's or a built-in) and replaces only the
+keys given; `triplanar`, `wind` and `textures` merge key by key. A map material may extend a library material of
+the same name to override it for that map:
+
+```json
+"court_paving": {"extends": "FT_Paving", "vertex_color": false},
+"FT_Sand": {"extends": "FT_Sand", "base_color": [0.25, 0.23, 0.22]}
+```
+
 ## meshes
 
 ```json
@@ -270,6 +279,11 @@ textured materials without costing memory on maps that don't use them.
 ```
 
 `front` is the side that `face_towards` turns towards a target (`-y` for Blender exports).
+
+The content library is `content/library.json` (written by `reference-world/blender/export_content.py`) plus every
+`content/<folder>/library.json` (one per source, each with its own `meshes` and `materials`, paths relative to its
+folder): `content/fortress` holds the FloatingIslet fortress kit (`fk_*` meshes, `FT_*` materials). A name defined
+twice keeps its first definition (the root library, then folders in alphabetical order).
 
 ## instance_files
 

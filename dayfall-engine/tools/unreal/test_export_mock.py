@@ -506,6 +506,10 @@ def fake_level(u):
     mi_crate = mat("MI_Crate", u.MaterialInstanceConstant, parent=m_base, tex_params={"BaseColor": t_bc, "Normal": t_n},
                    scalars={"Roughness": 0.7}, vectors={})
     m_gold = mat("M_Gold", vectors={})
+    m_ft = mat("M_FT_Master")
+    mi_ft = mat("MI_FT_Sand", u.MaterialInstanceConstant, parent=m_ft, tex_params={},
+                scalars={"Roughness": 0.85, "NoiseAmount": 0.1},
+                vectors={"BaseColor": u.LinearColor(0.215, 0.203, 0.198, 1.0), "GrimeTint": u.LinearColor(0.6, 0.54, 0.46, 1.0)})
     m_leaf = mat("M_Leaves", blend_mode=u.BlendMode.BLEND_MASKED, two_sided=True,
                  shading_model=u.MaterialShadingModel.MSM_TWO_SIDED_FOLIAGE)
 
@@ -520,6 +524,7 @@ def fake_level(u):
     sm_flag = mesh("SM_Flag", [(-20, -20, 0, 20, 20, 600), (-20, 20, 500, 20, 400, 600)], m_flag)
     sm_cube = mesh("SM_Cube", [(-50, -50, 0, 50, 50, 100)], mi_crate)
     sm_bush = mesh("SM_Bush", [(-40, -40, 0, 40, 40, 60)], m_leaf)
+    sm_fort = mesh("SM_FortWall", [(-500, -200, 0, 500, 200, 800)], mi_ft)
 
     def rot(yaw):
         return u.Rotator(0, 0, yaw).quaternion()
@@ -551,6 +556,10 @@ def fake_level(u):
         a = u.StaticMeshActor(f"Crate{k}", at(-5000 + k * 300, 4000), [smc(sm_cube)])
         a.components[0].transform = a.transform
         actors.append(a)
+    # a fortress wall: its M_FT_Master instance maps onto the engine's port (content/fortress)
+    a = u.StaticMeshActor("FortWall", at(4500, -4500), [smc(sm_fort)])
+    a.components[0].transform = a.transform
+    actors.append(a)
     # a hidden crate and a crate without collision
     a = u.StaticMeshActor("HiddenCrate", at(0, 4500), [smc(sm_cube)], hidden=True)
     actors.append(a)
@@ -605,7 +614,7 @@ class MockExport(unittest.TestCase):
         doc, rep = self.export()
         self.assertEqual(doc["format"], "dayfall-map")
         self.assertEqual(rep["mesh_format"], "gltf")
-        self.assertEqual(set(doc["meshes"]), {"SM_Flag", "SM_Cube", "SM_Bush"})
+        self.assertEqual(set(doc["meshes"]), {"SM_Flag", "SM_Cube", "SM_Bush", "SM_FortWall"})
         ids = {o["id"]: o for o in doc["objects"]}
         self.assertIn("Flag", ids)
         self.assertEqual(ids["Wall"]["scale"], [4, 0.5, 2])
@@ -621,6 +630,8 @@ class MockExport(unittest.TestCase):
         self.assertEqual(m["MI_Crate"]["textures"]["normal"], "textures/T_Crate_N.png")
         self.assertEqual(m["MI_Crate"]["normal_convention"], "directx")
         self.assertEqual(m["M_Leaves"]["model"], "foliage")
+        self.assertEqual(m["MI_FT_Sand"], {"extends": "FT_Sand", "base_color": [0.215, 0.203, 0.198], "roughness": 0.85})
+        self.assertEqual(rep["materials"]["MI_FT_Sand"]["library"], "FT_Sand")
         self.assertAlmostEqual(doc["player_start"]["yaw_deg"], -90)
         self.assertAlmostEqual(doc["player_start"]["position"][2], T.ue_height(0, 0) / 100, places=3)
         sun = doc["environment"]["sun"]
@@ -639,7 +650,7 @@ class MockExport(unittest.TestCase):
         self.assertEqual(rep["mesh_format"], "fbx")
         with open(os.path.join(self.dir, "_fbx", "manifest.json")) as f:
             man = json.load(f)
-        self.assertEqual(len(man["meshes"]), 3)
+        self.assertEqual(len(man["meshes"]), 4)
         self.assertEqual(man["meshes"][0]["glb"], "../assets/" + man["meshes"][0]["key"] + ".glb")
 
     @unittest.skipUnless("--engine" in sys.argv, "pass --engine to run against bin/dayfall")
