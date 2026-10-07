@@ -54,5 +54,6 @@ struct GpuFrame {
     vec4 lodBias;
     uvec4 totals;
     vec4 post;
+    vec4 terrainA, terrainB, terrainC;
 };
 }  // namespace df

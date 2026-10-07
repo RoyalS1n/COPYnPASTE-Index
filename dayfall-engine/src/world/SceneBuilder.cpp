@@ -246,26 +246,18 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
     std::vector<std::shared_ptr<const MeshAsset>> keepAlive;
     auto groundZ = [&](vec2 p) { return w.terrain.empty() ? 0.0f : w.terrain.heightAt(p.x, p.y); };
 
-    // terrain
+    // terrain: rendered from heightmap textures (Renderer::setTerrain); paths are applied here
     Terrain& T = w.terrain;
     if (!T.empty()) {
         std::string pathsKey = doc.value("paths", json::array()).dump();
-        if (chunkTerrainVersion_ != T.version || chunkPathsKey_ != pathsKey || chunks_.empty()) {
+        if (chunkTerrainVersion_ != T.version || chunkPathsKey_ != pathsKey) {
             T.applyPaths(doc.value("paths", json::array()));
-            chunks_.clear();
-            uint32_t cps = T.chunksPerSide();
-            for (uint32_t cy = 0; cy < cps; ++cy)
-                for (uint32_t cx = 0; cx < cps; ++cx) chunks_.push_back(std::make_shared<MeshAsset>(T.chunkMesh(cx, cy)));
             chunkTerrainVersion_ = T.version;
             chunkPathsKey_ = pathsKey;
+            terrainChanged_ = true;
         }
         std::string tmat = doc.value("terrain", json::object()).value("material", "terrain");
-        uint32_t first = (uint32_t)s.instances.size();
-        for (auto& c : chunks_) {
-            if (tmat != "terrain") for (auto& lod : c->lods) for (auto& p : lod) p.material = tmat;
-            uint32_t m = s.addMeshAsset(*c, c->name);
-            s.addInstance(m, vec3(0), quat(1, 0, 0, 0), 1.0f, true, 1e9f);
-        }
+        s.terrainMaterial = s.findOrAddMaterial(tmat);
         // distant land
         const json& hz = doc.value("terrain", json::object()).value("horizon", json::object());
         if (hz.value("enabled", true)) {
@@ -274,16 +266,18 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
                 horizon_ = std::make_shared<MeshAsset>(T.horizonMesh(hz));
                 horizonKey_ = key;
             }
-            if (tmat != "terrain") for (auto& lod : horizon_->lods) for (auto& p : lod) p.material = tmat;
+            for (auto& lod : horizon_->lods) for (auto& p : lod) p.material = tmat;
             uint32_t m = s.addMeshAsset(*horizon_, horizon_->name);
             s.addInstance(m, vec3(0), quat(1, 0, 0, 0), 1.0f, true, 1e9f);
         }
-        InstanceSet set;
-        set.name = "terrain";
-        set.first = first;
-        set.count = (uint32_t)s.instances.size() - first;
-        set.collision.kind = CollisionKind::None;   // physics uses the heightfield directly
-        s.sets.push_back(set);
+        float lo = 1e30f, hi = -1e30f;
+        for (float h : T.height) { lo = std::min(lo, h); hi = std::max(hi, h); }
+        s.terrainMin = vec3(T.origin, lo);
+        s.terrainMax = vec3(T.maxCorner(), hi);
+        s.hasTerrain = true;
+    } else if (chunkTerrainVersion_ != 0) {
+        chunkTerrainVersion_ = 0;
+        terrainChanged_ = true;
     }
 
     // water plane
@@ -532,6 +526,10 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
     }
 
     s.computeBounds();
+    if (s.hasTerrain) {
+        s.boundsMin = glm::min(s.boundsMin, s.terrainMin);
+        s.boundsMax = glm::max(s.boundsMax, s.terrainMax);
+    }
     info.instances = s.instances.size();
     info.meshes = s.meshes.size();
     info.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();

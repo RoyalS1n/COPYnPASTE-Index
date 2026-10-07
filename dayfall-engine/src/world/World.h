@@ -15,7 +15,7 @@ public:
     std::filesystem::path dir;
     nlohmann::json doc;
     Terrain terrain;
-    uint64_t version = 1;          // bumps on every change
+    uint64_t version = Terrain::nextVersion();   // changes on every edit (unique across worlds)
     bool dirty = false;            // unsaved changes
 
     void load(const std::filesystem::path& mapDir);
@@ -37,7 +37,7 @@ public:
     nlohmann::json* find(const std::string& id, std::string* section = nullptr);
     bool erase(const std::string& id);
     std::string newId(const std::string& prefix) const;
-    void touch() { ++version; dirty = true; }
+    void touch() { version = Terrain::nextVersion(); dirty = true; }
     // terrain settings live in doc["terrain"]; keep them in sync with `terrain`
     void terrainToDoc();
     void docToTerrain();

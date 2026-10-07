@@ -73,7 +73,7 @@ void World::load(const fs::path& mapDir) {
     undo_.clear();
     redo_.clear();
     dirty = false;
-    ++version;
+    version = Terrain::nextVersion();
     logInfo("loaded map '{}' from {}", doc.value("name", "?"), dir.string());
 }
 
@@ -111,7 +111,7 @@ void World::createNew(const fs::path& mapDir, const std::string& name) {
     undo_.clear();
     redo_.clear();
     dirty = true;
-    ++version;
+    version = Terrain::nextVersion();
 }
 
 // --------------------------------------------------------------------------- undo
@@ -141,10 +141,10 @@ void World::cancelEdit() {
         terrain.origin = editOrigin_;
         if (editN_ == 0) terrain = Terrain();
         docToTerrain();
-        ++terrain.version;
+        terrain.touch();
     }
     editing_ = false;
-    ++version;
+    version = Terrain::nextVersion();
 }
 
 void World::endEdit() {
@@ -227,7 +227,7 @@ void World::applyPatch(const TerrainPatch& p, bool after) {
             std::copy(pt.begin() + (size_t)r * p.w * C, pt.begin() + (size_t)(r + 1) * p.w * C, terrain.paint.begin() + k * C);
         }
     }
-    ++terrain.version;
+    terrain.touch();
 }
 
 bool World::undo(std::string* label) {

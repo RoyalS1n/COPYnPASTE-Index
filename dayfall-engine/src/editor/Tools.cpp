@@ -560,7 +560,7 @@ void Editor::registerTools() {
                  for (const char* k : {"snowline_m", "rock_slope_deg", "dry_amount", "material", "lod_distances_m"})
                      if (a.contains(k)) t[k] = a[k];
                  E.world.docToTerrain();
-                 ++E.world.terrain.version;
+                 E.world.terrain.touch();
                  E.world.endEdit();
                  ToolResult r;
                  r.data = {{"terrain", t}};
@@ -589,7 +589,7 @@ void Editor::registerTools() {
                  if (id.empty()) { id = E.world.newId("path"); p["id"] = id; }
                  if (existing) *existing = p;
                  else E.world.list("paths").push_back(p);
-                 ++E.world.terrain.version;
+                 E.world.terrain.touch();
                  E.world.endEdit();
                  E.rebuildIfNeeded();
                  // report the walkable grade along the result
@@ -749,7 +749,7 @@ void Editor::registerTools() {
                      }
                      if (removed.empty()) throw Error("nothing matched");
                  } catch (...) { E.world.cancelEdit(); throw; }
-                 ++E.world.terrain.version;   // paths may have changed
+                 E.world.terrain.touch();   // paths may have changed
                  E.world.endEdit();
                  ToolResult r;
                  r.data = {{"deleted", removed}};
@@ -936,7 +936,7 @@ void Editor::registerTools() {
                  E.world.beginEdit("environment_set", true);
                  E.world.doc["environment"] = next;
                  E.world.docToTerrain();
-                 ++E.world.terrain.version;      // water level changes the terrain's wet layer
+                 E.world.terrain.touch();      // water level changes the terrain's wet layer
                  E.world.endEdit();
                  ToolResult r;
                  r.data = {{"environment", next}};
@@ -1046,7 +1046,7 @@ void Editor::registerTools() {
                  E.world.beginEdit("doc_patch", true);
                  E.world.doc = next;
                  E.world.docToTerrain();
-                 ++E.world.terrain.version;
+                 E.world.terrain.touch();
                  E.world.endEdit();
                  ToolResult r;
                  r.data = {{"applied", a["patch"].size()}};

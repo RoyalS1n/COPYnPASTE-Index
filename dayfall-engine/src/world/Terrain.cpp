@@ -3,6 +3,7 @@
 #include "core/FileSystem.h"
 #include "world/Noise.h"
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstring>
 #include <format>
@@ -31,6 +32,11 @@ std::vector<vec2> catmullRom(const std::vector<vec2>& p, float step) {
 }
 }  // namespace
 
+uint64_t Terrain::nextVersion() {
+    static std::atomic<uint64_t> counter{1};
+    return ++counter;
+}
+
 const char* Terrain::paintName(uint32_t c) {
     static const char* names[] = {"dirt", "rock", "snow", "wet", "dry", "grass", "reserved6", "reserved7"};
     return c < kPaintChannels ? names[c] : "?";
@@ -52,7 +58,7 @@ void Terrain::create(uint32_t samples, float sp, vec2 org, float h) {
     pathMask.assign(base.size(), 0.0f);
     laneMask.assign(base.size(), 0.0f);
     laneDist.assign(base.size(), 0.0f);
-    ++version;
+    touch();
 }
 
 void Terrain::thermalErosion(int passes, float talus, float rate) {
@@ -202,7 +208,7 @@ void Terrain::generate(const json& p) {
     std::fill(pathMask.begin(), pathMask.end(), 0.0f);
     std::fill(laneMask.begin(), laneMask.end(), 0.0f);
     std::fill(laneDist.begin(), laneDist.end(), 0.0f);
-    ++version;
+    touch();
 }
 
 json Terrain::sculpt(const json& p) {
@@ -281,7 +287,7 @@ json Terrain::sculpt(const json& p) {
     } else {
         throw Error("unknown sculpt op '" + op + "' (raise, lower, flatten, set, smooth, noise, ramp)");
     }
-    ++version;
+    touch();
     return {{"op", op}, {"samples_changed", changed}, {"min_change_m", changed ? minD : 0.0f}, {"max_change_m", changed ? maxD : 0.0f}};
 }
 
@@ -312,7 +318,7 @@ json Terrain::paintLayer(const json& p) {
             uint8_t nv = (uint8_t)std::lround(std::clamp(nf, 0.0f, 1.0f) * 255.0f);
             if (nv != v) { v = nv; ++changed; }
         }
-    ++version;
+    touch();
     return {{"layer", layer}, {"mode", mode}, {"samples_changed", changed}};
 }
 
@@ -465,69 +471,6 @@ vec4 Terrain::layersAt(float x, float y) const {
     return vec4(c0.y, c0.z, c0.w, c1.x);   // rock, snow, wet, path
 }
 
-MeshAsset Terrain::chunkMesh(uint32_t cx, uint32_t cy) const {
-    MeshAsset m;
-    uint32_t Q = chunkQuads;
-    uint32_t i0 = cx * Q, j0 = cy * Q;
-    uint32_t qi = std::min(Q, n - 1 - i0), qj = std::min(Q, n - 1 - j0);   // quads in this chunk
-    uint32_t vi = qi + 1, vj = qj + 1;
-    m.name = std::format("terrain_{}_{}", cx, cy);
-    m.vertices.reserve(vi * vj + 2 * (vi + vj));
-    auto normalAtSample = [&](uint32_t i, uint32_t j) {
-        uint32_t a = i ? i - 1 : i, b = std::min(i + 1, n - 1), c = j ? j - 1 : j, d = std::min(j + 1, n - 1);
-        float dx = (at(height, b, j) - at(height, a, j)) / ((b - a) * spacing);
-        float dy = (at(height, i, d) - at(height, i, c)) / ((d - c) * spacing);
-        return glm::normalize(vec3(-dx, -dy, 1.0f));
-    };
-    auto makeV = [&](uint32_t i, uint32_t j, float drop) {
-        vec2 w = pos(i, j);
-        vec3 nn = normalAtSample(i, j);
-        vec4 c0, c1;
-        sampleMasks(i, j, glm::degrees(std::acos(std::clamp(nn.z, -1.0f, 1.0f))), c0, c1);
-        return makeVertex(vec3(w, at(height, i, j) - drop), nn, w, vec4(1, 0, 0, 1), c0, c1,
-                          vec2(laneDist[(size_t)j * n + i], 0));
-    };
-    for (uint32_t j = 0; j < vj; ++j)
-        for (uint32_t i = 0; i < vi; ++i) m.vertices.push_back(makeV(i0 + i, j0 + j, 0.0f));
-    // skirts hide cracks between chunks drawn at different LODs
-    float drop = std::max(1.0f, spacing * Q * 0.04f);
-    uint32_t sk[4];
-    sk[0] = (uint32_t)m.vertices.size(); for (uint32_t i = 0; i < vi; ++i) m.vertices.push_back(makeV(i0 + i, j0, drop));        // south
-    sk[1] = (uint32_t)m.vertices.size(); for (uint32_t i = 0; i < vi; ++i) m.vertices.push_back(makeV(i0 + i, j0 + qj, drop));   // north
-    sk[2] = (uint32_t)m.vertices.size(); for (uint32_t j = 0; j < vj; ++j) m.vertices.push_back(makeV(i0, j0 + j, drop));        // west
-    sk[3] = (uint32_t)m.vertices.size(); for (uint32_t j = 0; j < vj; ++j) m.vertices.push_back(makeV(i0 + qi, j0 + j, drop));   // east
-    auto V = [&](uint32_t i, uint32_t j) { return j * vi + i; };
-    for (size_t l = 0; l < lodDistances.size(); ++l) {
-        uint32_t s = 1u << l;
-        if (l > 0 && (qi < s || qj < s)) break;
-        MeshPart part;
-        part.material = "terrain";
-        part.firstIndex = (uint32_t)m.indices.size();
-        auto quad = [&](uint32_t a, uint32_t b, uint32_t c, uint32_t d) { m.indices.insert(m.indices.end(), {a, b, c, a, c, d}); };
-        for (uint32_t j = 0; j < qj; j += s)
-            for (uint32_t i = 0; i < qi; i += s) {
-                uint32_t i1 = std::min(i + s, qi), j1 = std::min(j + s, qj);
-                quad(V(i, j), V(i1, j), V(i1, j1), V(i, j1));
-            }
-        for (uint32_t i = 0; i < qi; i += s) {
-            uint32_t i1 = std::min(i + s, qi);
-            quad(V(i, 0), sk[0] + i, sk[0] + i1, V(i1, 0));        // south, facing -Y
-            quad(V(i, qj), V(i1, qj), sk[1] + i1, sk[1] + i);      // north, facing +Y
-        }
-        for (uint32_t j = 0; j < qj; j += s) {
-            uint32_t j1 = std::min(j + s, qj);
-            quad(V(0, j), V(0, j1), sk[2] + j1, sk[2] + j);        // west, facing -X
-            quad(V(qi, j), sk[3] + j, sk[3] + j1, V(qi, j1));      // east, facing +X
-        }
-        part.indexCount = (uint32_t)m.indices.size() - part.firstIndex;
-        m.lods.push_back({part});
-        m.lodDistances.push_back(lodDistances[l]);
-    }
-    m.lodDistances.back() = 1e9f;
-    m.computeBounds();
-    return m;
-}
-
 MeshAsset Terrain::horizonMesh(const json& p) const {
     MeshBuilder b;
     float S = size();
@@ -597,7 +540,7 @@ void Terrain::load(const std::filesystem::path& hf, const std::filesystem::path&
         else throw Error(std::format("{}: expected {} bytes of paint layers, found {}", pf.string(), paint.size(), p.size()));
     }
     height = base;
-    ++version;
+    touch();
 }
 
 void Terrain::save(const std::filesystem::path& hf, const std::filesystem::path& pf) const {

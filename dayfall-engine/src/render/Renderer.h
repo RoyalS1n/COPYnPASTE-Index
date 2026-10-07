@@ -2,7 +2,10 @@
 #include "gfx/Resources.h"
 #include "render/Camera.h"
 #include "scene/Scene.h"
+
+namespace df { class Terrain; }
 #include <array>
+#include <cstring>
 #include <string>
 
 namespace df {
@@ -47,6 +50,10 @@ public:
     // re-uploads point-light colours / positions (same light count as setScene)
     void updateLights(const Scene& scene);
     float shadowDistanceOverride = 0.0f;   // > 0: overrides the environment's shadow distance (top-down captures)
+    // GPU heightmap terrain (final heights, painted layers, paths); nullptr removes it
+    void setTerrain(const Terrain* terrain, uint32_t material);
+    uint32_t terrainPatches() const { return patchCount_[0]; }
+    void setTerrainMaterial(uint32_t material) { float b; std::memcpy(&b, &material, 4); frameData_.terrainC.z = b; terrain_.material = material; }
     const RenderSettings& settings() const { return s_; }
 
 private:
@@ -57,6 +64,9 @@ private:
     void writeDescriptors();
     void updateFrame(uint32_t frame, const Camera& cam, float time);
     void drawGroup(VkCommandBuffer cmd, uint32_t view, uint32_t group, VkPipeline pipe);
+    void selectTerrain(uint32_t frame, const Camera& cam);
+    void drawTerrain(VkCommandBuffer cmd, uint32_t view, VkPipeline pipe);
+    void createTerrainDummies();
 
     Device* d_ = nullptr;
     RenderSettings s_;
@@ -91,6 +101,22 @@ private:
     std::vector<GpuInstance> dynamic_;
     uint32_t dynamicFirst_ = 0;
     VkQueryPool queries_ = VK_NULL_HANDLE;
+    // terrain
+    static constexpr uint32_t kMaxPatches = 6144;
+    struct TerrainGpu {
+        Image height, paint0, paint1, paths;
+        uint32_t n = 0;
+        float spacing = 1.0f, hMin = 0.0f, hRange = 1.0f;
+        vec2 origin{0};
+        bool enabled = false;
+        uint32_t material = 0;
+        std::vector<std::vector<vec2>> minMax;   // per level: (min, max) per node
+        std::vector<uint32_t> nodesPerSide;
+    } terrain_;
+    Buffer terrainIndices_;
+    std::array<Buffer, kFrames> patches_;
+    std::array<uint32_t, 5> patchFirst_{}, patchCount_{};
+    VkPipeline terrainMain_ = VK_NULL_HANDLE, terrainShadow_ = VK_NULL_HANDLE;
     uint32_t maxTextures_ = 4096;
     VkBuffer curCmds_ = VK_NULL_HANDLE;
     bool sceneReady_ = false;

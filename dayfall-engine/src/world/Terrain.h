@@ -32,7 +32,9 @@ public:
 
     // derived by applyPaths(): final heights and path masks
     std::vector<float> height, pathMask, laneMask, laneDist;
-    uint64_t version = 1;            // bumped on every change
+    uint64_t version = nextVersion();   // changes on every edit; unique across terrains (caches key on it)
+    void touch() { version = nextVersion(); }
+    static uint64_t nextVersion();
 
     bool empty() const { return n == 0; }
     float size() const { return (n - 1) * spacing; }
@@ -59,9 +61,6 @@ public:
     // automatic + painted layer weights at a world point: rock, snow, wet, dry, path
     vec4 layersAt(float x, float y) const;
 
-    // render chunks
-    uint32_t chunksPerSide() const { return n ? (n - 1 + chunkQuads - 1) / chunkQuads : 0; }
-    MeshAsset chunkMesh(uint32_t cx, uint32_t cy) const;
     // Distant land around the playable terrain, continuing its edge into far
     // hills / mountains so the world never ends in a void. No collision.
     // params: {"enabled", "radius_m", "height_m", "roughness"}

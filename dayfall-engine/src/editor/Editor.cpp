@@ -54,6 +54,7 @@ void Editor::openMap(const fs::path& dir) {
     w.load(dir);
     world = std::move(w);
     builtVersion_ = builtTerrainVersion_ = 0;
+    terrainUploaded_ = nullptr;
     batch = BatchState();
     rebuildIfNeeded();
     editCamera = overviewCamera();
@@ -78,6 +79,11 @@ bool Editor::rebuildIfNeeded() {
     bool wasPlaying = game.active();
     builder.build(world, scene, entities, lastBuild);
     engine->setScene(scene);
+    if (builder.takeTerrainChanged() || terrainUploaded_ != &world.terrain)
+        engine->renderer.setTerrain(world.terrain.empty() ? nullptr : &world.terrain, scene.terrainMaterial);
+    else if (!world.terrain.empty())
+        engine->renderer.setTerrainMaterial(scene.terrainMaterial);
+    terrainUploaded_ = &world.terrain;
     physics.buildStatic(scene, world.terrain);
     game.rebind(builder);
     if (wasPlaying) {   // keep playing from the same spot

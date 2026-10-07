@@ -101,6 +101,7 @@ private:
     ToolResult runEdit(const Tool& t, const nlohmann::json& args);
     std::vector<Tool> tools_;
     uint64_t builtVersion_ = 0, builtTerrainVersion_ = 0;
+    const Terrain* terrainUploaded_ = nullptr;
     int captureCounter_ = 0;
     friend struct ToolRegistrar;
 };

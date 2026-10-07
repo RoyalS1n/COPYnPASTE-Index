@@ -110,6 +110,9 @@ layout(set = 0, binding = 0) uniform Frame {
     vec4 lodBias;            // lod distance scale, cull distance scale, unused, unused
     uvec4 totals;            // visible-list size of the main view, of each shadow view, unused, unused
     vec4 post;               // vignette, dither, unused, unused
+    vec4 terrainA;           // origin xy, sample spacing (m), samples per side
+    vec4 terrainB;           // height min, height range, snowline, rock slope (deg)
+    vec4 terrainC;           // dry amount, enabled, material index (bits), unused
 } frame;
 
 layout(std430, set = 0, binding = 1) readonly buffer Vertices { Vertex vertices[]; };
@@ -126,7 +129,12 @@ layout(set = 0, binding = 13) uniform sampler2D skyLut;
 layout(set = 0, binding = 14) uniform sampler2D sceneColor;
 layout(set = 0, binding = 15) uniform sampler2D sceneDepth;
 layout(set = 0, binding = 16) uniform sampler2D hdrColor;
-layout(set = 0, binding = 17) uniform sampler2D textures[];
+layout(set = 0, binding = 17) uniform sampler2D terrainHeight;   // R16 unorm: min + v * range
+layout(set = 0, binding = 18) uniform sampler2D terrainPaint0;   // dirt, rock, snow, wet (painted)
+layout(set = 0, binding = 19) uniform sampler2D terrainPaint1;   // dry, grass, -, -
+layout(set = 0, binding = 20) uniform sampler2D terrainPaths;    // path mask, lane mask, lane signed distance (m), -
+// binding 21: terrain patches (terrain.vert)
+layout(set = 0, binding = 22) uniform sampler2D textures[];      // must stay the last binding (variable count)
 
 layout(push_constant) uniform Push {
     uint batchBase;

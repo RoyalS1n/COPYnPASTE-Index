@@ -44,6 +44,8 @@ public:
 
     std::filesystem::path contentDir;
     uint32_t playerFirst = 0, playerCount = 0;   // mannequin part instances in the last built scene
+    // true once after the terrain heights / paint / paths changed (upload them to the GPU)
+    bool takeTerrainChanged() { bool c = terrainChanged_; terrainChanged_ = false; return c; }
 
 private:
     std::shared_ptr<const MeshAsset> loadFileAsset(const std::filesystem::path& file, const nlohmann::json& entry, const std::string& name);
@@ -54,7 +56,7 @@ private:
     // terrain chunk cache
     uint64_t chunkTerrainVersion_ = 0;
     std::string chunkPathsKey_;
-    std::vector<std::shared_ptr<MeshAsset>> chunks_;
+    bool terrainChanged_ = false;
     std::shared_ptr<MeshAsset> horizon_;
     std::string horizonKey_;
     // scatter cache: rule id -> (key, points)

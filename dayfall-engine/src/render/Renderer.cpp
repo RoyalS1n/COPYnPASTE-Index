@@ -2,8 +2,11 @@
 #include "gfx/Pipeline.h"
 #include "render/LightGrid.h"
 #include "render/SkyModel.h"
+#include "world/Terrain.h"
+#include <glm/gtc/packing.hpp>
 #include <algorithm>
 #include <cstring>
+#include <functional>
 
 namespace df {
 namespace {
@@ -11,7 +14,7 @@ constexpr VkFormat kHdrFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 constexpr VkFormat kDepthFormat = VK_FORMAT_D32_SFLOAT;
 constexpr VkFormat kShadowFormat = VK_FORMAT_D32_SFLOAT;
 constexpr VkBufferUsageFlags kSsbo = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-constexpr uint32_t kBindingCount = 18;
+constexpr uint32_t kBindingCount = 23;   // 0 UBO, 1-11 buffers, 12-20 images, 21 terrain patches, 22 bindless textures
 
 struct Push { uint32_t batchBase, view, flags, pad; };
 
@@ -127,11 +130,11 @@ void Renderer::init(Device& dev, const RenderSettings& s, const std::string& sha
         b[i].descriptorCount = 1;
         b[i].stageFlags = VK_SHADER_STAGE_ALL;
         b[i].descriptorType = i == 0 ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
-                              : i <= 11 ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
-                                        : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                              : (i <= 11 || i == 21) ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+                                                     : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     }
-    b[17].descriptorCount = maxTextures_;
-    flags[17] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
+    b[22].descriptorCount = maxTextures_;
+    flags[22] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
     VkDescriptorSetLayoutBindingFlagsCreateInfo bf{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO};
     bf.bindingCount = kBindingCount;
     bf.pBindingFlags = flags;
@@ -141,8 +144,8 @@ void Renderer::init(Device& dev, const RenderSettings& s, const std::string& sha
     VK_CHECK(vkCreateDescriptorSetLayout(dev.device, &lci, nullptr, &setLayout_));
 
     VkDescriptorPoolSize sizes[] = {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, kFrames},
-                                    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 11 * kFrames},
-                                    {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (5 + maxTextures_) * kFrames}};
+                                    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 12 * kFrames},
+                                    {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (9 + maxTextures_) * kFrames}};
     VkDescriptorPoolCreateInfo pci{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     pci.maxSets = kFrames;
     pci.poolSizeCount = 3;
@@ -157,8 +160,20 @@ void Renderer::init(Device& dev, const RenderSettings& s, const std::string& sha
     plci.pPushConstantRanges = &pr;
     VK_CHECK(vkCreatePipelineLayout(dev.device, &plci, nullptr, &layout_));
 
-    for (uint32_t f = 0; f < kFrames; ++f)
+    for (uint32_t f = 0; f < kFrames; ++f) {
         ubo_[f] = createBuffer(dev, sizeof(GpuFrame), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, MemUsage::Upload);
+        patches_[f] = createBuffer(dev, (VkDeviceSize)kMaxPatches * 5 * 32, kSsbo, MemUsage::Upload);
+    }
+    {   // the CDLOD patch grid: 32 x 32 quads
+        std::vector<uint32_t> idx;
+        for (uint32_t j = 0; j < 32; ++j)
+            for (uint32_t i = 0; i < 32; ++i) {
+                uint32_t a = j * 33 + i;
+                idx.insert(idx.end(), {a, a + 1, a + 34, a, a + 34, a + 33});
+            }
+        terrainIndices_ = createBufferWithData(dev, idx.data(), idx.size() * 4, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    }
+    createTerrainDummies();
 
     if (dev.timestamps) {
         VkQueryPoolCreateInfo qci{VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};
@@ -176,6 +191,7 @@ void Renderer::createPipelines() {
     VkShaderModule cullResetCs = sh("cull_reset.comp"), cullCs = sh("cull.comp");
     VkShaderModule meshVs = sh("mesh.vert"), meshFs = sh("mesh.frag"), shadowVs = sh("shadow.vert"), shadowFs = sh("shadow.frag");
     VkShaderModule fullVs = sh("fullscreen.vert"), skyFs = sh("sky.frag"), waterFs = sh("water.frag");
+    VkShaderModule terrainVs = sh("terrain.vert"), terrainFs = sh("terrain.frag");
 
     cullReset_ = createComputePipeline(d, cullResetCs, layout_);
     cull_ = createComputePipeline(d, cullCs, layout_);
@@ -236,7 +252,23 @@ void Renderer::createPipelines() {
     s.frag = shadowFs;
     shadowMasked_ = createGraphicsPipeline(d, s);
 
-    for (VkShaderModule m : {cullResetCs, cullCs, meshVs, meshFs, shadowVs, shadowFs, fullVs, skyFs, waterFs})
+    GraphicsPipelineDesc tg;
+    tg.layout = layout_;
+    tg.vert = terrainVs;
+    tg.frag = terrainFs;
+    tg.colorFormats = {kHdrFormat};
+    tg.depthFormat = kDepthFormat;
+    tg.samples = samples_;
+    terrainMain_ = createGraphicsPipeline(d, tg);
+    GraphicsPipelineDesc ts;
+    ts.layout = layout_;
+    ts.vert = terrainVs;
+    ts.depthFormat = kShadowFormat;
+    ts.cull = VK_CULL_MODE_NONE;
+    ts.depthCompare = VK_COMPARE_OP_LESS_OR_EQUAL;
+    ts.depthBias = true;
+    terrainShadow_ = createGraphicsPipeline(d, ts);
+    for (VkShaderModule m : {cullResetCs, cullCs, meshVs, meshFs, shadowVs, shadowFs, fullVs, skyFs, waterFs, terrainVs, terrainFs})
         vkDestroyShaderModule(d.device, m, nullptr);
 }
 
@@ -471,7 +503,7 @@ void Renderer::writeDescriptors() {
         const Buffer* bufs[12] = {&ubo_[f], &vertices_, &instances_, &meshInfos_, &lods_, &batchRefs_, &batches_, &materials_,
                                   &visible_[f], &cmds_[f], &lights_, &lightGrid_};
         VkDescriptorBufferInfo bi[12];
-        VkDescriptorImageInfo ii[5];
+        VkDescriptorImageInfo ii[9];
         std::vector<VkDescriptorImageInfo> ti(texCount);
         std::vector<VkWriteDescriptorSet> w;
         for (uint32_t i = 0; i < 12; ++i) {
@@ -489,7 +521,11 @@ void Renderer::writeDescriptors() {
         ii[2] = {linearClamp_, sceneCopy_.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         ii[3] = {nearestClamp_, depth_.view, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL};
         ii[4] = {linearClamp_, hdr_.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        for (uint32_t i = 0; i < 5; ++i) {
+        ii[5] = {linearClamp_, terrain_.height.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        ii[6] = {linearClamp_, terrain_.paint0.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        ii[7] = {linearClamp_, terrain_.paint1.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        ii[8] = {linearClamp_, terrain_.paths.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        for (uint32_t i = 0; i < 9; ++i) {
             VkWriteDescriptorSet x{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
             x.dstSet = sets_[f];
             x.dstBinding = 12 + i;
@@ -498,10 +534,18 @@ void Renderer::writeDescriptors() {
             x.pImageInfo = &ii[i];
             w.push_back(x);
         }
+        VkDescriptorBufferInfo pbi{patches_[f].buffer, 0, VK_WHOLE_SIZE};
+        VkWriteDescriptorSet pw{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        pw.dstSet = sets_[f];
+        pw.dstBinding = 21;
+        pw.descriptorCount = 1;
+        pw.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        pw.pBufferInfo = &pbi;
+        w.push_back(pw);
         for (uint32_t i = 0; i < texCount; ++i) ti[i] = {linearRepeat_, textures_[i].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkWriteDescriptorSet x{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
         x.dstSet = sets_[f];
-        x.dstBinding = 17;
+        x.dstBinding = 22;
         x.descriptorCount = texCount;
         x.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         x.pImageInfo = ti.data();
@@ -605,6 +649,7 @@ void Renderer::drawGroup(VkCommandBuffer cmd, uint32_t view, uint32_t group, VkP
 
 void Renderer::record(VkCommandBuffer cmd, uint32_t frame, const Camera& cam, float time, const OutputTarget& out) {
     updateFrame(frame, cam, time);
+    selectTerrain(frame, cam);
     curCmds_ = cmds_[frame].buffer;
     uint32_t q0 = frame * (FrameStats::kPasses + 1);
     auto stamp = [&](uint32_t i, VkPipelineStageFlags2 stage) {
@@ -670,6 +715,7 @@ void Renderer::record(VkCommandBuffer cmd, uint32_t frame, const Camera& cam, fl
             vkCmdBeginRendering(cmd, &ri);
             setViewport(cmd, s_.shadowSize, s_.shadowSize, true);
             vkCmdSetDepthBias(cmd, 1.5f, 0.0f, 2.0f);
+            drawTerrain(cmd, c + 1, terrainShadow_);
             drawGroup(cmd, c + 1, GroupOpaque, shadowOpaque_);
             drawGroup(cmd, c + 1, GroupTwoSided, shadowOpaque_);
             drawGroup(cmd, c + 1, GroupMasked, shadowMasked_);
@@ -723,6 +769,7 @@ void Renderer::record(VkCommandBuffer cmd, uint32_t frame, const Camera& cam, fl
         ri.pDepthAttachment = &da;
         vkCmdBeginRendering(cmd, &ri);
         setViewport(cmd, s_.width, s_.height, true);
+        drawTerrain(cmd, 0, terrainMain_);
         drawGroup(cmd, 0, GroupOpaque, opaque_);
         drawGroup(cmd, 0, GroupTwoSided, twoSided_);
         drawGroup(cmd, 0, GroupMasked, masked_);
@@ -804,6 +851,201 @@ void Renderer::record(VkCommandBuffer cmd, uint32_t frame, const Camera& cam, fl
     stamp(5, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT);
 }
 
+// ------------------------------------------------------------------------------------------ terrain
+void Renderer::createTerrainDummies() {
+    Device& d = *d_;
+    for (Image* i : {&terrain_.height, &terrain_.paint0, &terrain_.paint1, &terrain_.paths})
+        if (i->image) destroyImage(d, *i);
+    auto make = [&](VkFormat f, const void* data, size_t bytes) {
+        ImageDesc id{f, 1, 1};
+        id.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        Image img = createImage(d, id);
+        uploadImage(d, img, data, bytes);
+        return img;
+    };
+    const uint8_t zero[8]{};
+    terrain_.height = make(VK_FORMAT_R16_UNORM, zero, 2);
+    terrain_.paint0 = make(VK_FORMAT_R8G8B8A8_UNORM, zero, 4);
+    terrain_.paint1 = make(VK_FORMAT_R8G8B8A8_UNORM, zero, 4);
+    terrain_.paths = make(VK_FORMAT_R16G16B16A16_SFLOAT, zero, 8);
+    terrain_.n = 0;
+    terrain_.enabled = false;
+}
+
+void Renderer::setTerrain(const Terrain* t, uint32_t material) {
+    Device& d = *d_;
+    d.waitIdle();
+    if (!t || t->empty()) {
+        if (terrain_.n != 0) { createTerrainDummies(); writeDescriptors(); }
+        terrain_.enabled = false;
+        frameData_.terrainC = vec4(0);
+        return;
+    }
+    uint32_t n = t->n;
+    size_t count = (size_t)n * n;
+    bool recreate = terrain_.n != n;
+    if (recreate) {
+        for (Image* i : {&terrain_.height, &terrain_.paint0, &terrain_.paint1, &terrain_.paths})
+            if (i->image) destroyImage(d, *i);
+        auto make = [&](VkFormat f) {
+            ImageDesc id{f, n, n};
+            id.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+            return createImage(d, id);
+        };
+        terrain_.height = make(VK_FORMAT_R16_UNORM);
+        terrain_.paint0 = make(VK_FORMAT_R8G8B8A8_UNORM);
+        terrain_.paint1 = make(VK_FORMAT_R8G8B8A8_UNORM);
+        terrain_.paths = make(VK_FORMAT_R16G16B16A16_SFLOAT);
+    }
+    // heights: 16-bit over the terrain's range
+    float lo = 1e30f, hi = -1e30f;
+    for (float h : t->height) { lo = std::min(lo, h); hi = std::max(hi, h); }
+    float range = std::max(hi - lo, 0.01f);
+    std::vector<uint16_t> h16(count);
+    for (size_t i = 0; i < count; ++i) h16[i] = (uint16_t)std::lround(std::clamp((t->height[i] - lo) / range, 0.0f, 1.0f) * 65535.0f);
+    uploadImage(d, terrain_.height, h16.data(), count * 2);
+    std::vector<uint8_t> p0(count * 4), p1(count * 4);
+    for (size_t i = 0; i < count; ++i) {
+        std::memcpy(&p0[i * 4], &t->paint[i * Terrain::kPaintChannels], 4);
+        std::memcpy(&p1[i * 4], &t->paint[i * Terrain::kPaintChannels + 4], 4);
+    }
+    uploadImage(d, terrain_.paint0, p0.data(), p0.size());
+    uploadImage(d, terrain_.paint1, p1.data(), p1.size());
+    std::vector<uint16_t> pa(count * 4);
+    for (size_t i = 0; i < count; ++i) {
+        pa[i * 4 + 0] = glm::packHalf1x16(t->pathMask.empty() ? 0.0f : t->pathMask[i]);
+        pa[i * 4 + 1] = glm::packHalf1x16(t->laneMask.empty() ? 0.0f : t->laneMask[i]);
+        pa[i * 4 + 2] = glm::packHalf1x16(t->laneDist.empty() ? 0.0f : t->laneDist[i]);
+        pa[i * 4 + 3] = 0;
+    }
+    uploadImage(d, terrain_.paths, pa.data(), pa.size() * 2);
+
+    terrain_.n = n;
+    terrain_.spacing = t->spacing;
+    terrain_.origin = t->origin;
+    terrain_.hMin = lo;
+    terrain_.hRange = range;
+    terrain_.enabled = true;
+    terrain_.material = material;
+    // min / max height per patch node, level 0 = 32 x 32 quads
+    terrain_.minMax.clear();
+    terrain_.nodesPerSide.clear();
+    uint32_t quads = n - 1;
+    uint32_t nps = (quads + 31) / 32;
+    std::vector<vec2> level(nps * nps);
+    for (uint32_t ny = 0; ny < nps; ++ny)
+        for (uint32_t nx = 0; nx < nps; ++nx) {
+            float a = 1e30f, b = -1e30f;
+            for (uint32_t j = ny * 32; j <= std::min(ny * 32 + 32, n - 1); ++j)
+                for (uint32_t i = nx * 32; i <= std::min(nx * 32 + 32, n - 1); ++i) {
+                    float h = t->height[(size_t)j * n + i];
+                    a = std::min(a, h);
+                    b = std::max(b, h);
+                }
+            level[ny * nps + nx] = vec2(a, b);
+        }
+    terrain_.minMax.push_back(level);
+    terrain_.nodesPerSide.push_back(nps);
+    while (nps > 1) {
+        uint32_t up = (nps + 1) / 2;
+        std::vector<vec2> next(up * up, vec2(1e30f, -1e30f));
+        for (uint32_t y = 0; y < nps; ++y)
+            for (uint32_t x = 0; x < nps; ++x) {
+                vec2& dst = next[(y / 2) * up + x / 2];
+                vec2 src = terrain_.minMax.back()[y * nps + x];
+                dst = vec2(std::min(dst.x, src.x), std::max(dst.y, src.y));
+            }
+        terrain_.minMax.push_back(next);
+        terrain_.nodesPerSide.push_back(up);
+        nps = up;
+    }
+    float matBits;
+    std::memcpy(&matBits, &material, 4);
+    frameData_.terrainA = vec4(t->origin, t->spacing, (float)n);
+    frameData_.terrainB = vec4(lo, range, t->snowline, t->rockSlopeDeg);
+    frameData_.terrainC = vec4(t->dryAmount, 1.0f, matBits, 0.0f);
+    if (recreate) writeDescriptors();
+}
+
+// CDLOD selection (Strugar 2010): each level has a view range twice the one
+// below; a node splits while the camera is within its children's range.
+void Renderer::selectTerrain(uint32_t frame, const Camera& cam) {
+    patchCount_.fill(0);
+    patchFirst_.fill(0);
+    if (!terrain_.enabled) return;
+    const uint32_t levels = (uint32_t)terrain_.minMax.size();
+    std::vector<float> ranges(levels);
+    float base = std::max(32.0f * terrain_.spacing * 1.7f, 45.0f) * s_.lodScale;
+    for (uint32_t l = 0; l < levels; ++l) ranges[l] = base * (float)(1u << l);
+    float* out = (float*)patches_[frame].mapped;
+    vec2 tmax = terrain_.origin + vec2(terrain_.spacing * (terrain_.n - 1));
+    uint32_t total = 0;
+    for (uint32_t view = 0; view < views_; ++view) {
+        const vec4* planes = &frameData_.viewPlanes[view * 6];
+        patchFirst_[view] = total;
+        uint32_t count = 0;
+        auto aabbOf = [&](uint32_t l, uint32_t x, uint32_t y, vec3& lo, vec3& hi) {
+            float size = 32.0f * (float)(1u << l) * terrain_.spacing;
+            vec2 a = terrain_.origin + vec2(x, y) * size;
+            vec2 b = glm::min(a + vec2(size), tmax);
+            vec2 mm = terrain_.minMax[l][y * terrain_.nodesPerSide[l] + x];
+            lo = vec3(a, mm.x);
+            hi = vec3(b, mm.y);
+        };
+        auto inFrustum = [&](vec3 lo, vec3 hi) {
+            for (int i = 0; i < 6; ++i) {
+                vec3 nrm(planes[i]);
+                vec3 pv(nrm.x >= 0 ? hi.x : lo.x, nrm.y >= 0 ? hi.y : lo.y, nrm.z >= 0 ? hi.z : lo.z);
+                if (glm::dot(nrm, pv) + planes[i].w < 0) return false;
+            }
+            return true;
+        };
+        auto inRange = [&](vec3 lo, vec3 hi, float r) {
+            vec3 c = glm::clamp(cam.position, lo, hi);
+            return glm::length(c - cam.position) <= r;
+        };
+        auto emit = [&](uint32_t l, uint32_t x, uint32_t y) {
+            if (total >= kMaxPatches * 5 || count >= kMaxPatches) return;
+            float size = 32.0f * (float)(1u << l) * terrain_.spacing;
+            vec2 a = terrain_.origin + vec2(x, y) * size;
+            float* p = out + (size_t)total * 8;
+            p[0] = a.x; p[1] = a.y; p[2] = size; p[3] = ranges[l] * 0.72f;
+            p[4] = ranges[l] * 0.95f; p[5] = (float)l; p[6] = 0; p[7] = 0;
+            ++total;
+            ++count;
+        };
+        std::function<bool(uint32_t, uint32_t, uint32_t, bool)> select = [&](uint32_t l, uint32_t x, uint32_t y, bool root) -> bool {
+            vec3 lo, hi;
+            aabbOf(l, x, y, lo, hi);
+            if (!root && !inRange(lo, hi, ranges[l])) return false;
+            if (!inFrustum(lo, hi)) return true;
+            if (l == 0 || !inRange(lo, hi, ranges[l - 1])) { emit(l, x, y); return true; }
+            uint32_t cn = terrain_.nodesPerSide[l - 1];
+            for (uint32_t cy = y * 2; cy < std::min(y * 2 + 2, cn); ++cy)
+                for (uint32_t cx = x * 2; cx < std::min(x * 2 + 2, cn); ++cx)
+                    if (!select(l - 1, cx, cy, false)) {
+                        vec3 clo, chi;
+                        aabbOf(l - 1, cx, cy, clo, chi);
+                        if (inFrustum(clo, chi)) emit(l - 1, cx, cy);   // beyond its range: fully morphed to this level
+                    }
+            return true;
+        };
+        select(levels - 1, 0, 0, true);
+        patchCount_[view] = count;
+    }
+    vmaFlushAllocation(d_->allocator, patches_[frame].alloc, 0, (VkDeviceSize)total * 32);
+}
+
+void Renderer::drawTerrain(VkCommandBuffer cmd, uint32_t view, VkPipeline pipe) {
+    if (!terrain_.enabled || patchCount_[view] == 0) return;
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe);
+    Push p{0, view, 0, 0};
+    vkCmdPushConstants(cmd, layout_, VK_SHADER_STAGE_ALL, 0, sizeof(p), &p);
+    vkCmdBindIndexBuffer(cmd, terrainIndices_.buffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(cmd, 32 * 32 * 6, patchCount_[view], 0, 0, patchFirst_[view]);
+    vkCmdBindIndexBuffer(cmd, indices_.buffer, 0, VK_INDEX_TYPE_UINT32);
+}
+
 bool Renderer::readStats(uint32_t frame, FrameStats& st) {
     if (!queries_) return false;
     uint64_t t[FrameStats::kPasses + 1];
@@ -828,7 +1070,11 @@ void Renderer::shutdown() {
             if (b->buffer) destroyBuffer(d, *b);
     for (auto& t : textures_) destroyImage(d, t);
     if (skyLut_.image) destroyImage(d, skyLut_);
-    for (VkPipeline p : {cullReset_, cull_, opaque_, twoSided_, masked_, sky_, shadowOpaque_, shadowMasked_, water_, blend_})
+    for (Image* i : {&terrain_.height, &terrain_.paint0, &terrain_.paint1, &terrain_.paths})
+        if (i->image) destroyImage(d, *i);
+    if (terrainIndices_.buffer) destroyBuffer(d, terrainIndices_);
+    for (auto& b : patches_) if (b.buffer) destroyBuffer(d, b);
+    for (VkPipeline p : {cullReset_, cull_, opaque_, twoSided_, masked_, sky_, shadowOpaque_, shadowMasked_, water_, blend_, terrainMain_, terrainShadow_})
         if (p) vkDestroyPipeline(d.device, p, nullptr);
     for (auto& [f, p] : post_) vkDestroyPipeline(d.device, p, nullptr);
     post_.clear();
