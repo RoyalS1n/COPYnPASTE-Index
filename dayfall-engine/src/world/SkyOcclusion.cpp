@@ -270,19 +270,40 @@ std::shared_ptr<const SkyVolume> SkyOcclusionBuilder::build(const Scene& s, cons
     for (auto& o : occ) all.add(o.box);
     float tile = std::max(8.0f, std::max(all.hi.x - all.lo.x, all.hi.y - all.lo.y) / 512.0f);
     int gx = (int)((all.hi.x - all.lo.x) / tile) + 1, gy = (int)((all.hi.y - all.lo.y) / tile) + 1;
-    std::vector<float> score((size_t)gx * gy, 0.0f);
-    std::vector<Box> tileRock((size_t)gx * gy), tileBuilt((size_t)gx * gy);   // rock, everything else
+    struct Tiles { std::vector<float> score; std::vector<Box> rock, built; };   // per tile: tall area, bounds of rock and the rest
+    std::vector<Tiles> part(threads);
+    struct Chunk { const Occluder* o; uint32_t sm, first; };   // 4096 triangles of a submesh
+    std::vector<Chunk> allChunks;
     for (auto& o : occ)
-        for (uint32_t sm : *o.parts) {
-            bool rock = s.materials[s.submeshes[sm].material].gpu.h0.x == ModelRock;
-            triangles(s, o, sm, 0, UINT32_MAX, [&](vec3 a, vec3 b, vec3 c) {
+        for (uint32_t sm : *o.parts)
+            for (uint32_t f = 0; f < s.submeshes[sm].indexCount / 3; f += 4096) allChunks.push_back({&o, sm, f});
+    std::atomic<size_t> nextChunk{0};
+    parallel(threads, [&](uint32_t th) {
+        Tiles& tl = part[th];
+        tl.score.assign((size_t)gx * gy, 0.0f);
+        tl.rock.resize((size_t)gx * gy);
+        tl.built.resize((size_t)gx * gy);
+        for (size_t j; (j = nextChunk++) < allChunks.size();) {
+            const Chunk& ch = allChunks[j];
+            bool rock = s.materials[s.submeshes[ch.sm].material].gpu.h0.x == ModelRock;
+            triangles(s, *ch.o, ch.sm, ch.first, 4096, [&](vec3 a, vec3 b, vec3 c) {
                 vec3 m = (a + b + c) / 3.0f;
                 int tx = std::clamp((int)((m.x - all.lo.x) / tile), 0, gx - 1), ty = std::clamp((int)((m.y - all.lo.y) / tile), 0, gy - 1);
                 size_t i = (size_t)ty * gx + tx;
-                Box& bb = rock ? tileRock[i] : tileBuilt[i];
+                Box& bb = rock ? tl.rock[i] : tl.built[i];
                 bb.add(a); bb.add(b); bb.add(c);
-                if (m.z - ground(m.x, m.y) > kTallM) score[i] += (rock ? kRockWeight : 1.0f) * 0.5f * glm::length(glm::cross(b - a, c - a));
+                if (m.z - ground(m.x, m.y) > kTallM) tl.score[i] += (rock ? kRockWeight : 1.0f) * 0.5f * glm::length(glm::cross(b - a, c - a));
             });
+        }
+    });
+    std::vector<float>& score = part[0].score;
+    std::vector<Box>& tileRock = part[0].rock;
+    std::vector<Box>& tileBuilt = part[0].built;
+    for (uint32_t th = 1; th < threads; ++th)
+        for (size_t i = 0; i < score.size(); ++i) {
+            score[i] += part[th].score[i];
+            tileRock[i].add(part[th].rock[i]);
+            tileBuilt[i].add(part[th].built[i]);
         }
     struct Cand { Box box; float score = 0; };
     std::vector<Cand> cands;
@@ -385,7 +406,6 @@ std::shared_ptr<const SkyVolume> SkyOcclusionBuilder::build(const Scene& s, cons
                 for (uint32_t x = 0; x < n.x; ++x)
                     for (uint32_t z = 0; z < n.z && r->origin.z + (z + 0.5f) * r->cell < heights[(size_t)y * n.x + x]; ++z)
                         grid[x + (size_t)n.x * (y + (size_t)n.y * z)] = 1;
-        struct Chunk { const Occluder* o; uint32_t sm, first; };
         std::vector<Chunk> chunks;
         for (const Occluder* o : mine)
             for (uint32_t sm : *o->parts)
