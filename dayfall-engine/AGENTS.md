@@ -36,9 +36,11 @@ bin/dayfall maps/starter --exec tests/world_tools.json  # the spatial tools (als
 bin/dayfall maps/starter --capture all --out <dir>      # render every saved view
 bin/dayfall maps/starter --walk-test loop               # exit 0 if the route passes
 bin/dayfall --list-tools > docs/TOOLS.md                # regenerate the tool reference
+python3 tools/test_mcp.py                               # the MCP server over stdio and HTTP (raw and with the MCP SDK)
 ```
 
-Use `--validation` when you touch Vulkan code: validation errors are bugs.
+Use `--validation` when you touch Vulkan code: validation errors are bugs. After changing `src/editor/McpServer.*`
+(or progress / cancellation in a tool), run `tools/test_mcp.py`; its SDK tests need `python3 -m pip install mcp`.
 
 An `--exec` call can state what it expects, and the run fails if it is not met: `"expect": {"error": true,
 "error_contains": "...", "equals": {"/json/pointer": value}, "contains": {...}, "at_least": {...}, "at_most":
@@ -58,7 +60,8 @@ Conventions:
 - Recoverable problems throw `df::Error` (tools report them to the agent); `fatal()` is for GPU failures only.
 - Logs go to stderr: stdout carries MCP in `--mcp stdio` mode.
 - A new tool goes in `src/editor/Tools.cpp` with a short, exact description and a schema; regenerate
-  `docs/TOOLS.md`.
+  `docs/TOOLS.md`. A tool that runs long calls `E.reportProgress(done, total, message)` in its loop and throws
+  `Error("cancelled")` when it returns false (MCP progress and cancellation; see walk_test, play_sim, capture).
 - Keep edits undoable: every world change goes through `World::beginEdit` / `endEdit`.
 
 ## Change log

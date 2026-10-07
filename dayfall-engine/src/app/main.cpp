@@ -51,13 +51,14 @@ P play / stop, Ctrl+S save, Ctrl+Z undo, Ctrl+Y redo, F12 screenshot.
 Play: WASD move, Shift run, Space jump, mouse look, Esc back to the editor. Gamepads work too.
 )";
 
-fs::path findContentDir() {
+// a folder of the engine (content, docs) next to the executable, above it, or in the working directory
+fs::path findEngineDir(const char* name, const char* marker) {
     fs::path exe = executableDir();
-    for (fs::path p : {exe / "content", exe / ".." / "content", exe / ".." / ".." / "content", exe / ".." / ".." / ".." / "content",
-                       fs::current_path() / "content"})
-        if (fs::exists(p / "library.json")) return fs::weakly_canonical(p);
-    return exe / "content";
+    for (fs::path p : {exe / name, exe / ".." / name, exe / ".." / ".." / name, exe / ".." / ".." / ".." / name, fs::current_path() / name})
+        if (fs::exists(p / marker)) return fs::weakly_canonical(p);
+    return exe / name;
 }
+fs::path findContentDir() { return findEngineDir("content", "library.json"); }
 
 struct InputState {
     double lastX = 0, lastY = 0;
@@ -202,6 +203,7 @@ int main(int argc, char** argv) {
     EditorOptions edo;
     edo.enforceRules = rules;
     edo.contentDir = contentDir.empty() ? findContentDir() : contentDir;
+    edo.docsDir = findEngineDir("docs", "AGENT_WORKFLOW.md");
     ed.init(engine, edo);
 
     int exitCode = 0;

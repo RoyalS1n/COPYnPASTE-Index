@@ -7,6 +7,7 @@
 #include "physics/Physics.h"
 #include "world/SceneBuilder.h"
 #include "world/World.h"
+#include <atomic>
 #include <functional>
 #include <nlohmann/json.hpp>
 #include <set>
@@ -31,8 +32,10 @@ struct Tool {
     std::function<ToolResult(const nlohmann::json&)> run;
     std::function<ToolCategory(const nlohmann::json&)> categoryFor;   // optional: category depends on the arguments
     bool verifies = false;                                            // a capture: counts as looking at the result
+    std::string title;                                                // short human name (MCP); empty: toolTitle(name)
     bool edits() const { return category != ToolCategory::Read && category != ToolCategory::Meta; }
 };
+std::string toolTitle(const std::string& name);   // a known title, else "world_get" -> "World get"
 
 struct BatchState {
     bool open = false, implicit = false;
@@ -49,6 +52,7 @@ struct BatchState {
 struct EditorOptions {
     bool enforceRules = true;
     std::filesystem::path contentDir;
+    std::filesystem::path docsDir;       // docs/*.md, served as MCP resources
     uint32_t captureWidth = 1024, captureHeight = 576;
 };
 
@@ -70,6 +74,12 @@ public:
     ToolResult call(const std::string& tool, const nlohmann::json& args);
     const std::vector<Tool>& tools() const { return tools_; }
     std::string instructions() const;
+    // Long tools (walk_test, play_sim, capture) report progress here and stop when it returns false: the
+    // MCP client cancelled the call, and the tool fails with "cancelled". The MCP server sets progress and
+    // cancelRequested around one call; both are unset (a no-op, never cancelled) otherwise.
+    bool reportProgress(double progress, double total, const std::string& message);
+    std::function<void(double progress, double total, const std::string& message)> progress;
+    std::atomic<bool> cancelRequested{false};
 
     // frame loop
     void update(float dt, const PlayerInput& input);

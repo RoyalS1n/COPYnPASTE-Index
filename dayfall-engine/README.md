@@ -62,6 +62,37 @@ Open Claude Code in this folder while the editor runs: `.mcp.json` connects it t
 Without a window (cloud agents, CI): `bin/dayfall maps/x --headless --mcp http:7777`, or register
 `bin/dayfall maps/x --headless --mcp stdio` as a stdio MCP server so the agent launches the engine itself.
 
+### The MCP server
+
+`src/editor/McpServer.cpp` speaks MCP revisions 2025-11-25, 2025-06-18, 2025-03-26 and 2024-11-05 (it answers
+with the client's revision, or the newest one it knows).
+
+- **Tools**: every editor operation (docs/TOOLS.md), each with a short title. Results carry the JSON as text, the
+  captures as images and, from 2025-06-18 on, the same JSON as `structuredContent`. Unknown tools are a JSON-RPC
+  error (-32602); a tool that fails returns `isError: true` with the reason.
+- **Resources** (read-only, for agents and for @-mentions in Claude Code): the docs
+  `dayfall://docs/agent-workflow`, `map-format`, `tools` and `porting`; the live map document
+  `dayfall://map/document` (unsaved edits included) and one section of it, `dayfall://map/section/{section}`
+  (objects, scatter, paths, entities, lights, environment, player, cameras, routes, terrain, ...); and the 20 newest
+  images in `<map>/captures/` as `dayfall://captures/{file}`. Unknown URIs are error -32002.
+- **Prompts**: the agent workflow as ready-made requests: `build_level` (description, map), `review_level`
+  (route, focus; changes nothing), `refine_area` (area, goal) and `test_route` (route).
+- **Progress and cancellation**: `walk_test`, `play_sim` and `capture` report progress when the request has a
+  `progressToken`, and stop early with the error "cancelled" on `notifications/cancelled`. Over stdio a cancelled
+  request gets no response.
+- **Logging** (stdio only): engine warnings and errors arrive as `notifications/message`; `logging/setLevel info`
+  also forwards the info lines.
+- **Transports**: stdio (one JSON-RPC message per line; requests are handled concurrently, tool calls run one at a
+  time on the main thread) and Streamable HTTP on `http://127.0.0.1:PORT/mcp`. HTTP binds to 127.0.0.1 only,
+  refuses non-local `Origin`s (403), gives each `initialize` its own `Mcp-Session-Id` (an unknown id is 404,
+  `DELETE /mcp` ends a session; requests without an id are served too, for curl), checks `MCP-Protocol-Version`
+  (400 when unsupported), caps bodies at 16 MB (413) and keeps connections alive. A tool call with a
+  `progressToken` is answered as `text/event-stream` (the progress notifications, then the response) when the
+  client accepts it, otherwise as plain JSON. `GET /mcp` is 405: the server opens no standalone stream.
+
+`python3 tools/test_mcp.py` tests all of it against `bin/dayfall` (raw JSON-RPC over stdio and HTTP, and the
+official MCP Python SDK when `pip install mcp` is available).
+
 ## Porting maps
 
 `maps/golden_valley` and `maps/serene_meadow` are the Blender reference worlds, ported; `maps/fortress_kit` is a
@@ -78,6 +109,7 @@ bin/dayfall maps/starter --capture all --out shots   # render the saved views
 bin/dayfall maps/starter --walk-test loop            # exit code 0 if the route passes
 bin/dayfall maps/starter --bench 20                  # orbit the map and report frame times
 bin/dayfall --list-tools                             # the tool reference (docs/TOOLS.md)
+python3 tools/test_mcp.py                            # the MCP server: protocol, transports, resources, prompts
 ```
 
 ## Layout

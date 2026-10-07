@@ -245,7 +245,13 @@ json runWalkTest(const WalkTestOptions& opt, const Scene& scene, std::vector<Ent
         if (problems && type != "pickup" && problems->size() < 6) problems->push_back(p);
     };
     std::vector<bool> taken(entities.size(), false);
+    bool cancelled = false;
+    int frame = 0;
     while (t < opt.maxSeconds && target < opt.points.size()) {
+        if (opt.progress && frame++ % 30 == 0 && !opt.progress(target - 1, opt.points.size() - 1, t)) {
+            cancelled = true;
+            break;
+        }
         CharacterState st = physics.characterState();
         vec2 to = opt.points[target] - vec2(st.position);
         float d = glm::length(to);
@@ -299,6 +305,7 @@ json runWalkTest(const WalkTestOptions& opt, const Scene& scene, std::vector<Ent
     CharacterState end = physics.characterState();
     physics.destroyCharacter();
     bool reached = target >= opt.points.size();
+    if (cancelled) return {{"cancelled", true}, {"time_s", std::round(t * 10) / 10}};
     if (!reached && t >= opt.maxSeconds) event("timeout", end.position, std::format("ran out of time at waypoint {}", target));
     int problemsCount = 0;
     for (auto& e : events) if (e["type"] != "pickup") ++problemsCount;

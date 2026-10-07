@@ -307,6 +307,8 @@ void Editor::registerTools() {
                  json info = json::array();
                  float aspect = (float)w / h;
                  for (size_t vi = 0; vi < views.size() && vi < 6; ++vi) {
+                     size_t nv = std::min<size_t>(views.size(), 6);
+                     if (!E.reportProgress((double)vi, (double)nv, std::format("rendering view {}/{}", vi + 1, nv))) throw Error("cancelled");
                      const json& v = views[vi];
                      CaptureView cv;
                      float shadowOverride = 0;
@@ -1307,12 +1309,16 @@ void Editor::registerTools() {
                  }
                  opt.run = a.value("run", false);
                  opt.maxSeconds = std::clamp(a.value("max_seconds", 240.0f), 5.0f, 1200.0f);
+                 opt.progress = [&E](size_t reached, size_t n, float secs) {
+                     return E.reportProgress((double)reached, (double)n, std::format("waypoint {}/{}, {:.0f} s walked", reached, n, secs));
+                 };
                  if (E.playing()) E.stopPlay();
                  E.rebuildIfNeeded();
                  std::vector<vec3> problems;
                  ToolResult r;
                  r.data = runWalkTest(opt, E.scene, E.entities, E.physics, PlayerConfig::parse(E.world.doc.value("player", json::object())),
                                       E.scene.env.waterLevel, &problems);
+                 if (r.data.value("cancelled", false)) throw Error("cancelled");
                  if (a.value("captures", true)) {
                      for (size_t i = 0; i < problems.size() && i < 3; ++i) {
                          vec3 p = problems[i];
@@ -1393,6 +1399,10 @@ void Editor::registerTools() {
                  int step = 0;
                  std::vector<std::string> unmet;
                  for (const json& in : a.at("inputs")) {
+                     if (!E.reportProgress(step, (double)a["inputs"].size(), std::format("input step {}/{}", step + 1, a["inputs"].size()))) {
+                         E.stopPlay();
+                         throw Error("cancelled");
+                     }
                      float secs = std::clamp(in.value("seconds", 1.0f), 0.0f, 60.0f);
                      int frames = std::max(1, (int)std::round(secs / dt));
                      PlayerInput pin;
