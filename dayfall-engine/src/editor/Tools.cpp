@@ -131,7 +131,7 @@ void Editor::registerTools() {
 
     addTool({"world_get",
              "Read the world document. No arguments: a summary of every section. section: objects|scatter|paths|entities|lights|"
-             "environment|player|player_start|cameras|routes|terrain|materials|meshes. Filter lists with id, ids, tag, near "
+             "environment|player|player_start|cameras|routes|terrain|materials|meshes|hud. Filter lists with id, ids, tag, near "
              "{position [x,y], radius_m} and limit (default 50).",
              ToolCategory::Read,
              object({{"section", str("section name")}, {"id", str("one item by id")}, {"ids", arr(str(""), "items by id")},
@@ -261,13 +261,17 @@ void Editor::registerTools() {
              "captures after edits: this is how you verify. views (max 6): {\"overview\": true} | {\"camera\": name} | "
              "{\"position\": [x,y,z], \"target\": [x,y,z] or [x,y], \"vfov_deg\"} | {\"player\": true} (third-person view at the "
              "player start, mannequin shown for scale) | {\"top_down\": {\"center\": [x,y], \"size_m\": s}} | {\"orbit\": "
-             "{\"target\": [x,y(,z)], \"distance_m\", \"yaw_deg\", \"pitch_deg\"}} | {\"editor\": true}. Default: overview + player.",
+             "{\"target\": [x,y(,z)], \"distance_m\", \"yaw_deg\", \"pitch_deg\"}} | {\"editor\": true}. Default: overview + player. "
+             "The in-game HUD is drawn while playing; hud: true also previews it while editing (at the player start), false hides it.",
              ToolCategory::Read,
              object({{"views", arr(anyObj("a view"), "views to render")}, {"width", integer("pixels (default 1024)")},
                      {"height", integer("pixels (default 576)")}, {"format", str("jpeg (default) or png")},
-                     {"save", boolean("save to <map>/captures (default true)")}}),
+                     {"save", boolean("save to <map>/captures (default true)")},
+                     {"hud", boolean("draw the HUD: default only while playing; true also while editing; false never")}}),
              [&E](const json& a) {
                  ToolResult r;
+                 struct HudScope { Editor& e; int keep; ~HudScope() { e.hudForce = keep; } } hudScope{E, E.hudForce};
+                 if (a.contains("hud")) E.hudForce = a["hud"].get<bool>() ? 1 : 0;
                  uint32_t w = std::clamp(a.value("width", E.options.captureWidth), 256u, 1920u);
                  uint32_t h = std::clamp(a.value("height", E.options.captureHeight), 144u, 1080u);
                  bool png = a.value("format", "jpeg") == "png";
@@ -369,7 +373,8 @@ void Editor::registerTools() {
                  for (int i = 0; i < FrameStats::kPasses; ++i) passes[st.names[i]] = rnd((float)st.ms[i], 100);
                  r.data = {{"gpu", E.engine->device.gpuName}, {"gpu_ms_last_frame", rnd((float)st.totalMs, 100)}, {"passes_ms", passes},
                            {"build", E.lastBuild.toJson()}, {"physics_static_bodies", E.physics.staticBodies()},
-                           {"lights", E.scene.lights.size()}, {"textures", E.scene.textures.size()}};
+                           {"lights", E.scene.lights.size()}, {"textures", E.scene.textures.size()},
+                           {"hud_ms_last", rnd((float)E.engine->hudGpuMs(), 100)}};
                  return r;
              }});
 
@@ -921,6 +926,31 @@ void Editor::registerTools() {
                  return r;
              }});
 
+    addTool({"hud_set",
+             "In-game HUD drawn while playing and in play captures (a gameplay edit, merged into the map's hud section): enabled, "
+             "scale, minimap {enabled, corner top_right|top_left|bottom_right|bottom_left, size_px (diameter at 1080p), range_m "
+             "(player to edge), north_up (false: the view direction points up), shape round|square, route (a route name drawn as "
+             "a trail)}, counters (collectibles found / total), timer, messages (toasts and goal banners); reset: true starts "
+             "from the defaults. Verify with capture {views: [{player: true}], hud: true} or play_sim.",
+             ToolCategory::Gameplay,
+             object({{"enabled", boolean("")}, {"scale", num("multiplies every size")},
+                     {"minimap", anyObj("{enabled, corner, size_px, range_m, north_up, shape, route}, or false")},
+                     {"counters", boolean("")}, {"timer", boolean("")}, {"messages", boolean("")}, {"reset", boolean("")}}),
+             [&E](const json& a) {
+                 json patch = a;
+                 patch.erase("reset");
+                 json next = a.value("reset", false) ? patch : mergePatch(E.world.doc.value("hud", json::object()), patch);
+                 HudConfig cfg = HudConfig::parse(next);   // validates
+                 if (!cfg.route.empty() && !E.world.doc.value("routes", json::object()).contains(cfg.route))
+                     throw Error("no route '" + cfg.route + "' (define it with route_set)");
+                 E.world.beginEdit("hud_set", false);
+                 E.world.doc["hud"] = next;
+                 E.world.endEdit();
+                 ToolResult r;
+                 r.data = {{"hud", cfg.toJson()}};
+                 return r;
+             }});
+
     addTool({"player_set",
              "Character settings (a character batch): character (\"mannequin\" or a rigged mesh, catalog category characters), "
              "camera third_person|first_person, walk_speed, run_speed (m/s), jump_height_m, height_m, radius_m, max_slope_deg, "
@@ -1133,7 +1163,7 @@ void Editor::registerTools() {
                  if (top.count("environment") || top.count("lights")) return ToolCategory::Lighting;
                  if (top.count("player") || top.count("player_start")) return ToolCategory::Character;
                  if (top.count("scatter")) return ToolCategory::Foliage;
-                 if (top.count("entities")) return ToolCategory::Gameplay;
+                 if (top.count("entities") || top.count("hud")) return ToolCategory::Gameplay;
                  return ToolCategory::Layout;
              }});
 
@@ -1255,12 +1285,15 @@ void Editor::registerTools() {
              "[{seconds, move [x right, y forward], run, jump (pressed at the step start), turn_deg (spread over the step), "
              "expect_animation (idle|walk|run|jump|fall|land: the call fails if a rigged character is in another state at the "
              "step end)}]; "
-             "captures: end (default) | each | none; camera: player (default) | side | front (4 m from the character, to check "
-             "its animation).",
+             "captures: end (default) | each | none (with the HUD unless hud: false); camera: player (default) | side | front "
+             "(4 m from the character, to check its animation).",
              ToolCategory::Read,
              object({{"start", anyObj("{position, yaw_deg}")}, {"inputs", arr(anyObj("an input step"), "input steps in order")},
-                     {"captures", str("end|each|none")}, {"camera", str("player|side|front")}}, {"inputs"}),
+                     {"captures", str("end|each|none")}, {"camera", str("player|side|front")},
+                     {"hud", boolean("draw the HUD in the captures (default true)")}}, {"inputs"}),
              [&E](const json& a) {
+                 struct HudScope { Editor& e; int keep; ~HudScope() { e.hudForce = keep; } } hudScope{E, E.hudForce};
+                 E.hudForce = a.value("hud", true) ? -1 : 0;
                  if (E.playing()) E.stopPlay();
                  E.startPlay();
                  if (a.contains("start")) {

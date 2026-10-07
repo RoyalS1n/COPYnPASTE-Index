@@ -15,7 +15,8 @@ bin\dayfall.exe
 
 It opens `maps/starter`: rolling hills, a blockout training course (ramp, stairs, jump blocks, a bridge between
 two towers), a dirt loop, three glowing collectibles and a goal on the hill. Press **P** to play: WASD to move,
-Shift to run, Space to jump, mouse to look, Esc to go back to editing. In edit mode, hold the right mouse button
+Shift to run, Space to jump, mouse to look, Esc to go back to editing. While playing, a minimap, the
+collectible counter and messages are drawn over the view. In edit mode, hold the right mouse button
 and use WASD / Q / E to fly.
 
 ### 2. The editor starts its MCP server for you
@@ -92,9 +93,19 @@ and buildings from the Blender worlds (see `catalog`).
 
 > Batch 1: vegetation only, grass in the valley, ferns in the shade of the trees.
 > Batch 2: lighting only, golden hour, lanterns in the town.
-> Batch 3: the town entrance: an arch where the path meets the town, and a goal there.
+> Batch 3: the minimap: top-right, 150 m around the player, the main route as a trail, and a timer.
+> Batch 4: the town entrance: an arch where the path meets the town, and a goal there that says "Welcome to
+> the town".
 
 Each batch is one theme, captured and inspected before the next.
+
+The HUD (minimap, collectible counter, timer, messages) is drawn while playing and in `play_sim` captures.
+`hud_set` changes it; it is a gameplay edit, so it fits in any batch. Verify it with `play_sim`, or with
+`capture {"views": [{"player": true}], "hud": true}`, which previews it at the player start while editing
+(`"hud": false` hides it). The minimap is rendered from the map itself (terrain, paths, water, buildings and
+trees seen from above), so it follows the terrain, layout and foliage batches by itself. Collectibles, goals
+and waypoints are live markers on it. A goal's `message` appears as a large banner when the player arrives;
+collectible and trigger messages appear as toasts.
 
 ## The rule that saves the project
 

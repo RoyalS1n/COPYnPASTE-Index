@@ -3,6 +3,7 @@
 // exposes every operation as a tool (see Tools.cpp) that agents call over MCP.
 #include "engine/Engine.h"
 #include "game/Game.h"
+#include "game/Hud.h"
 #include "physics/Physics.h"
 #include "world/SceneBuilder.h"
 #include "world/World.h"
@@ -80,6 +81,9 @@ public:
     Camera overviewCamera() const;
     Camera playerStartCamera() const;
     float groundHeight(vec2 p) const;    // terrain + collision geometry
+    // HUD (EditorHud.cpp), drawn over frames and captures through Engine::hudBuild
+    void drawHud(HudCanvas& c);
+    int hudForce = -1;                   // 1: also while editing (a preview at the player start), 0: never, -1: while playing
 
     Engine* engine = nullptr;
     EditorOptions options;
@@ -103,6 +107,10 @@ private:
     uint64_t builtVersion_ = 0, builtTerrainVersion_ = 0;
     const Terrain* terrainUploaded_ = nullptr;
     int captureCounter_ = 0;
+    void updateMinimap();
+    uint64_t minimapBuilt_ = ~0ull, minimapKey_ = ~0ull;
+    vec2 minimapOrigin_{0};
+    float minimapSize_ = 0;
     friend struct ToolRegistrar;
 };
 }  // namespace df

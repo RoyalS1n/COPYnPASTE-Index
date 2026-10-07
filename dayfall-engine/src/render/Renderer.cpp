@@ -599,7 +599,7 @@ void Renderer::updateFrame(uint32_t frame, const Camera& cam, float time) {
     f.clouds = vec4(env.cloudCoverage, env.cloudHeight, env.cloudScale, env.clouds ? 1.0f : 0.0f);
     f.cloudColor = vec4(env.cloudColor, 1.0f);
     f.water = vec4(env.waterLevel, 0.0f, cam.nearPlane, 0.0f);
-    f.lodBias = vec4(s_.lodScale, s_.cullScale, 0, 0);
+    f.lodBias = vec4(s_.lodScale, cullScaleOverride > 0 ? cullScaleOverride : s_.cullScale, 0, 0);
     f.post = vec4(env.vignette, 1.0f, 0, 0);
     f.totals = uvec4(mainTotal_, shadowTotal_, 0, 0);
     f.counts = uvec4(numInstances_, numBatches_, views_, 0);

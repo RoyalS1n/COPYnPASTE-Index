@@ -176,17 +176,20 @@ void Game::update(float dt, const PlayerInput& in, Physics& physics, Scene& scen
             if (e.light >= 0 && e.light < (int)scene.lights.size()) { scene.lights[e.light].intensity = 0.0f; lightsChanged = true; }
             ++collected;
             collectedIds.push_back(e.id);
+            if (!e.message.empty()) messages.push_back({e.message, 3.5f});
             messages.push_back({collected == collectibles ? std::format("All {} collected!", collectibles)
                                                          : std::format("Collected {} / {}", collected, collectibles), 3.0f});
         } else if (e.type == "goal" || e.type == "trigger") {
             bool inside = glm::length(vec2(e.position) - vec2(feet)) < e.radius && std::abs(e.position.z - feet.z) < 4.0f;
-            if (inside && !goalInside_[i])
-                messages.push_back({e.message.empty() ? (e.type == "goal" ? std::string("You made it!") : e.id) : e.message, 4.0f});
+            if (inside && !goalInside_[i]) {
+                bool goal = e.type == "goal";
+                messages.push_back({e.message.empty() ? (goal ? std::string("You made it!") : e.id) : e.message, goal ? 5.0f : 4.0f, goal});
+            }
             goalInside_[i] = inside;
         }
     }
     for (auto& m : messages) m.timeLeft -= dt;
-    while (!messages.empty() && messages.front().timeLeft <= 0) messages.pop_front();
+    std::erase_if(messages, [](const HudMessage& m) { return m.timeLeft <= 0; });
     animateEntities(time, scene, entities);
 }
 

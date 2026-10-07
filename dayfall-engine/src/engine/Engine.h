@@ -1,9 +1,11 @@
 #pragma once
 #include "gfx/Swapchain.h"
+#include "render/HudRenderer.h"
 #include "render/Renderer.h"
 #include "scene/Scene.h"
 #include <array>
 #include <filesystem>
+#include <functional>
 #include <string>
 
 struct GLFWwindow;
@@ -41,6 +43,12 @@ public:
     bool windowOpen() const;
     double lastGpuMs() const { return stats_.totalMs; }
     const FrameStats& stats() const { return stats_; }
+    double hudGpuMs() const { return hudMs_; }
+
+    // HUD over the final image of renderFrame and capture: hudBuild fills the canvas for the output size
+    // (nothing drawn: no HUD pass). It may call capture() itself (the minimap), which then draws no HUD.
+    std::function<void(HudCanvas&)> hudBuild;
+    HudRenderer hud;
 
     Device device;
     Renderer renderer;
@@ -49,6 +57,8 @@ public:
     EngineOptions options;
 
 private:
+    bool buildHud(uint32_t w, uint32_t h);
+    void recordFrame(VkCommandBuffer cmd, uint32_t frame, const Camera& cam, float time, OutputTarget out, bool hud);
     struct Frame {
         VkCommandPool pool = VK_NULL_HANDLE;
         VkCommandBuffer cmd = VK_NULL_HANDLE;
@@ -59,5 +69,8 @@ private:
     std::array<Frame, Renderer::kFrames> frames_{};
     uint32_t frameIndex_ = 0;
     FrameStats stats_;
+    HudCanvas hudCanvas_;
+    bool hudBusy_ = false;
+    double hudMs_ = 0;
 };
 }  // namespace df

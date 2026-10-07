@@ -51,6 +51,7 @@ public:
     // re-uploads point-light colours / positions (same light count as setScene)
     void updateLights(const Scene& scene);
     float shadowDistanceOverride = 0.0f;   // > 0: overrides the environment's shadow distance (top-down captures)
+    float cullScaleOverride = 0.0f;        // > 0: multiplies cull distances instead of RenderSettings::cullScale (minimap)
     // GPU heightmap terrain (final heights, painted layers, paths); nullptr removes it
     void setTerrain(const Terrain* terrain, uint32_t material);
     uint32_t terrainPatches() const { return patchCount_[0]; }

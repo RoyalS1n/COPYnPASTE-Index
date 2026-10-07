@@ -37,6 +37,7 @@ except `format`.
 | `meshes` | the map's mesh library (imported models) |
 | `player` | character settings |
 | `player_start` | `{"position": [x, y(, z)], "yaw_deg": 90}` |
+| `hud` | the in-game HUD: minimap, counters, messages |
 | `cameras` | named viewpoints `{"position", "target", "vfov_deg"}` |
 | `routes` | named test routes `{"points": [[x, y], ...]}` |
 | `instance_files` | large instance sets in binary files (ported maps) |
@@ -146,6 +147,46 @@ plus `"falloff"` in metres.
 ```
 
 Types: `collectible`, `goal`, `trigger`, `spawn`, `waypoint`.
+
+`message` is shown in play: a toast when a collectible is picked up (besides "Collected n / N") or the player
+enters a trigger (its id when empty), a large banner when the player reaches a goal ("You made it!" when
+empty). Collectibles, goals and waypoints also appear on the minimap.
+
+## hud
+
+The in-game HUD, drawn over the final image while playing (P in the editor, `--play`, `play_sim` captures,
+`capture` while playing); never over the editor's fly camera. Every key is optional (`hud_set` edits it):
+
+```json
+"hud": {"enabled": true, "scale": 1.0,
+        "minimap": {"enabled": true, "corner": "top_right", "size_px": 220, "range_m": 120, "north_up": true,
+                    "shape": "round", "route": "loop"},
+        "counters": true, "timer": false, "messages": true}
+```
+
+| key | meaning |
+|---|---|
+| `enabled` | draw the HUD at all (default true) |
+| `scale` | multiplies every size (0.25 to 4). Sizes are for 1080p and follow the output height, a little more than proportionally below 1080p so 960 x 540 captures stay legible |
+| `minimap` | `false` hides it; else the keys below |
+| `minimap.corner` | `top_right` (default), `top_left`, `bottom_right`, `bottom_left` |
+| `minimap.size_px` | diameter at 1080p (64 to 1024, default 220) |
+| `minimap.range_m` | metres from the player to the edge (default 120) |
+| `minimap.north_up` | true: north at the top (default); false: the view direction points up |
+| `minimap.shape` | `round` (default) or `square` |
+| `minimap.route` | a named route (`routes`) drawn as a dotted trail |
+| `counters` | collectibles found / total, top left (top right when the minimap is there) |
+| `timer` | play time under the counter (default false) |
+| `messages` | toasts at the top centre (pickups, entity messages) and a large banner when a goal is reached |
+
+The minimap is the map seen from straight above in neutral light (a high north-west sun, no haze or clouds),
+rendered when the HUD first needs it and again only when something visible from above changes (terrain,
+paths, objects, scatter, materials, water level). Paths are tinted tan and ground below the water level blue.
+Instances seen from 250 m away are drawn (trees, rocks, buildings; not grass), largest cull distance first
+within a triangle budget (much smaller on software rasterisers such as llvmpipe); the ones over the budget
+appear as dots (foliage dark green, the rest grey). Live markers: the player arrow (facing) with a view cone,
+collectibles not yet taken (in their colour), goals (rings) and `waypoint` entities (white dots); markers
+beyond the range sit on the rim.
 
 ## lights
 

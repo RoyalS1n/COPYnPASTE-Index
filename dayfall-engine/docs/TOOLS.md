@@ -12,7 +12,7 @@ Start here. Map, rules, coordinate conventions, world summary (terrain, counts, 
 
 *read*
 
-Read the world document. No arguments: a summary of every section. section: objects|scatter|paths|entities|lights|environment|player|player_start|cameras|routes|terrain|materials|meshes. Filter lists with id, ids, tag, near {position [x,y], radius_m} and limit (default 50).
+Read the world document. No arguments: a summary of every section. section: objects|scatter|paths|entities|lights|environment|player|player_start|cameras|routes|terrain|materials|meshes|hud. Filter lists with id, ids, tag, near {position [x,y], radius_m} and limit (default 50).
 
 | argument | type | notes |
 |---|---|---|
@@ -58,12 +58,13 @@ Ground facts at points: height (top surface, including objects), terrain height,
 
 *read*
 
-Render views of the live world and return them as images (also saved under <map>/captures/). ALWAYS look at captures after edits: this is how you verify. views (max 6): {"overview": true} | {"camera": name} | {"position": [x,y,z], "target": [x,y,z] or [x,y], "vfov_deg"} | {"player": true} (third-person view at the player start, mannequin shown for scale) | {"top_down": {"center": [x,y], "size_m": s}} | {"orbit": {"target": [x,y(,z)], "distance_m", "yaw_deg", "pitch_deg"}} | {"editor": true}. Default: overview + player.
+Render views of the live world and return them as images (also saved under <map>/captures/). ALWAYS look at captures after edits: this is how you verify. views (max 6): {"overview": true} | {"camera": name} | {"position": [x,y,z], "target": [x,y,z] or [x,y], "vfov_deg"} | {"player": true} (third-person view at the player start, mannequin shown for scale) | {"top_down": {"center": [x,y], "size_m": s}} | {"orbit": {"target": [x,y(,z)], "distance_m", "yaw_deg", "pitch_deg"}} | {"editor": true}. Default: overview + player. The in-game HUD is drawn while playing; hud: true also previews it while editing (at the player start), false hides it.
 
 | argument | type | notes |
 |---|---|---|
 | format | string | jpeg (default) or png |
 | height | integer | pixels (default 576) |
+| hud | boolean | draw the HUD: default only while playing; true also while editing; false never |
 | save | boolean | save to <map>/captures (default true) |
 | views | array | views to render |
 | width | integer | pixels (default 1024) |
@@ -331,6 +332,22 @@ Add gameplay entities. type: collectible (glowing pickup: color [r,g,b], size_m,
 | position | array |  |
 | type | string |  |
 
+## hud_set
+
+*gameplay*
+
+In-game HUD drawn while playing and in play captures (a gameplay edit, merged into the map's hud section): enabled, scale, minimap {enabled, corner top_right|top_left|bottom_right|bottom_left, size_px (diameter at 1080p), range_m (player to edge), north_up (false: the view direction points up), shape round|square, route (a route name drawn as a trail)}, counters (collectibles found / total), timer, messages (toasts and goal banners); reset: true starts from the defaults. Verify with capture {views: [{player: true}], hud: true} or play_sim.
+
+| argument | type | notes |
+|---|---|---|
+| counters | boolean |  |
+| enabled | boolean |  |
+| messages | boolean |  |
+| minimap | object | {enabled, corner, size_px, range_m, north_up, shape, route}, or false |
+| reset | boolean |  |
+| scale | number | multiplies every size |
+| timer | boolean |  |
+
 ## player_set
 
 *character*
@@ -461,12 +478,13 @@ Walk the default mannequin along a route with real physics (as fast as possible)
 
 *read*
 
-Play the level with scripted input through the real player controller and camera, as fast as possible: test jumps, ledges, stairs and pickups. start: {position [x,y(,z)], yaw_deg} (default: the player start); inputs: [{seconds, move [x right, y forward], run, jump (pressed at the step start), turn_deg (spread over the step), expect_animation (idle|walk|run|jump|fall|land: the call fails if a rigged character is in another state at the step end)}]; captures: end (default) | each | none; camera: player (default) | side | front (4 m from the character, to check its animation).
+Play the level with scripted input through the real player controller and camera, as fast as possible: test jumps, ledges, stairs and pickups. start: {position [x,y(,z)], yaw_deg} (default: the player start); inputs: [{seconds, move [x right, y forward], run, jump (pressed at the step start), turn_deg (spread over the step), expect_animation (idle|walk|run|jump|fall|land: the call fails if a rigged character is in another state at the step end)}]; captures: end (default) | each | none (with the HUD unless hud: false); camera: player (default) | side | front (4 m from the character, to check its animation).
 
 | argument | type | notes |
 |---|---|---|
 | camera | string | player/side/front |
 | captures | string | end/each/none |
+| hud | boolean | draw the HUD in the captures (default true) |
 | inputs (required) | array | input steps in order |
 | start | object | {position, yaw_deg} |
 

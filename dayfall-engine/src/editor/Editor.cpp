@@ -42,9 +42,11 @@ void Editor::init(Engine& eng, const EditorOptions& opt) {
     builder.init(opt.contentDir);
     physics.init();
     registerTools();
+    engine->hudBuild = [this](HudCanvas& c) { drawHud(c); };
 }
 
 void Editor::shutdown() {
+    if (engine) engine->hudBuild = nullptr;
     if (game.active()) game.end(physics, scene);
     physics.shutdown();
 }
