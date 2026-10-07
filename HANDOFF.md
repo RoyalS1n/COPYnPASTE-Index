@@ -77,6 +77,9 @@ Docs to trust: `dayfall-engine/AGENTS.md`, `docs/AGENT_WORKFLOW.md`, `docs/MAP_F
 
 ## 4. Research results from the user's link lists (licences checked)
 
+The full write-up, with every link, its licence, what it really is and where it fits, is
+**`dayfall-engine/docs/PROCGEN_REFERENCES.md`**. Short version:
+
 - **Code that may be used (MIT, with attribution):**
   - `Adrian104/Dungeon-Generator` ("dgen"): the best repo of the lot. See task A.
   - `dpaulat/worldengine-cpp`: biome tables and quantile thresholds only. Its river code is buggy.
