@@ -27,7 +27,7 @@ struct PlayerInput {
     float lookYaw = 0, lookPitch = 0;   // radians this frame
 };
 
-struct HudMessage { std::string text; float timeLeft; };
+struct HudMessage { std::string text; float timeLeft; bool banner = false; };   // banner: a goal reached
 
 class Game {
 public:

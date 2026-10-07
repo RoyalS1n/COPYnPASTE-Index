@@ -30,6 +30,8 @@ Never change terrain, lighting and character in the same batch; the editor refus
 
 - `route_set` then `walk_test` before any art: every stuck / fall / steep / water event is a bug to fix.
 - `play_sim` for jumps, ledges and stairs: scripted move / run / jump / turn through the real controller.
+- Its captures show the in-game HUD (minimap, collectible counter, messages). `hud_set` changes the HUD (a
+  gameplay edit); `capture {"hud": true}` previews it while editing, `"hud": false` hides it.
 
 ## Facts
 

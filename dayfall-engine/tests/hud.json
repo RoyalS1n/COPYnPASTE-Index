@@ -1,0 +1,18 @@
+[
+  {"tool": "hud_set", "args": {"minimap": {"range_m": 60, "route": "to_goal"}, "timer": true}},
+  {"tool": "entity_add", "args": {"type": "collectible", "id": "gem_note", "position": [0, 66], "color": [0.5, 1, 0.6],
+                                  "message": "Found the hidden note gem"}},
+  {"tool": "capture", "args": {"views": [{"player": true}], "hud": true, "width": 960, "height": 540}},
+  {"tool": "play_sim", "args": {"start": {"position": [0, 60], "yaw_deg": 90},
+                                "inputs": [{"seconds": 1.2, "move": [0, 1]}, {"seconds": 1.6, "move": [0, 1]},
+                                           {"seconds": 1.6, "move": [0, 1]}, {"seconds": 0.8}], "captures": "each"}},
+  {"tool": "play_sim", "args": {"inputs": [{"seconds": 0.5}], "hud": false}},
+  {"tool": "hud_set", "args": {"minimap": {"north_up": false, "shape": "square", "corner": "bottom_left", "range_m": 90}}},
+  {"tool": "play_sim", "args": {"inputs": [{"seconds": 1.0, "move": [0, 1], "turn_deg": 60}], "captures": "end"}},
+  {"tool": "play", "args": {"action": "start"}},
+  {"tool": "capture", "args": {"views": [{"player": true}], "width": 1920, "height": 1080}},
+  {"tool": "play", "args": {"action": "stop"}},
+  {"tool": "stats", "args": {}},
+  {"tool": "hud_set", "args": {"reset": true}},
+  {"tool": "world_get", "args": {"section": "hud"}}
+]
