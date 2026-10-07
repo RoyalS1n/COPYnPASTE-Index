@@ -61,6 +61,13 @@ Open Claude Code in this folder while the editor runs: `.mcp.json` connects it t
 Without a window (cloud agents, CI): `bin/dayfall maps/x --headless --mcp http:7777`, or register
 `bin/dayfall maps/x --headless --mcp stdio` as a stdio MCP server so the agent launches the engine itself.
 
+## Porting maps
+
+`maps/golden_valley` and `maps/serene_meadow` are the Blender reference worlds, ported. The Unreal level is ported
+on the developer's machine with `tools/unreal/export_level_to_dayfall.py` (runs inside the Unreal Editor) and,
+when Unreal's glTF Exporter plugin is off, `tools/unreal/fbx_to_glb.py` (Blender). Steps, checks and a prompt for
+a local agent: [docs/PORTING.md](docs/PORTING.md).
+
 ## Command-line tools
 
 ```
@@ -85,5 +92,5 @@ bin/dayfall --list-tools                             # the tool reference (docs/
 | `shaders` | GLSL, compiled to SPIR-V at build time |
 | `maps` | maps; `maps/starter` is the template |
 | `content` | the shared content library (meshes, materials) |
-| `tools` | scripts, e.g. `make_starter.json` rebuilds the starter map |
-| `docs` | workflow, map format, tool reference |
+| `tools` | scripts: `make_starter.json` rebuilds the starter map; `unreal/` ports Unreal levels |
+| `docs` | workflow, map format, tool reference, porting |

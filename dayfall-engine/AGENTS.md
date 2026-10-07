@@ -39,6 +39,10 @@ bin/dayfall --list-tools > docs/TOOLS.md                # regenerate the tool re
 
 Use `--validation` when you touch Vulkan code: validation errors are bugs.
 
+Porting the Unreal level or the Blender worlds: `docs/PORTING.md`. After changing anything in `tools/unreal/`, run
+its tests (`python tools/unreal/test_dayfall_convert.py --engine`, `python tools/unreal/test_export_mock.py --engine`,
+and `test_fbx_to_glb.py` with a Python that has bpy).
+
 Conventions:
 
 - World space is Z up, metres, X east, Y north. glTF (Y up) is converted on load.
