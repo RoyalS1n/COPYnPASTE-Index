@@ -26,7 +26,7 @@ except `format`.
 | `format` | always `"dayfall-map"` |
 | `version` | 2 |
 | `name` | display name |
-| `environment` | sun, sky, haze, clouds, tone mapping, wind, water: see below |
+| `environment` | sun, sky, haze, clouds, tone mapping and post (bloom, grade, painterly), wind, water: see below |
 | `terrain` | heightfield settings (the heights are in the binary files) |
 | `paths` | roads and trails that flatten and paint the terrain |
 | `objects` | placed meshes and primitives |
@@ -55,6 +55,10 @@ except `format`.
            "depth_m": 6500, "height_fog_density": 0, "height_fog_falloff": 0.3, "height_fog_base_m": 0},
   "clouds": {"enabled": true, "coverage": 0.55, "height_m": 1500, "color": [1, 0.7, 0.5]},
   "tonemap": {"exposure_ev": 0.9, "contrast": 1.15, "saturation": 1.05, "vignette": 0.25},
+  "post": {"bloom": {"strength": 0.2, "threshold": 0.8, "size": 0.7}, "gain": [1.035, 1.0, 0.955],
+           "highlights_gain": [1, 1, 1], "shadows_gain": [1, 1, 1], "white_temp_k": 6500,
+           "painterly": {"enabled": false, "radius": 2, "blend": 0.6, "edge_strength": 0.25, "depth_k": 14,
+                         "normal_k": 1.2, "chroma": 1.08}},
   "wind": {"direction": [0.6, 0.8], "strength": 1},
   "water": {"enabled": true, "level_m": 2.0, "plane": true},
   "shadow_distance_m": 250,
@@ -68,6 +72,26 @@ Presets: `golden_hour`, `serene`, `noon`, `misty_morning`, `dusk`, `overcast`. `
 (`multiple`, the default: multiple scattering like Blender's MULTIPLE_SCATTERING sky; `single` for the older sky)
 and `ground_albedo` (0.3). Clouds follow the Blender worlds' cloud plane: lit through by the sun, hazed with distance. `time_of_day` (hours) moves the sun along a simple day arc. Sun azimuth:
 0 = the sun is north, 90 = east.
+
+`tonemap` is the AgX view transform: `exposure_ev`, then the look's `contrast` (power) and `saturation`, and the
+`vignette`. `post` is the rest of the grade, all off or neutral when missing:
+
+- `bloom`: the glow of bright light, built like Blender's Glare node (Bloom) and matching its settings. `threshold`
+  is the scene-linear brightness (brightest channel, before exposure) where glow starts, with a soft knee;
+  `strength` (0-4, 0 = off) how much of it is added back; `size` (0-1) its reach relative to the image (1: the
+  whole frame). The Blender worlds use strength 0.2, threshold 0.8, size 0.7.
+- `gain`: a multiplicative rgb grade in scene-linear light (the Blender compositor's warm gain is
+  [1.035, 1, 0.955]). `highlights_gain` and `shadows_gain` multiply only the bright (exposed luminance above 0.5)
+  and dark (below 0.09) parts, like Unreal's colour grading. `white_temp_k` (1500-15000, 6500 = neutral) is a
+  camera white balance: the white of a light at that temperature turns neutral, so lower values cool the image and
+  higher values warm it (Unreal's White Temp).
+- `painterly` (`true` or an object; off by default): a stylised look for the whole frame. A generalised Kuwahara
+  filter of `radius` (pixels at 1080p, 0-8) flattens textures into strokes while keeping edges, mixed in by `blend`
+  (0-1), with saturation scaled by `chroma` (0-2); ink lines darken silhouettes and creases of solid shapes by up
+  to `edge_strength` (0-1). `depth_k` (0-100) scales the lines from depth steps (a 1 / depth_k relative step is a
+  full line), `normal_k` (0-20) those from bends (normals rebuilt from depth). Grass, leaves and other clutter,
+  distant ground and anything under the water level get no lines. It is one extra full-screen pass (an estimated
+  0.5-1 ms at 1080p on a GTX 1060 class GPU with the defaults; the cost grows with the radius squared).
 
 `sky_occlusion` (on by default; `false` turns it off) darkens the sky light under roofs, inside walls and near
 structures: the engine bakes how much of the sky every point around buildings, ruins and cliffs can see into

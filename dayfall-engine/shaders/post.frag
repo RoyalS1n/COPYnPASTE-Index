@@ -1,7 +1,10 @@
 #version 460
 #extension GL_GOOGLE_include_directive : require
-// Exposure, AgX tone mapping with a look (contrast / saturation), vignette, dither.
+// Bloom, exposure, grade (gain with the white balance, shadows / highlights gains), AgX tone mapping with a look
+// (contrast / saturation), vignette, dither. pc.flags 1: gamma-encoded output for the painterly pass, which adds
+// the vignette and dither itself.
 #include "common.glsl"
+#include "post.glsl"   // postInput: the top of the bloom chain (half resolution, sampled bilinearly)
 layout(location = 0) in vec2 vUv;
 layout(location = 0) out vec4 outColor;
 
@@ -26,19 +29,20 @@ vec3 agxEotf(vec3 v) {
     return pow(max(outset * v, vec3(0.0)), vec3(2.2));
 }
 vec3 agxLook(vec3 v) {
-    float luma = dot(v, vec3(0.2126, 0.7152, 0.0722));
+    float luma = dot(v, LUMA);
     v = pow(max(v * frame.tonemap.w, vec3(0.0)), vec3(frame.tonemap.y));
     return luma + frame.tonemap.z * (v - luma);
 }
 
 void main() {
-    vec3 c = texture(hdrColor, vUv).rgb * frame.tonemap.x;
+    vec3 c = texture(hdrColor, vUv).rgb;
+    if (frame.bloom.x > 0.0) c += texture(postInput, vUv).rgb * frame.bloom.x;   // before exposure, like the Blender compositor
+    c *= frame.tonemap.x;
+    // grade in scene-linear light: gain, then shadows / highlights gains weighted by luminance (Unreal's ranges)
+    c *= frame.gain.rgb;
+    float l = dot(c, LUMA);
+    float ws = 1.0 - smoothstep(0.0, 0.09, l), wh = smoothstep(0.5, 1.0, l);
+    c *= frame.shadowsGain.rgb * ws + frame.highlightsGain.rgb * wh + (1.0 - ws - wh);
     c = agxEotf(agxLook(agx(c)));
-    vec2 q = vUv * 2.0 - 1.0;
-    float vig = 1.0 - smoothstep(0.55, 1.45, length(q * vec2(0.95, 0.8)));
-    c *= mix(1.0, vig, frame.post.x);
-    // triangular dither against banding in 8-bit output
-    float r = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) + fract(sin(dot(gl_FragCoord.xy, vec2(39.3468, 11.135))) * 24634.6345) - 1.0;
-    c += r * frame.post.y / 255.0;
-    outColor = vec4(c, 1.0);
+    outColor = vec4(pc.flags == 1u ? pow(c, vec3(1.0 / 2.2)) : finish(c, vUv), 1.0);
 }

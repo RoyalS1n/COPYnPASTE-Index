@@ -26,8 +26,8 @@ struct OutputTarget {
 };
 
 struct FrameStats {
-    static constexpr int kPasses = 5;
-    const char* names[kPasses] = {"cull", "shadows", "main", "water", "post"};
+    static constexpr int kPasses = 7;
+    const char* names[kPasses] = {"cull", "shadows", "main", "water", "bloom", "post", "painterly"};
     double ms[kPasses]{};
     double totalMs = 0.0;
 };
@@ -62,7 +62,10 @@ private:
     void createTargets();
     void destroyTargets();
     void createPipelines();
-    VkPipeline postPipeline(VkFormat format);
+    VkPipeline postPipeline(VkFormat format, bool painterly);
+    void writePostDescriptors();
+    uint32_t bloomLevels() const;
+    void recordPost(VkCommandBuffer cmd, const OutputTarget& out, uint32_t queryBase);
     void writeDescriptors();
     void updateFrame(uint32_t frame, const Camera& cam, float time);
     void drawGroup(VkCommandBuffer cmd, uint32_t view, uint32_t group, VkPipeline pipe);
@@ -99,7 +102,17 @@ private:
     VkPipeline opaque_ = VK_NULL_HANDLE, twoSided_ = VK_NULL_HANDLE, masked_ = VK_NULL_HANDLE, sky_ = VK_NULL_HANDLE;
     VkPipeline shadowOpaque_ = VK_NULL_HANDLE, shadowMasked_ = VK_NULL_HANDLE;
     VkPipeline water_ = VK_NULL_HANDLE, blend_ = VK_NULL_HANDLE;
-    std::vector<std::pair<VkFormat, VkPipeline>> post_;
+    std::vector<std::pair<VkFormat, VkPipeline>> post_, painterly_;
+    // post passes: their own descriptor set (set 1, one sampled image), the bloom chain from half resolution
+    // down, and the tone-mapped image the painterly pass filters
+    static constexpr uint32_t kBloomMax = 10;
+    std::vector<Image> bloom_;
+    Image ldr_;
+    VkDescriptorSetLayout postSetLayout_ = VK_NULL_HANDLE;
+    VkDescriptorPool postPool_ = VK_NULL_HANDLE;
+    std::vector<VkDescriptorSet> postSets_;   // reading hdr_, bloom_[0..], ldr_
+    VkPipelineLayout postLayout_ = VK_NULL_HANDLE;
+    VkPipeline bloomDown_ = VK_NULL_HANDLE, bloomUp_ = VK_NULL_HANDLE;
     std::vector<GpuInstance> dynamic_;
     uint32_t dynamicFirst_ = 0;
     std::vector<GpuVertex> dynamicVerts_;

@@ -60,6 +60,13 @@ struct Environment {
     float exposureEv = 0.85f;
     float lookPower = 1.15f, lookSaturation = 1.05f, lookSlope = 1.0f;   // AgX look
     float vignette = 0.25f;
+    // environment.post: bloom (Blender's Glare node: threshold before exposure, size = the glow's extent relative
+    // to the image), grade gains in scene-linear light, white balance, the painterly filter
+    float bloomStrength = 0.0f, bloomThreshold = 0.8f, bloomSize = 0.7f;
+    vec3 gain{1.0f}, highlightsGain{1.0f}, shadowsGain{1.0f};
+    float whiteTempK = 6500.0f;
+    bool painterly = false;
+    float kuwaharaRadius = 2.0f, painterlyBlend = 0.6f, inkStrength = 0.25f, inkDepthK = 14.0f, inkNormalK = 1.2f, painterlyChroma = 1.08f;
     vec2 windDir{0.6f, 0.8f};
     float windStrength = 1.0f;
     float waterLevel = -1000.0f;
