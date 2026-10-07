@@ -36,6 +36,23 @@ python export_dayfall_map.py --preset golden_valley
 They rebuild the worlds with the same generators as the Blender scenes, so a change to `worldgen/` is ported by
 running them again (the maps are overwritten; edits made in DAYFALL since then are lost).
 
+## Whole scene files (Unity, Blender, Unreal scene exports)
+
+`tools/fbx_scene_to_dayfall.py` (Blender) turns one scene file (FBX, glTF, .blend) into a map: one GLB per unique
+mesh (LOD0 of `*_LOD0/1/2` siblings; the engine builds its own LODs), every placement in instance files, materials
+guessed from their names or taken from `--materials file.json`, textures matched by name from `--textures DIR`, and
+the sun. Meshes are baked to metres and Z up (exporters often keep centimetres and a -90 degree X turn on every
+placement). Unity's terrain and Unreal landscapes are not part of an FBX: with `--ground auto` it fits a ground
+under the objects' feet, which is right where things stand and a guess elsewhere (no lakes or riverbeds). For the
+real ground, export the terrain heightmap (Unity: Terrain > Export Raw, 16-bit; Unreal: through
+`export_level_to_dayfall.py`) and load it with `terrain_import`.
+
+```
+blender -b --factory-startup --python dayfall-engine/tools/fbx_scene_to_dayfall.py -- Scene.fbx --out dayfall-engine/maps/<name> --textures <folder with the scene's textures>
+```
+
+Check the licence of third-party packs before committing their meshes and textures to this repository.
+
 ## The Unreal level
 
 ### What the tools do
