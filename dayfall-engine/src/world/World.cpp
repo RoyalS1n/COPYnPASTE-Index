@@ -83,6 +83,8 @@ void World::load(const fs::path& mapDir) {
     undo_.clear();
     redo_.clear();
     dirty = false;
+    savedDoc = doc;
+    savedTerrainVersion = terrain.version;
     version = Terrain::nextVersion();
     logInfo("loaded map '{}' from {}", doc.value("name", "?"), dir.string());
 }
@@ -105,6 +107,8 @@ void World::save() {
     if (!writeText(tmp, dumpReadable(doc) + "\n")) throw Error("cannot write " + tmp.string());
     fs::rename(tmp, dir / "map.json");
     dirty = false;
+    savedDoc = doc;
+    savedTerrainVersion = terrain.version;
     logInfo("saved map to {}", dir.string());
 }
 
@@ -127,6 +131,8 @@ void World::createNew(const fs::path& mapDir, const std::string& name) {
     undo_.clear();
     redo_.clear();
     dirty = true;
+    savedDoc = json::object();   // nothing saved yet: world_diff since save lists everything
+    savedTerrainVersion = 0;
     version = Terrain::nextVersion();
 }
 

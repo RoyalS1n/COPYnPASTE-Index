@@ -40,6 +40,7 @@ except `format`.
 | `hud` | the in-game HUD: minimap, counters, messages |
 | `cameras` | named viewpoints `{"position", "target", "vfov_deg"}` |
 | `routes` | named test routes `{"points": [[x, y], ...]}` |
+| `areas` | named areas `{"town": {"rect": {...}}}`: any `area` argument or scatter rule can use the name |
 | `instance_files` | large instance sets in binary files (ported maps) |
 | `gltf_scenes` | whole glTF scenes placed as they are (levels exported from Unreal or Blender) |
 
@@ -127,10 +128,21 @@ comes back.
 | `materials` | swap materials on this object only: `{"mesh material": "replacement"}` |
 | `collision` | `auto`, `none`, `mesh`, `convex`, `box`, `cylinder` (`{"type": "cylinder", "radius", "height"}`), `sphere` |
 | `footprint_m` | radius kept clear of scatter (default: automatic for objects under 50 m; `false` for none) |
-| `shadow`, `cull_distance_m`, `hidden`, `tags` | |
+| `shadow`, `cull_distance_m`, `hidden`, `tags` | `world_check` honours two tags: `floating` (may float: sky islands, birds) and `no_check` |
 
 Primitives: `box` (size), `plane` (size, subdivisions), `cylinder`, `cone`, `sphere`, `capsule` (radius,
 height), `ramp`, `stairs` (size, steps), `gem` (size); all take `material`. Their origin is the bottom centre.
+
+## areas
+
+```json
+"areas": {"town": {"rect": {"center": [0, 140], "size": [80, 60]}, "falloff": 6},
+          "outskirts": {"union": ["town", {"circle": {"center": [40, 180], "radius": 30}}]}}
+```
+
+Named regions. Wherever a tool or scatter rule takes an `area`, a name can stand in for it (`"area": "town"`),
+and names can be used inside a `union`. A scatter rule that names an area follows later changes to it. Set
+them with `area_set`.
 
 ## scatter
 

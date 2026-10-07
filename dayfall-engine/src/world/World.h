@@ -17,6 +17,8 @@ public:
     Terrain terrain;
     uint64_t version = Terrain::nextVersion();   // changes on every edit (unique across worlds)
     bool dirty = false;            // unsaved changes
+    nlohmann::json savedDoc;       // the document as last loaded / saved (world_diff since save)
+    uint64_t savedTerrainVersion = 0;
 
     void load(const std::filesystem::path& mapDir);
     void save();

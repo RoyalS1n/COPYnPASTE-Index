@@ -5,9 +5,11 @@
 #include "core/Image.h"
 #include "core/Log.h"
 #include "editor/Editor.h"
+#include "editor/WorldTools.h"
 #include "scene/GltfLoader.h"
 #include "scene/Materials.h"
 #include "scene/Primitives.h"
+#include "world/Area.h"
 #include "world/EnvironmentDoc.h"
 #include "world/Noise.h"
 #include <algorithm>
@@ -117,6 +119,12 @@ void Editor::registerTools() {
                      {"counts", counts},
                      {"cameras", cams},
                      {"routes", routes},
+                     {"areas", [&] {
+                          json n = json::array();
+                          const json areas = d.value("areas", json::object());   // named: items() on a temporary dangles
+                          for (auto& [k, v] : areas.items()) n.push_back(k);
+                          return n;
+                      }()},
                      {"environment", d.value("environment", json::object())},
                      {"player", PlayerConfig::parse(d.value("player", json::object())).toJson()},
                      {"character", E.game.animator().info()},
@@ -129,15 +137,28 @@ void Editor::registerTools() {
                  return r;
              }});
 
+    // an object's world box and the ground under it (derived, not stored: object_update ignores "resolved")
+    auto resolvedOf = [&E](const json& o) -> json {
+        try {
+            ItemBox b = objectBox(E, o);
+            vec2 c(b.center());
+            json j = {{"min", r1(b.lo)}, {"max", r1(b.hi)}, {"size_m", r1(b.hi - b.lo)}};
+            if (!E.world.terrain.empty()) j["ground_z"] = rnd(E.world.terrain.heightAt(c.x, c.y), 100);
+            return j;
+        } catch (const Error& e) {
+            return {{"error", e.what()}};
+        }
+    };
     addTool({"world_get",
              "Read the world document. No arguments: a summary of every section. section: objects|scatter|paths|entities|lights|"
-             "environment|player|player_start|cameras|routes|terrain|materials|meshes|hud. Filter lists with id, ids, tag, near "
-             "{position [x,y], radius_m} and limit (default 50).",
+             "environment|player|player_start|cameras|routes|areas|terrain|materials|meshes|hud. Filter lists with id, ids, tag, near "
+             "{position [x,y], radius_m} and limit (default 50). Objects come with resolved: their world box (min, max, size_m) "
+             "and the ground height under them.",
              ToolCategory::Read,
              object({{"section", str("section name")}, {"id", str("one item by id")}, {"ids", arr(str(""), "items by id")},
                      {"tag", str("items with this tag")}, {"near", anyObj("{\"position\": [x,y], \"radius_m\": r}")},
                      {"limit", integer("max items (default 50)")}}),
-             [&E](const json& a) {
+             [&E, resolvedOf](const json& a) {
                  ToolResult r;
                  const json& d = E.world.doc;
                  if (a.contains("id")) {
@@ -145,6 +166,7 @@ void Editor::registerTools() {
                      json* o = E.world.find(a["id"].get<std::string>(), &sec);
                      if (!o) return ToolResult::fail("no item with id '" + a["id"].get<std::string>() + "'");
                      r.data = {{"section", sec}, {"item", *o}};
+                     if (sec == "objects") r.data["item"]["resolved"] = resolvedOf(*o);
                      return r;
                  }
                  if (!a.contains("section")) {
@@ -182,7 +204,10 @@ void Editor::registerTools() {
                          if (glm::length(xy(o["position"]) - c) > rad) continue;
                      }
                      ++total;
-                     if (out.size() < limit) out.push_back(o);
+                     if (out.size() < limit) {
+                         out.push_back(o);
+                         if (sec == "objects") out.back()["resolved"] = resolvedOf(o);
+                     }
                  }
                  r.data = {{"section", sec}, {"total_matching", total}, {"items", out}};
                  return r;
@@ -398,6 +423,8 @@ void Editor::registerTools() {
                                                          E.batch.editsSinceCapture ? std::format(", {} unverified", E.batch.editsSinceCapture) : ""));
                  int n = E.batch.open && E.batch.edits == 0 ? E.batch.number : E.batch.number + 1;
                  E.batch = BatchState{true, false, n, a.at("title").get<std::string>(), a.value("intent", ""), {}, 0, 0, 0, {}};
+                 E.batch.docAtStart = E.world.doc;
+                 E.batch.terrainVersionAtStart = E.world.terrain.version;
                  ToolResult r;
                  r.data = {{"batch", E.batch.toJson()}};
                  return r;
@@ -640,7 +667,8 @@ void Editor::registerTools() {
             json o = in;
             if (!o.contains("mesh")) throw Error("each object needs \"mesh\" (a mesh name or a primitive spec)");
             auto asset = E.builder.resolveMesh(E.world, o["mesh"]);   // validates
-            if (!o.contains("position")) throw Error("each object needs \"position\": [x, y] (on the ground) or [x, y, z]");
+            applyRelativePlacement(E, o);   // "place": on / next_to / relative_to another item
+            if (!o.contains("position")) throw Error("each object needs \"position\": [x, y] (on the ground) or [x, y, z], or \"place\"");
             vec2 p = xy(o["position"]);
             if (o.contains("face_towards")) {
                 vec2 t = xy(o["face_towards"]);
@@ -663,7 +691,8 @@ void Editor::registerTools() {
             vec3 size = glm::abs((asset->aabbMax - asset->aabbMin) * sc);
             bool onGround = o.value("on_ground", o["position"].size() < 3);
             float z = onGround ? groundAt(p) + o.value("offset_z", 0.0f) : o["position"][2].get<float>();
-            added.push_back({{"id", id}, {"position", r1(vec3(p, z))}, {"size_m", r1(size)}});
+            ItemBox box = objectBox(E, o);
+            added.push_back({{"id", id}, {"position", r1(vec3(p, z))}, {"size_m", r1(size)}, {"min", r1(box.lo)}, {"max", r1(box.hi)}});
         }
     };
 
@@ -672,7 +701,10 @@ void Editor::registerTools() {
              "\"material\": \"plaster\"}), position [x,y] (on the ground) or [x,y,z], yaw_deg, pitch_deg, roll_deg (or "
              "rotation [qx,qy,qz,qw]), scale (number or per-axis [x,y,z]), materials {\"mesh material\": \"replacement\"}, "
              "face_towards [x,y], offset_z, align_to_ground, collision auto|none|mesh|convex|box|cylinder, shadow, "
-             "cull_distance_m, tags [..], id. Pass one object's fields or objects: [...] (any number).",
+             "cull_distance_m, tags [..], id. Instead of position, place relative to another item (also one added earlier in "
+             "the same call): place {on: id, at [x,y]} (on its top surface) | {next_to: id, side: north|south|east|west, gap_m "
+             "(0.3), offset_m (along the side)} | {relative_to: id, offset [dx,dy(,dz)] in its own frame, match_yaw (true)}. "
+             "Pass one object's fields or objects: [...] (any number).",
              ToolCategory::Layout, object({{"objects", arr(anyObj("an object"), "objects to add")}, {"mesh", {{"description", "mesh name or primitive spec"}}},
                                            {"position", point("[x,y] or [x,y,z]")}}),
              [&E, addObjects](const json& a) {
@@ -687,11 +719,13 @@ void Editor::registerTools() {
              }});
 
     addTool({"object_update",
-             "Change objects or entities: ids [...] or id or tag; set {field: value} (merged; null removes a field), move_by "
-             "[dx,dy(,dz)], rotate_by_deg, scale_by.",
+             "Change objects or entities: ids [...] or id or tag; set {field: value} (merged; null removes a field; set {place: "
+             "{...}} moves it relative to another item as in object_add), move_by [dx,dy(,dz)], rotate_by_deg (each in place, or "
+             "all together about pivot [x,y] or \"center\": turns a group such as a house with its fence), scale_by.",
              ToolCategory::Layout,
              object({{"ids", arr(str(""), "")}, {"id", str("")}, {"tag", str("")}, {"set", anyObj("fields to merge")},
-                     {"move_by", point("")}, {"rotate_by_deg", num("")}, {"scale_by", num("")}}),
+                     {"move_by", point("")}, {"rotate_by_deg", num("")}, {"pivot", {{"description", "[x, y] or \"center\""}}},
+                     {"scale_by", num("")}}),
              [&E](const json& a) {
                  std::vector<json*> targets;
                  E.world.beginEdit("object_update", false);
@@ -712,11 +746,29 @@ void Editor::registerTools() {
                                  if (std::find(tags.begin(), tags.end(), a["tag"]) != tags.end()) targets.push_back(&o);
                              }
                      if (targets.empty()) throw Error("nothing matched (give id, ids or tag)");
+                     bool hasPivot = a.contains("pivot") && a.contains("rotate_by_deg");
+                     vec2 pivot(0);
+                     if (hasPivot) {
+                         if (a["pivot"].is_string()) {
+                             if (a["pivot"].get<std::string>() != "center") throw Error("pivot must be [x, y] or \"center\"");
+                             for (json* o : targets) pivot += xy(o->value("position", json::array({0, 0})));
+                             pivot /= (float)targets.size();
+                         } else {
+                             pivot = xy(a["pivot"]);
+                         }
+                     }
                      for (json* o : targets) {
                          if (a.contains("set")) {
                              json patch = a["set"];
                              patch.erase("id");
+                             patch.erase("resolved");
+                             json place = patch.contains("place") ? patch["place"] : json();
+                             patch.erase("place");
                              *o = mergePatch(*o, patch);
+                             if (!place.is_null()) {
+                                 (*o)["place"] = place;
+                                 applyRelativePlacement(E, *o);
+                             }
                              if (o->contains("mesh")) E.builder.resolveMesh(E.world, (*o)["mesh"]);
                          }
                          if (a.contains("move_by")) {
@@ -729,7 +781,8 @@ void Editor::registerTools() {
                                  else (*o)["offset_z"] = o->value("offset_z", 0.0f) + d[2].get<float>();
                              }
                          }
-                         if (a.contains("rotate_by_deg")) (*o)["yaw_deg"] = o->value("yaw_deg", 0.0f) + a["rotate_by_deg"].get<float>();
+                         if (hasPivot) rotateItemAbout(*o, pivot, a["rotate_by_deg"].get<float>());
+                         else if (a.contains("rotate_by_deg")) (*o)["yaw_deg"] = o->value("yaw_deg", 0.0f) + a["rotate_by_deg"].get<float>();
                          if (a.contains("scale_by")) {
                              float k = a["scale_by"].get<float>();
                              json& sj = (*o)["scale"];
@@ -878,7 +931,8 @@ void Editor::registerTools() {
              object({{"id", str("rule id")}, {"mesh", {{"description", "mesh name or primitive spec"}}}, {"meshes", arr(anyObj(""), "variants")},
                      {"area", areaSchema()}, {"density_per_100m2", num("instances per 100 m2")}}),
              [&E](const json& a) {
-                 json rule = normalizeScatterRule(a);
+                 json rule = normalizeScatterRule(Area::expandArgs(a, E.world.doc.value("areas", json::object())));
+                 if (a.contains("area")) rule["area"] = a["area"];   // a named area stays a name: the rule follows it
                  for (auto& v : rule["meshes"]) E.builder.resolveMesh(E.world, v["mesh"]);
                  std::string id = a.value("id", "");
                  E.world.beginEdit("scatter_set", false);
@@ -1387,5 +1441,7 @@ void Editor::registerTools() {
                  r.data = {{"playing", E.playing()}};
                  return r;
              }});
+
+    registerWorldTools();   // world_check, find_space, area_set, object_duplicate, world_diff (WorldTools.cpp)
 }
 }  // namespace df

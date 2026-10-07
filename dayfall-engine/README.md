@@ -72,7 +72,7 @@ a local agent: [docs/PORTING.md](docs/PORTING.md).
 ## Command-line tools
 
 ```
-bin/dayfall maps/starter --exec tests/smoke.json     # run tool calls from a file, print the results
+bin/dayfall maps/starter --exec tests/smoke.json     # run tool calls from a file (with optional expectations)
 bin/dayfall maps/starter --capture all --out shots   # render the saved views
 bin/dayfall maps/starter --walk-test loop            # exit code 0 if the route passes
 bin/dayfall maps/starter --bench 20                  # orbit the map and report frame times

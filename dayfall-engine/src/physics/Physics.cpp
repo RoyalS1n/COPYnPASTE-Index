@@ -7,6 +7,7 @@
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Character/CharacterVirtual.h>
 #include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
@@ -244,6 +245,31 @@ RayHit Physics::raycast(vec3 origin, vec3 dir, float maxDistance) const {
         h.instance = (uint32_t)b.GetUserData();
     }
     return h;
+}
+
+bool Physics::pointInside(vec3 p, uint32_t* instance) const {
+    if (!p_->system) return false;
+    JPH::RayCastSettings settings;
+    settings.SetBackFaceMode(JPH::EBackFaceMode::CollideWithBackFaces);
+    settings.mTreatConvexAsSolid = true;
+    static const vec3 dirs[6] = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+    int inside = 0;
+    uint32_t inst = UINT32_MAX;
+    for (vec3 d : dirs) {
+        JPH::RRayCast ray{JPH::RVec3(p.x, p.y, p.z), J(d * 200.0f)};
+        JPH::ClosestHitCollisionCollector<JPH::CastRayCollector> col;
+        p_->system->GetNarrowPhaseQuery().CastRay(ray, settings, col);
+        if (!col.HadHit()) continue;
+        JPH::BodyLockRead lock(p_->system->GetBodyLockInterface(), col.mHit.mBodyID);
+        if (!lock.Succeeded()) continue;
+        const JPH::Body& b = lock.GetBody();
+        uint32_t who = (uint32_t)b.GetUserData();
+        if (who == RayHit::kTerrain) continue;
+        vec3 n = G(b.GetWorldSpaceSurfaceNormal(col.mHit.mSubShapeID2, ray.GetPointOnRay(col.mHit.mFraction)));
+        if (col.mHit.mFraction <= 1e-6f || glm::dot(n, d) > 0.0f) { ++inside; inst = who; }
+    }
+    if (instance) *instance = inst;
+    return inside >= 5;   // one ray may leak through a gap in an open mesh
 }
 
 RayHit Physics::groundBelow(float x, float y, float zTop, float zBottom) const {

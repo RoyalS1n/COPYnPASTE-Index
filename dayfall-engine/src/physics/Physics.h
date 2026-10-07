@@ -41,6 +41,9 @@ public:
     // highest surface under (x, y) between zTop and zBottom
     RayHit groundBelow(float x, float y, float zTop = 10000.0f, float zBottom = -10000.0f) const;
     size_t staticBodies() const;
+    // Is the point inside solid static geometry (not the terrain)? Rays along the six axes all hit a back face or
+    // start inside a convex shape. instance: the instance it is inside.
+    bool pointInside(vec3 p, uint32_t* instance = nullptr) const;
 
     // character ---------------------------------------------------------------
     void createCharacter(const CharacterSettings& s, vec3 feet);

@@ -6,6 +6,7 @@
 #include "scene/GltfLoader.h"
 #include "scene/Materials.h"
 #include "scene/Primitives.h"
+#include "world/Area.h"
 #include "world/EnvironmentDoc.h"
 #include <algorithm>
 #include <chrono>
@@ -66,6 +67,39 @@ float autoCull(const MeshAsset& a, float scale) {
     return std::clamp(r * 160.0f, 60.0f, 4000.0f);
 }
 }  // namespace
+
+Placement objectPlacement(const World& w, const json& o) {
+    Placement pl;
+    const json& p = o.value("position", json::array({0, 0}));
+    if (!p.is_array() || p.size() < 2) throw Error("position must be [x, y] or [x, y, z]");
+    vec2 xy(p[0].get<float>(), p[1].get<float>());
+    bool onGround = o.value("on_ground", p.size() < 3);
+    float ground = w.terrain.empty() ? 0.0f : w.terrain.heightAt(xy.x, xy.y);
+    pl.position = vec3(xy, onGround ? ground + o.value("offset_z", 0.0f) : p[2].get<float>());
+    if (o.contains("rotation")) {
+        const json& r = o["rotation"];
+        pl.rotation = glm::normalize(quat(r[3].get<float>(), r[0].get<float>(), r[1].get<float>(), r[2].get<float>()));
+    } else {
+        pl.rotation = glm::angleAxis(glm::radians(o.value("yaw_deg", 0.0f)), vec3(0, 0, 1)) *
+                      glm::angleAxis(glm::radians(o.value("pitch_deg", 0.0f)), vec3(1, 0, 0)) *
+                      glm::angleAxis(glm::radians(o.value("roll_deg", 0.0f)), vec3(0, 1, 0));
+    }
+    if (o.value("align_to_ground", false) && !w.terrain.empty())
+        pl.rotation = glm::rotation(vec3(0, 0, 1), w.terrain.normalAt(xy.x, xy.y)) * pl.rotation;
+    pl.scale = parseScale(o.value("scale", json(1.0f)));
+    return pl;
+}
+
+void placedBounds(const MeshAsset& a, const Placement& p, vec3& lo, vec3& hi) {
+    lo = vec3(1e30f);
+    hi = vec3(-1e30f);
+    for (int k = 0; k < 8; ++k) {
+        vec3 c((k & 1) ? a.aabbMax.x : a.aabbMin.x, (k & 2) ? a.aabbMax.y : a.aabbMin.y, (k & 4) ? a.aabbMax.z : a.aabbMin.z);
+        vec3 wpos = p.position + p.rotation * (c * p.scale);
+        lo = glm::min(lo, wpos);
+        hi = glm::max(hi, wpos);
+    }
+}
 
 json BuildInfo::toJson() const {
     json w = json::array();
@@ -453,25 +487,11 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
             auto a = withMaterials(resolveMesh(w, o["mesh"]), o.value("materials", json()));
             keepAlive.push_back(a);
             uint32_t m = sceneMesh(a);
-            const json& p = o.value("position", json::array({0, 0}));
-            if (!p.is_array() || p.size() < 2) throw Error("position must be [x, y] or [x, y, z]");
-            vec2 xy(p[0].get<float>(), p[1].get<float>());
-            bool onGround = o.value("on_ground", p.size() < 3);
-            float z = onGround ? groundZ(xy) + o.value("offset_z", 0.0f) : p[2].get<float>();
-            quat q;
-            if (o.contains("rotation")) {
-                const json& r = o["rotation"];
-                q = glm::normalize(quat(r[3].get<float>(), r[0].get<float>(), r[1].get<float>(), r[2].get<float>()));
-            } else {
-                q = glm::angleAxis(glm::radians(o.value("yaw_deg", 0.0f)), vec3(0, 0, 1)) *
-                    glm::angleAxis(glm::radians(o.value("pitch_deg", 0.0f)), vec3(1, 0, 0)) *
-                    glm::angleAxis(glm::radians(o.value("roll_deg", 0.0f)), vec3(0, 1, 0));
-            }
-            if (o.value("align_to_ground", false) && !T.empty())
-                q = glm::rotation(vec3(0, 0, 1), T.normalAt(xy.x, xy.y)) * q;
-            vec3 scale = parseScale(o.value("scale", json(1.0f)));
+            Placement pl = objectPlacement(w, o);
+            vec2 xy(pl.position);
+            vec3 scale = pl.scale;
             float cull = o.value("cull_distance_m", meshCull(o["mesh"], autoCull(*a, maxAxis(scale))));
-            uint32_t first = s.addInstance(m, vec3(xy, z), q, scale, o.value("shadow", true), cull);
+            uint32_t first = s.addInstance(m, pl.position, pl.rotation, scale, o.value("shadow", true), cull);
             InstanceSet set{id, m, first, 1, parseCollision(o.value("collision", json()), defaultCollision(w, o["mesh"]))};
             s.sets.push_back(set);
             // keep-out circle for scatter: footprint_m, or automatic for objects under 50 m (merged
@@ -497,7 +517,7 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
         std::string id = raw.value("id", "?");
         if (raw.value("hidden", false)) continue;
         try {
-            json rule = normalizeScatterRule(raw);
+            json rule = normalizeScatterRule(Area::expandArgs(raw, doc.value("areas", json::object())));
             std::string key = rule.dump() + std::format("|t{}|", T.version) + chunkPathsKey_;
             auto& cache = scatter_[id];
             if (cache.key != key) {

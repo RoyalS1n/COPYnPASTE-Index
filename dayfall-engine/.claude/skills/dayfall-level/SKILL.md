@@ -11,8 +11,11 @@ editor window as you make it.
 ## Before changing anything
 
 1. `project_info`: map, rules, coordinates, what exists, the open batch, warnings.
-2. `world_get` (a section or ids), `catalog` (what you can place), `terrain_info` (height grid).
+2. `world_get` (a section or ids; objects come with their world box), `catalog` (what you can place),
+   `terrain_info` (height grid).
 3. Plan in batches. One theme each: terrain, layout, foliage, gameplay, lighting or character.
+4. Name the places you will work on with `area_set` (town, square, forest_north); every `area` argument then takes
+   the name.
 
 ## Each batch
 
@@ -22,7 +25,9 @@ editor window as you make it.
    the player's eye, named `camera`s).
 4. Look at the images. Check: floating or buried objects, gaps and overlaps, scale against the 1.8 m
    mannequin, path continuity, lighting. Fix and capture again.
-5. `batch_end {notes}` with what changed and what you saw. It saves the map.
+5. `world_check` (with the batch's `area`): floating, buried and duplicate objects, objects on paths, entities
+   inside objects, empty scatter rules. Fix every error and warning, or say why it is intended.
+6. `world_diff` lists what the batch changed; `batch_end {notes}` with that and what you saw. It saves the map.
 
 Never change terrain, lighting and character in the same batch; the editor refuses and tells you why.
 
@@ -40,6 +45,12 @@ Never change terrain, lighting and character in the same batch; the editor refus
 - Primitives are parametric (`{"type": "box", "size": [w, d, h], "material": "plaster"}`); their origin is
   the bottom centre (gems: the centre).
 - Paths flatten and carve the ground under them; moving or deleting a path restores the ground.
+- Building sites: `find_space {size: [w, d], near or area, near_path}` returns level, free spots with the yaw that
+  faces the path; level a site with the `terrain_sculpt` op it suggests.
+- Relative placement: `object_add` with `place: {on: id}` (on its top), `{next_to: id, side: east, gap_m}` or
+  `{relative_to: id, offset: [dx, dy]}` (in its frame) instead of `position`; also in `object_update set`.
+- Groups: `object_update {tag, rotate_by_deg, pivot: "center"}` turns them together; `object_duplicate` makes
+  rows (offset) and rings (rotate_by_deg about a pivot).
 - `undo` reverts edits; `batch_end` saves.
 
 Tool reference: `docs/TOOLS.md`. Map format: `docs/MAP_FORMAT.md`.

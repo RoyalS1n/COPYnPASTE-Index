@@ -1,6 +1,7 @@
 #include "editor/Editor.h"
 #include "core/Error.h"
 #include "core/Log.h"
+#include "world/Area.h"
 #include <chrono>
 #include <format>
 
@@ -212,6 +213,8 @@ ToolResult Editor::runEdit(const Tool& t, const json& args) {
     // capture, never terrain + lighting + character together
     if (!batch.open) {
         batch = BatchState{true, true, batch.number + 1, "(implicit) " + t.name, "", {}, 0, 0, 0, {}};
+        batch.docAtStart = world.doc;
+        batch.terrainVersionAtStart = world.terrain.version;
     }
     ToolCategory cat = t.categoryFor ? t.categoryFor(args) : t.category;
     if (options.enforceRules && exclusive(cat)) {
@@ -241,6 +244,9 @@ ToolResult Editor::call(const std::string& name, const json& argsIn) {
     if (!t) return ToolResult::fail("unknown tool '" + name + "'");
     json args = argsIn.is_object() ? argsIn : json::object();
     try {
+        // named areas: "area": "town" means the map's areas.town (scatter_set keeps the name so the rule follows the area)
+        static const std::set<std::string> keepNames = {"scatter_set", "area_set", "doc_patch"};
+        if (!keepNames.count(name) && world.doc.contains("areas")) args = Area::expandArgs(args, world.doc["areas"]);
         if (t->edits()) return runEdit(*t, args);
         return t->run(args);
     } catch (const Error& e) {
@@ -264,6 +270,8 @@ Workflow (follow it):
 3. A successful tool call does not mean the level is right. Capture and inspect after every batch; batch_end refuses unverified edits.
 4. Never change terrain, lighting and character in one batch (enforced). Layout, foliage and gameplay edits can go in any batch.
 5. Block out with primitives and test the whole route with walk_test (the default mannequin, real physics) before adding art. Fix every stuck / fall / water event it reports.
+   Before batch_end, run world_check (floating / buried / duplicate objects, objects on paths, entities inside objects) and fix what it finds.
+   Place precisely instead of guessing: find_space for building sites, object_add place {on / next_to / relative_to}, area_set to name regions.
 6. Then import or place library assets, then refine in small batches: vegetation, lighting, details.
 Use undo if a batch went wrong. Captures are saved under <map>/captures/ for the human to review.)";
 }

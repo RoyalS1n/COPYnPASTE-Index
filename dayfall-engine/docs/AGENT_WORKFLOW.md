@@ -90,6 +90,17 @@ height, distance from paths and buildings). The engine's content library already
 and buildings from the Blender worlds, and the FloatingIslet fortress kit (`fk_*`: walls, towers, gate hall, keeps,
 houses, market props, with their `FT_*` materials); see `catalog` and `maps/fortress_kit`.
 
+Placing things precisely, without guessing coordinates:
+
+- `find_space {"size": [12, 9], "near": [40, 120], "near_path": {"max_m": 15}}` finds level, free sites for a
+  12 x 9 m house near a path, and the yaw that turns its front to the path.
+- `object_add` takes `place` instead of `position`: `{"on": "table_1"}`, `{"next_to": "house_1", "side": "east",
+  "gap_m": 1}`, `{"relative_to": "house_1", "offset": [0, -6]}` (6 m in front of it, in its own frame).
+- `area_set` names regions ("town", "square"); every `area` argument then takes the name, and a forest planted
+  with `"area": "forest_north"` follows later changes to that area.
+- `object_duplicate` makes rows and rings; `object_update {"tag": "farm", "rotate_by_deg": 30, "pivot": "center"}`
+  turns a whole group.
+
 ### 8. Refine in small batches
 
 > Batch 1: vegetation only, grass in the valley, ferns in the shade of the trees.
@@ -120,6 +131,10 @@ DAYFALL enforces both:
 - A batch that has changed terrain cannot change lighting or the character, and so on. The tool call fails
   with an explanation, and the agent closes the batch and opens a new one.
 - Every edit can be undone (`undo`, Ctrl+Z in the editor), and `batch_end` saves the map.
+
+`world_check` finds what is easy to miss in a capture: floating or buried objects, duplicates, objects standing on
+paths, collectibles inside walls, a player start inside a building, scatter rules that placed nothing. Run it
+before `batch_end`; `world_diff` lists what the batch changed for its notes.
 
 Run with `--no-rules` only for scripted rebuilds you have already verified.
 

@@ -32,12 +32,19 @@ Check a change without a window:
 
 ```
 bin/dayfall maps/starter --exec tests/smoke.json        # run tool calls, prints JSON, exit 1 on failure
+bin/dayfall maps/starter --exec tests/world_tools.json  # the spatial tools (also tests/character.json, tests/hud.json)
 bin/dayfall maps/starter --capture all --out <dir>      # render every saved view
 bin/dayfall maps/starter --walk-test loop               # exit 0 if the route passes
 bin/dayfall --list-tools > docs/TOOLS.md                # regenerate the tool reference
 ```
 
 Use `--validation` when you touch Vulkan code: validation errors are bugs.
+
+An `--exec` call can state what it expects, and the run fails if it is not met: `"expect": {"error": true,
+"error_contains": "...", "equals": {"/json/pointer": value}, "contains": {...}, "at_least": {...}, "at_most":
+{...}}` (pointers into the tool's result; `contains` matches substrings, array elements and object subsets;
+`at_least` / `at_most` compare numbers, or the length of an array). Add a test file like `tests/world_tools.json`
+when you add or change tools.
 
 Porting the Unreal level or the Blender worlds: `docs/PORTING.md`. After changing anything in `tools/unreal/`, run
 its tests (`python tools/unreal/test_dayfall_convert.py --engine`, `python tools/unreal/test_export_mock.py --engine`,

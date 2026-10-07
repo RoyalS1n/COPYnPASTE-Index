@@ -41,6 +41,8 @@ struct BatchState {
     std::set<ToolCategory> touched;
     int edits = 0, editsSinceCapture = 0, captures = 0;
     std::vector<std::string> calls;
+    nlohmann::json docAtStart;               // the document when the batch opened (world_diff)
+    uint64_t terrainVersionAtStart = 0;
     nlohmann::json toJson() const;
 };
 
@@ -101,6 +103,7 @@ public:
 
 private:
     void registerTools();                // Tools.cpp
+    void registerWorldTools();           // WorldTools.cpp
     void addTool(Tool t) { tools_.push_back(std::move(t)); }
     ToolResult runEdit(const Tool& t, const nlohmann::json& args);
     std::vector<Tool> tools_;

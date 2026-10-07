@@ -24,6 +24,10 @@ struct Area {
     float falloff = 0;
 
     static Area parse(const nlohmann::json& j);   // throws df::Error
+    // Named areas (the map's "areas" section): a string other than "all" names one. expandNamed replaces the names in
+    // an area (unions included); expandArgs does it for every "area" value in a tool's arguments.
+    static nlohmann::json expandNamed(const nlohmann::json& j, const nlohmann::json& named);
+    static nlohmann::json expandArgs(const nlohmann::json& args, const nlohmann::json& named);
     nlohmann::json toJson() const;
     // signed distance to the edge (negative inside)
     float distance(vec2 p) const;

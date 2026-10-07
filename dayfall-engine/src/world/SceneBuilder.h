@@ -24,6 +24,13 @@ struct EntityState {
     nlohmann::json props;
 };
 
+// Where an object of the world document stands: position (on the terrain for [x, y], with offset_z; or [x, y, z]),
+// rotation (yaw / pitch / roll or a quaternion, align_to_ground) and per-axis scale. Throws df::Error.
+struct Placement { vec3 position{0}; quat rotation{1, 0, 0, 0}; vec3 scale{1}; };
+Placement objectPlacement(const World& w, const nlohmann::json& o);
+// The world-space box of a mesh with a placement
+void placedBounds(const MeshAsset& a, const Placement& p, vec3& lo, vec3& hi);
+
 struct BuildInfo {
     double ms = 0;
     size_t instances = 0, meshes = 0, triangles = 0;

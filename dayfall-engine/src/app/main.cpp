@@ -10,6 +10,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstring>
+#include <format>
 #include <iostream>
 
 using namespace df;
@@ -30,7 +31,7 @@ usage: dayfall [MAP_DIR] [options]
   --mcp stdio             serve MCP on stdin/stdout (an agent launches the engine itself; logs go to stderr)
   --no-mcp                no MCP server
   --list-tools            print the agent tool reference (Markdown) and exit
-  --exec FILE             run tool calls from a JSON file [{"tool": ..., "args": {...}}], print results, exit
+  --exec FILE             run tool calls from a JSON file [{"tool": ..., "args": {...}, "expect": {...}}], print results, exit
   --capture VIEWS         render views (overview, player, top_down, all, or camera names; comma separated) and exit
   --out DIR               where --capture writes images (default: <map>/captures)
   --walk-test ROUTE       walk the mannequin along a route (or "path:<id>"), print the report, exit 0 if passed
@@ -73,19 +74,68 @@ bool pressedOnce(GLFWwindow* w, int key) {
     return down && !was;
 }
 
+// does `have` contain `want`: a substring of a string, an element of an array (objects match by subset), a subset object
+bool containsValue(const json& have, const json& want) {
+    if (have.is_string() && want.is_string()) return have.get<std::string>().find(want.get<std::string>()) != std::string::npos;
+    if (have.is_array()) {
+        for (auto& e : have) if (e == want || (want.is_object() && e.is_object() && containsValue(e, want))) return true;
+        return false;
+    }
+    if (have.is_object() && want.is_object()) {
+        for (auto& [k, v] : want.items())
+            if (!have.contains(k) || !(have[k] == v || (v.is_object() || v.is_string()) && containsValue(have[k], v))) return false;
+        return true;
+    }
+    return have == want;
+}
+
+// "expect": {"error": true, "error_contains": "...", "equals" / "contains" / "at_least" / "at_most": {"/json/pointer": v}}
+// (numbers compare with arrays by their length); returns the unmet expectations
+json checkExpect(const json& e, const ToolResult& r) {
+    json unmet = json::array();
+    bool wantError = e.value("error", e.contains("error_contains"));
+    if (wantError != r.error) unmet.push_back(wantError ? "expected the call to fail" : "expected the call to succeed");
+    if (e.contains("error_contains") && r.error && !containsValue(r.data.value("error", json("")), e["error_contains"]))
+        unmet.push_back("error does not contain " + e["error_contains"].dump());
+    auto at = [&](const std::string& ptr, json& v) {
+        try { v = r.data.at(json::json_pointer(ptr)); return true; } catch (const std::exception&) { return false; }
+    };
+    auto size = [](const json& v) { return v.is_array() || v.is_object() ? (double)v.size() : v.is_number() ? v.get<double>() : 0.0; };
+    for (const char* kind : {"equals", "contains", "at_least", "at_most"}) {
+        const json checks = e.value(kind, json::object());   // named: items() on a temporary dangles
+        for (auto& [ptr, want] : checks.items()) {
+            json v;
+            if (!at(ptr, v)) { unmet.push_back(std::format("{}: {} is missing", kind, ptr)); continue; }
+            bool ok = std::string(kind) == "equals"     ? v == want
+                    : std::string(kind) == "contains"   ? containsValue(v, want)
+                    : std::string(kind) == "at_least"   ? size(v) >= want.get<double>()
+                                                        : size(v) <= want.get<double>();
+            if (!ok) unmet.push_back(std::format("{} {} {} (got {})", ptr, kind, want.dump(), v.dump().substr(0, 200)));
+        }
+    }
+    return unmet;
+}
+
 int runExec(Editor& ed, const fs::path& file) {
     json calls = json::parse(readText(file));
-    if (!calls.is_array()) throw Error("--exec expects a JSON array of {\"tool\": ..., \"args\": {...}}");
+    if (!calls.is_array()) throw Error("--exec expects a JSON array of {\"tool\": ..., \"args\": {...}, \"expect\": {...}}");
     int failures = 0;
     json out = json::array();
     for (auto& c : calls) {
         ToolResult r = ed.call(c.at("tool").get<std::string>(), c.value("args", json::object()));
-        json o = {{"tool", c["tool"]}, {"ok", !r.error}, {"result", r.data}};
+        bool ok = !r.error;
+        json o = {{"tool", c["tool"]}, {"result", r.data}};
+        if (c.contains("expect")) {
+            json unmet = checkExpect(c["expect"], r);
+            ok = unmet.empty();
+            if (!ok) o["expect_failed"] = unmet;
+        }
+        o["ok"] = ok;
         json saved = json::array();
         for (auto& img : r.images) saved.push_back(img.path);
         if (!saved.empty()) o["images"] = saved;
         out.push_back(o);
-        if (r.error) ++failures;
+        if (!ok) ++failures;
     }
     std::cout << out.dump(2) << std::endl;
     return failures ? 1 : 0;

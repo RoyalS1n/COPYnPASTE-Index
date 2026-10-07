@@ -12,7 +12,7 @@ Start here. Map, rules, coordinate conventions, world summary (terrain, counts, 
 
 *read*
 
-Read the world document. No arguments: a summary of every section. section: objects|scatter|paths|entities|lights|environment|player|player_start|cameras|routes|terrain|materials|meshes|hud. Filter lists with id, ids, tag, near {position [x,y], radius_m} and limit (default 50).
+Read the world document. No arguments: a summary of every section. section: objects|scatter|paths|entities|lights|environment|player|player_start|cameras|routes|areas|terrain|materials|meshes|hud. Filter lists with id, ids, tag, near {position [x,y], radius_m} and limit (default 50). Objects come with resolved: their world box (min, max, size_m) and the ground height under them.
 
 | argument | type | notes |
 |---|---|---|
@@ -246,7 +246,7 @@ Create or replace a path (dirt road, trail, lane) along points; it flattens and 
 
 *layout*
 
-Place objects. Each: mesh (name from catalog, or a primitive spec like {"type": "box", "size": [4,6,3], "material": "plaster"}), position [x,y] (on the ground) or [x,y,z], yaw_deg, pitch_deg, roll_deg (or rotation [qx,qy,qz,qw]), scale (number or per-axis [x,y,z]), materials {"mesh material": "replacement"}, face_towards [x,y], offset_z, align_to_ground, collision auto|none|mesh|convex|box|cylinder, shadow, cull_distance_m, tags [..], id. Pass one object's fields or objects: [...] (any number).
+Place objects. Each: mesh (name from catalog, or a primitive spec like {"type": "box", "size": [4,6,3], "material": "plaster"}), position [x,y] (on the ground) or [x,y,z], yaw_deg, pitch_deg, roll_deg (or rotation [qx,qy,qz,qw]), scale (number or per-axis [x,y,z]), materials {"mesh material": "replacement"}, face_towards [x,y], offset_z, align_to_ground, collision auto|none|mesh|convex|box|cylinder, shadow, cull_distance_m, tags [..], id. Instead of position, place relative to another item (also one added earlier in the same call): place {on: id, at [x,y]} (on its top surface) | {next_to: id, side: north|south|east|west, gap_m (0.3), offset_m (along the side)} | {relative_to: id, offset [dx,dy(,dz)] in its own frame, match_yaw (true)}. Pass one object's fields or objects: [...] (any number).
 
 | argument | type | notes |
 |---|---|---|
@@ -258,13 +258,14 @@ Place objects. Each: mesh (name from catalog, or a primitive spec like {"type": 
 
 *layout*
 
-Change objects or entities: ids [...] or id or tag; set {field: value} (merged; null removes a field), move_by [dx,dy(,dz)], rotate_by_deg, scale_by.
+Change objects or entities: ids [...] or id or tag; set {field: value} (merged; null removes a field; set {place: {...}} moves it relative to another item as in object_add), move_by [dx,dy(,dz)], rotate_by_deg (each in place, or all together about pivot [x,y] or "center": turns a group such as a house with its fence), scale_by.
 
 | argument | type | notes |
 |---|---|---|
 | id | string |  |
 | ids | array |  |
 | move_by | array |  |
+| pivot | any | [x, y] or "center" |
 | rotate_by_deg | number |  |
 | scale_by | number |  |
 | set | object | fields to merge |
@@ -497,4 +498,76 @@ Start or stop play mode in the live editor window (for the human to try the leve
 | argument | type | notes |
 |---|---|---|
 | action (required) | string | start/stop |
+
+## world_check
+
+*read*
+
+Find problems captures miss, with ids and fixes: floating or buried objects, bases hanging over slopes, duplicates and heavy overlaps, objects blocking paths, entities and the player start inside objects or underground, objects outside the terrain or under water, scatter rules that placed nothing, missing meshes / materials. area (only there), min_severity error|warning|info (default warning), limit (default 60). Objects tagged floating may float (sky islands, birds); tagged no_check are skipped.
+
+| argument | type | notes |
+|---|---|---|
+| area | any | only check here (an area object, "all" or a named area) |
+| limit | integer | max issues (default 60) |
+| min_severity | string | error/warning/info (default warning) |
+
+## find_space
+
+*read*
+
+Find free, level building sites: size [w, d] footprint (m), optional yaw_deg; inside area, or near [x,y] within radius_m (default 60). Filters: max_slope_deg (10), max_height_diff_m (1.0 across the footprint), clearance_m from objects and trees (2), path_clearance_m (1.5), near_path {id (any), max_m}, avoid_water (true). Returns up to count (5) sites, best first, with ground height, flatness, the nearest object and path and a yaw that faces the path.
+
+| argument | type | notes |
+|---|---|---|
+| area | any | search here (an area object, "all" or a named area) |
+| avoid_water | boolean | default true |
+| clearance_m | number | default 2 |
+| count | integer | default 5 |
+| max_height_diff_m | number | default 1.0 |
+| max_slope_deg | number | default 10 |
+| near | array | [x, y] |
+| near_path | object | {id, max_m}: within max_m of a path |
+| path_clearance_m | number | default 1.5 |
+| radius_m | number | search radius around near (default 60) |
+| size (required) | array | [w, d] footprint in metres |
+| yaw_deg | number | footprint rotation (default 0) |
+
+## area_set
+
+*meta*
+
+Name an area (town, forest_north, arena) so any tool argument "area" can use the name, and scatter rules follow later changes to it: name, area (an area object); delete: true removes it. world_get section areas lists them.
+
+| argument | type | notes |
+|---|---|---|
+| area | any | the region (an area object, "all" or a named area) |
+| delete | boolean | remove the name |
+| name (required) | string | area name |
+
+## object_duplicate
+
+*layout*
+
+Copy objects or entities (ids or tag) count times (default 1): each copy moves by offset [dx,dy(,dz)] and turns by rotate_by_deg about pivot ([x,y], default the sources' centre) from the previous one: rows, rings, mirrored pairs. Copies get new ids (id_prefix), the sources' tags plus tags.
+
+| argument | type | notes |
+|---|---|---|
+| count | integer | copies (default 1) |
+| id_prefix | string |  |
+| ids | array | sources |
+| offset | array | [dx, dy(, dz)] per copy |
+| pivot | array | [x, y] |
+| rotate_by_deg | number | per copy, about pivot |
+| tag | string | sources with this tag |
+| tags | array | added to the copies |
+
+## world_diff
+
+*read*
+
+What changed: since batch (default while a batch is open: since batch_begin) or since save (the last save / load). Lists added, removed and changed ids per section (with the changed fields), changed settings sections, and whether the terrain was edited. Use it to review a batch before batch_end and to write its notes.
+
+| argument | type | notes |
+|---|---|---|
+| since | string | batch/save |
 

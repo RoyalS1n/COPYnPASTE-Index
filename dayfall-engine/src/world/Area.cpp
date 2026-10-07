@@ -28,7 +28,8 @@ float segDist(vec2 p, vec2 a, vec2 b) {
 Area Area::parse(const json& j) {
     Area a;
     if (j.is_null() || (j.is_string() && j.get<std::string>() == "all")) return a;
-    if (!j.is_object()) throw Error("area must be \"all\" or an object with circle / rect / polygon / line");
+    if (j.is_string()) throw Error("area '" + j.get<std::string>() + "' is not a named area of this map (area_set defines one)");
+    if (!j.is_object()) throw Error("area must be \"all\", a named area or an object with circle / rect / polygon / line");
     a.falloff = j.value("falloff", 0.0f);
     if (a.falloff < 0) throw Error("area: falloff must be >= 0");
     if (j.contains("circle")) {
@@ -67,6 +68,42 @@ Area Area::parse(const json& j) {
     }
     return a;
 }
+
+namespace {
+json expandNamedAt(const json& j, const json& named, int depth) {
+    if (depth > 8) throw Error("named areas refer to each other in a loop");
+    if (j.is_string() && j.get<std::string>() != "all") {
+        std::string n = j.get<std::string>();
+        if (!named.is_object() || !named.contains(n)) {
+            std::string have;
+            if (named.is_object())
+                for (auto& [k, v] : named.items()) have += (have.empty() ? "" : ", ") + k;
+            throw Error("no named area '" + n + "'" + (have.empty() ? " (the map has none; area_set defines one)" : " (named areas: " + have + ")"));
+        }
+        return expandNamedAt(named[n], named, depth + 1);
+    }
+    if (j.is_object() && j.contains("union") && j["union"].is_array()) {
+        json out = j;
+        for (auto& c : out["union"]) c = expandNamedAt(c, named, depth + 1);
+        return out;
+    }
+    return j;
+}
+json expandArgsAt(const json& j, const json& named) {
+    if (j.is_array()) {
+        json out = json::array();
+        for (auto& v : j) out.push_back(expandArgsAt(v, named));
+        return out;
+    }
+    if (!j.is_object()) return j;
+    json out = json::object();
+    for (auto& [k, v] : j.items()) out[k] = k == "area" ? expandNamedAt(v, named, 0) : expandArgsAt(v, named);
+    return out;
+}
+}  // namespace
+
+json Area::expandNamed(const json& j, const json& named) { return expandNamedAt(j, named, 0); }
+json Area::expandArgs(const json& args, const json& named) { return expandArgsAt(args, named); }
 
 json Area::toJson() const {
     json j;
