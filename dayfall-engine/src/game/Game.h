@@ -1,6 +1,7 @@
 #pragma once
 // Gameplay runtime: the player (walk / run / jump with a third- or first-person
 // camera), collectibles and goals, HUD state, and the automated walk test.
+#include "game/CharacterAnim.h"
 #include "game/Mannequin.h"
 #include "physics/Physics.h"
 #include "render/Camera.h"
@@ -17,6 +18,12 @@ struct PlayerConfig {
     float walkSpeed = 4.2f, runSpeed = 7.6f, jumpHeight = 1.25f;
     float height = 1.8f, radius = 0.32f, maxSlopeDeg = 48.0f, stepHeight = 0.4f;
     float cameraDistance = 4.2f;
+    // rigged characters (character names a skinned mesh): state -> clip ("Walk" or {"clip", "speed_mps"}),
+    // extra clip files (map-relative), model scale and turn, root motion "keep" or "strip", crossfade seconds
+    nlohmann::json animations = nlohmann::json::object();
+    std::vector<std::string> animationFiles;
+    float characterScale = 1.0f, characterYawOffsetDeg = 0.0f, animationBlend = 0.2f;
+    std::string rootMotion = "keep";
     static PlayerConfig parse(const nlohmann::json& j);   // map "player" section
     nlohmann::json toJson() const;
 };
@@ -34,7 +41,8 @@ public:
     void begin(const Scene& scene, std::vector<EntityState>& entities, Physics& physics, const PlayerConfig& cfg,
                const SceneBuilder& builder);
     void end(Physics& physics, Scene& scene);
-    void rebind(const SceneBuilder& builder) { partsFirst_ = builder.playerFirst; partsCount_ = builder.playerCount; }
+    // after every scene build: the player's instances, its rigged character and the map's player settings
+    void rebind(const SceneBuilder& builder, const PlayerConfig& cfg);
     // poses the mannequin standing at `at` (for captures while editing)
     void showIdle(Scene& scene, const SceneBuilder& builder, vec3 at, float yaw, bool visible);
     bool lightsChanged = false;    // a pickup switched a light off
@@ -44,6 +52,7 @@ public:
     // idle animation of pickups while editing
     static void animateEntities(float time, Scene& scene, const std::vector<EntityState>& entities);
     Camera camera(const Physics& physics, float aspect) const;
+    const CharacterAnimator& animator() const { return anim_; }
     void teleport(Physics& physics, vec3 feet, float yawDeg);
 
     // state
@@ -62,6 +71,7 @@ private:
     bool active_ = false;
     uint32_t partsFirst_ = 0, partsCount_ = 0;
     MannequinPose pose_;
+    CharacterAnimator anim_;          // rigged characters
     std::vector<bool> goalInside_;
 };
 

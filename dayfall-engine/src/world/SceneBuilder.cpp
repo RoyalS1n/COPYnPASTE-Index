@@ -169,6 +169,35 @@ std::shared_ptr<const MeshAsset> SceneBuilder::resolveMesh(const World& w, const
                             list, some.size() >= 24 ? ", ... (see catalog)" : ""));
 }
 
+std::shared_ptr<const CharacterAsset> SceneBuilder::resolveCharacter(const World& w, const json& player) {
+    std::string name = player.value("character", "mannequin");
+    fs::path base;
+    const json* e = meshEntry(w, name, base);
+    if (!e || !e->contains("file"))
+        throw Error(std::format("player.character '{}' is not a mesh with a file: use \"mannequin\" or a rigged mesh (catalog category "
+                                "characters; asset_import a GLB first)", name));
+    std::vector<fs::path> files{base / (*e)["file"].get<std::string>()};
+    for (auto& f : e->value("animation_files", json::array())) files.push_back(base / f.get<std::string>());
+    for (auto& f : player.value("animation_files", json::array())) files.push_back(w.dir / f.get<std::string>());
+    std::string key = e->dump();
+    for (auto& f : files) {
+        std::error_code ec;
+        auto t = fs::last_write_time(f, ec);
+        if (ec) throw Error(std::format("player.character '{}': cannot read {}", name, f.string()));
+        key += std::format("|{}@{}", f.string(), (long long)t.time_since_epoch().count());
+    }
+    if (characterCache_ && characterKey_ == key) return characterCache_;
+    // the model's front (mesh "front"; glTF characters face -y after conversion) turns to +Y, the engine's facing
+    std::string front = e->value("front", "-y");
+    float frontYaw = front == "+y" || front == "y" ? 0.0f : front == "+x" || front == "x" ? 90.0f : front == "-x" ? -90.0f : 180.0f;
+    CharacterImport imp{e->value("import_scale", 1.0f), frontYaw + e->value("import_yaw_deg", 0.0f), e->value("ground_origin", false)};
+    auto c = std::make_shared<CharacterAsset>(loadGltfCharacter(files[0], name, imp));
+    for (size_t i = 1; i < files.size(); ++i) loadGltfClips(files[i], *c);
+    characterKey_ = key;
+    characterCache_ = c;
+    return c;
+}
+
 std::shared_ptr<const MeshAsset> SceneBuilder::withMaterials(const std::shared_ptr<const MeshAsset>& a, const json& overrides) {
     if (!overrides.is_object() || overrides.empty()) return a;
     std::string key = std::format("mat:{}|{}", (const void*)a.get(), overrides.dump());
@@ -185,17 +214,31 @@ std::shared_ptr<const MeshAsset> SceneBuilder::withMaterials(const std::shared_p
 
 json SceneBuilder::catalog(const World& w) const {
     json meshes = json::object();
-    auto add = [&](const json& src, const char* origin) {
+    auto add = [&](const json& src, const char* origin, const fs::path& dir) {
         if (!src.contains("meshes")) return;
         for (auto& [k, v] : src["meshes"].items()) {
             json e = {{"source", origin}};
             for (const char* f : {"category", "description", "size_m", "collision", "footprint_m"})
                 if (v.contains(f)) e[f] = v[f];
+            if (v.value("category", "") == "characters" && v.contains("file")) {   // rigged: the clips player_set maps
+                json clips = json::array(), files = v.value("animation_files", json::array());
+                size_t joints = 0;
+                files.insert(files.begin(), v["file"]);
+                for (auto& f : files) {
+                    try {
+                        GltfRigInfo r = inspectGltfRig(dir / f.get<std::string>());
+                        joints += r.joints;
+                        for (auto& [n, sec] : r.clips) clips.push_back({{"name", n}, {"seconds", std::round(sec * 100.0) / 100.0}});
+                    } catch (const std::exception&) {}
+                }
+                e["rigged"] = joints > 0;
+                e["clips"] = clips;
+            }
             meshes[k] = e;
         }
     };
-    add(lib_, "content library");
-    add(w.doc, "map");
+    add(lib_, "content library", contentDir);
+    add(w.doc, "map", w.dir);
     json mats = json::array();
     for (auto& [k, v] : builtinMaterials().items()) mats.push_back(k);
     if (lib_.contains("materials")) for (auto& [k, v] : lib_["materials"].items()) mats.push_back(k);
@@ -531,14 +574,32 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
             warn(std::format("entity '{}': {}", es.id, ex.what()));
         }
     }
-    // the default mannequin (hidden until play)
+    // the player (hidden until play): a rigged character (player.character names a skinned mesh) or the default mannequin
     playerFirst = (uint32_t)s.instances.size();
-    for (const MannequinPart& part : mannequinParts()) {
-        uint32_t m = s.addMeshAsset(part.mesh, part.mesh.name);
-        uint32_t i = s.addInstance(m, vec3(0), quat(1, 0, 0, 0), 1.0f, true, -1.0f);   // negative cull distance: hidden
-        (void)i;
+    character.reset();
+    const json& player = doc.value("player", json::object());
+    try {
+        if (player.is_object() && player.value("character", "mannequin") != "mannequin") {
+            character = resolveCharacter(w, player);
+            uint32_t m = s.addMeshAsset(character->mesh, character->mesh.name + "#player");   // own vertices, skinned every frame
+            s.meshes[m].bounds.w *= 1.5f;                                                     // room for the limbs (GPU culling)
+            s.dynamicVertexFirst = s.meshes[m].vertexStart;
+            s.dynamicVertexCount = s.meshes[m].vertexCount;
+            s.addInstance(m, vec3(0), quat(1, 0, 0, 0), 1.0f, true, -1.0f);
+            playerCount = 1;
+            for (auto& msg : character->warnings) warn("player.character: " + msg);
+        }
+    } catch (const std::exception& e) {
+        warn(std::format("player.character: {} (using the mannequin)", e.what()));
+        character.reset();
     }
-    playerCount = (uint32_t)mannequinParts().size();
+    if (!character) {
+        for (const MannequinPart& part : mannequinParts()) {
+            uint32_t m = s.addMeshAsset(part.mesh, part.mesh.name);
+            s.addInstance(m, vec3(0), quat(1, 0, 0, 0), 1.0f, true, -1.0f);   // negative cull distance: hidden
+        }
+        playerCount = (uint32_t)mannequinParts().size();
+    }
 
     // cameras and player start
     if (doc.contains("cameras") && doc["cameras"].is_object())

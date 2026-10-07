@@ -119,6 +119,7 @@ void Editor::registerTools() {
                      {"routes", routes},
                      {"environment", d.value("environment", json::object())},
                      {"player", PlayerConfig::parse(d.value("player", json::object())).toJson()},
+                     {"character", E.game.animator().info()},
                      {"player_start", d.value("player_start", json::object())},
                      {"content_library", {{"meshes", lib.size()}, {"categories", cats}}},
                      {"batch", E.batch.toJson()},
@@ -921,24 +922,51 @@ void Editor::registerTools() {
              }});
 
     addTool({"player_set",
-             "Character settings (a character batch): character (mannequin or a rigged mesh), camera third_person|first_person, "
-             "walk_speed, run_speed (m/s), jump_height_m, height_m, radius_m, max_slope_deg, step_height_m, camera_distance_m; "
-             "start: {position [x,y(,z)], yaw_deg} moves the player start.",
+             "Character settings (a character batch): character (\"mannequin\" or a rigged mesh, catalog category characters), "
+             "camera third_person|first_person, walk_speed, run_speed (m/s), jump_height_m, height_m, radius_m, max_slope_deg, "
+             "step_height_m, camera_distance_m. Rigged characters: animations {idle, walk, run, jump, fall, land: clip name or "
+             "{clip, speed_mps}} (unmapped states take the clip whose name contains the state), animation_files [GLBs with more "
+             "clips for the same skeleton, map-relative, e.g. from asset_import], character_scale, character_yaw_offset_deg, "
+             "root_motion keep|strip, animation_blend_s. start: {position [x,y(,z)], yaw_deg} moves the player start. The result "
+             "lists the character's clips and the clip each state plays.",
              ToolCategory::Character,
-             object({{"character", str("")}, {"camera", str("")}, {"walk_speed", num("")}, {"run_speed", num("")}, {"jump_height_m", num("")},
-                     {"start", anyObj("{position, yaw_deg}")}}),
+             object({{"character", str("mannequin or a rigged mesh name")}, {"camera", str("")}, {"walk_speed", num("")}, {"run_speed", num("")},
+                     {"jump_height_m", num("")}, {"animations", anyObj("state -> clip name or {clip, speed_mps}")},
+                     {"animation_files", arr(str(""), "GLB files with more clips (relative to the map)")},
+                     {"character_scale", num("model scale (default 1)")}, {"character_yaw_offset_deg", num("turns the model (default 0)")},
+                     {"root_motion", str("keep (default) or strip: remove the root bone's horizontal travel")},
+                     {"animation_blend_s", num("crossfade seconds (default 0.2)")}, {"start", anyObj("{position, yaw_deg}")}}),
              [&E](const json& a) {
-                 E.world.beginEdit("player_set", false);
-                 json p = a;
-                 if (p.contains("start")) {
-                     xy(p["start"].at("position"));
-                     E.world.doc["player_start"] = mergePatch(E.world.doc.value("player_start", json::object()), p["start"]);
-                     p.erase("start");
+                 json p = a, start = a.value("start", json());
+                 p.erase("start");
+                 if (!start.is_null()) xy(start.at("position"));
+                 json next = mergePatch(E.world.doc.value("player", json::object()), p);
+                 PlayerConfig::parse(next);   // validates the value types
+                 if (next.contains("root_motion") && next["root_motion"] != "keep" && next["root_motion"] != "strip")
+                     throw Error("root_motion must be keep or strip");
+                 if (next.contains("animations") && !next["animations"].is_object()) throw Error("animations must be {\"state\": \"clip\"}");
+                 const json anims = next.value("animations", json::object());   // named: items() on a temporary dangles
+                 for (auto& [k, v] : anims.items())
+                     if (k != "idle" && k != "walk" && k != "run" && k != "jump" && k != "fall" && k != "land")
+                         throw Error("animations: unknown state '" + k + "' (idle, walk, run, jump, fall, land)");
+                 if (next.value("character", "mannequin") != "mannequin") {   // a rigged character must load and its clips exist
+                     CharacterAnimator test;
+                     auto c = E.builder.resolveCharacter(E.world, next);
+                     test.bind(c, PlayerConfig::parse(next));
+                     if (!test.problems.empty()) {
+                         std::string clips;
+                         for (auto& clip : c->clips) clips += (clips.empty() ? "" : ", ") + clip.name;
+                         throw Error(std::format("{}; clips: {}", test.problems[0], clips.empty() ? "none" : clips));
+                     }
                  }
-                 if (!p.empty()) E.world.doc["player"] = mergePatch(E.world.doc.value("player", json::object()), p);
+                 E.world.beginEdit("player_set", false);
+                 if (!start.is_null()) E.world.doc["player_start"] = mergePatch(E.world.doc.value("player_start", json::object()), start);
+                 if (!p.empty()) E.world.doc["player"] = next;
                  E.world.endEdit();
+                 E.rebuildIfNeeded();
                  ToolResult r;
-                 r.data = {{"player", PlayerConfig::parse(E.world.doc["player"]).toJson()}, {"player_start", E.world.doc["player_start"]}};
+                 r.data = {{"player", PlayerConfig::parse(E.world.doc.value("player", json::object())).toJson()},
+                           {"player_start", E.world.doc.value("player_start", json())}, {"character", E.game.animator().info()}};
                  return r;
              }});
 
@@ -1023,7 +1051,9 @@ void Editor::registerTools() {
     addTool({"asset_import",
              "Import a glTF / GLB model into the map's asset folder and register it as a mesh name. file (absolute or relative "
              "path), name, category, description, front (-y default: Blender front), import_scale, import_yaw_deg, "
-             "ground_origin (move the origin to the bottom centre), lods [{ratio, distance_m}], lod0_distance_m, collision.",
+             "ground_origin (move the origin to the bottom centre), lods [{ratio, distance_m}], lod0_distance_m, collision. "
+             "A rigged model (a skin) becomes category characters and the result lists its clips (player_set character uses it); "
+             "a GLB with animations but no mesh is only copied: pass its path to player_set animation_files.",
              ToolCategory::Assets,
              object({{"file", str("path to .glb / .gltf")}, {"name", str("mesh name")}, {"category", str("")}, {"collision", {{"description", "auto|none|mesh|convex|box|cylinder"}}}},
                     {"file", "name"}),
@@ -1051,6 +1081,16 @@ void Editor::registerTools() {
                  entry.erase("file");
                  entry.erase("name");
                  entry["file"] = (fs::path("assets") / src.filename()).generic_string();
+                 GltfRigInfo rig = inspectGltfRig(dst);
+                 json clips = json::array();
+                 for (auto& [n, sec] : rig.clips) clips.push_back({{"name", n}, {"seconds", rnd(sec, 100)}});
+                 if (rig.meshes == 0 && !rig.clips.empty()) {   // clips only (Mixamo "without skin"): nothing to register
+                     ToolResult r;
+                     r.data = {{"animation_file", entry["file"]}, {"clips", clips},
+                               {"next", "add this path to player_set animation_files (the character's skeleton must use the same joint names)"}};
+                     return r;
+                 }
+                 if (rig.joints > 0 && !entry.contains("category")) entry["category"] = "characters";
                  MeshAsset test = loadGltfAsset(dst, name);   // validates
                  E.world.beginEdit("asset_import " + name, false);
                  E.world.doc["meshes"][name] = entry;
@@ -1060,6 +1100,10 @@ void Editor::registerTools() {
                            {"materials", test.materials.size()}, {"origin_note", test.aabbMin.z < -0.05f || test.aabbMin.z > 0.05f
                                                                                   ? "the model's base is not at z = 0; consider ground_origin: true"
                                                                                   : "base at z = 0"}};
+                 if (rig.joints > 0) {
+                     r.data["rigged"] = {{"joints", rig.joints}, {"clips", clips}};
+                     r.data["next"] = "player_set {character: \"" + name + "\", animations: {idle, walk, run, jump, fall, land: clip names}}";
+                 }
                  return r;
              }});
 
@@ -1208,11 +1252,14 @@ void Editor::registerTools() {
     addTool({"play_sim",
              "Play the level with scripted input through the real player controller and camera, as fast as possible: test "
              "jumps, ledges, stairs and pickups. start: {position [x,y(,z)], yaw_deg} (default: the player start); inputs: "
-             "[{seconds, move [x right, y forward], run, jump (pressed at the step start), turn_deg (spread over the step)}]; "
-             "captures: end (default) | each | none (player-camera images).",
+             "[{seconds, move [x right, y forward], run, jump (pressed at the step start), turn_deg (spread over the step), "
+             "expect_animation (idle|walk|run|jump|fall|land: the call fails if a rigged character is in another state at the "
+             "step end)}]; "
+             "captures: end (default) | each | none; camera: player (default) | side | front (4 m from the character, to check "
+             "its animation).",
              ToolCategory::Read,
              object({{"start", anyObj("{position, yaw_deg}")}, {"inputs", arr(anyObj("an input step"), "input steps in order")},
-                     {"captures", str("end|each|none")}}, {"inputs"}),
+                     {"captures", str("end|each|none")}, {"camera", str("player|side|front")}}, {"inputs"}),
              [&E](const json& a) {
                  if (E.playing()) E.stopPlay();
                  E.startPlay();
@@ -1231,6 +1278,15 @@ void Editor::registerTools() {
                      float aspect = (float)E.options.captureWidth / E.options.captureHeight;
                      CaptureView cv;
                      cv.camera = E.game.camera(E.physics, aspect);
+                     std::string cam = a.value("camera", "player");
+                     if (cam == "side" || cam == "front") {   // looking at the character from its right side or its front
+                         vec3 f(-std::sin(E.game.facing), std::cos(E.game.facing), 0.0f), dir = cam == "side" ? vec3(f.y, -f.x, 0.0f) : f;
+                         vec3 at = E.game.feet + vec3(0, 0, E.game.config.height * 0.5f);
+                         cv.camera.position = at + dir * 4.0f + vec3(0, 0, 0.4f);
+                         cv.camera.lookAt(at);
+                         cv.camera.vfov = glm::radians(50.0f);
+                         cv.camera.nearPlane = 0.1f;
+                     }
                      cv.label = label;
                      E.engine->renderer.updateDynamicInstances(E.scene);
                      CaptureResult c = E.engine->capture(cv.camera, E.time + t, E.options.captureWidth, E.options.captureHeight);
@@ -1243,6 +1299,7 @@ void Editor::registerTools() {
                      r.images.push_back(img);
                  };
                  int step = 0;
+                 std::vector<std::string> unmet;
                  for (const json& in : a.at("inputs")) {
                      float secs = std::clamp(in.value("seconds", 1.0f), 0.0f, 60.0f);
                      int frames = std::max(1, (int)std::round(secs / dt));
@@ -1261,6 +1318,12 @@ void Editor::registerTools() {
                      ++step;
                      timeline.push_back({{"step", step}, {"t", rnd(t)}, {"position", r1(E.game.feet)}, {"on_ground", E.game.onGround},
                                          {"max_rise_m", rnd(maxRise, 100)}, {"speed", rnd(glm::length(vec2(E.game.velocity)))}});
+                     if (E.game.animator().character()) timeline.back()["animation"] = CharacterAnimator::name(E.game.animator().state());
+                     if (in.contains("expect_animation")) {
+                         std::string want = in["expect_animation"].get<std::string>();
+                         std::string got = E.game.animator().character() ? CharacterAnimator::name(E.game.animator().state()) : "mannequin";
+                         if (got != want) unmet.push_back(std::format("step {}: animation {}, expected {}", step, got, want));
+                     }
                      if (capMode == "each" && r.images.size() < 6) snap(std::format("sim_step_{}", step));
                  }
                  if (capMode == "end") snap("sim_end");
@@ -1270,6 +1333,12 @@ void Editor::registerTools() {
                            {"final", {{"position", r1(E.game.feet)}, {"on_ground", E.game.onGround},
                                       {"facing_deg", rnd(glm::degrees(E.game.facing) + 90.0f)}}},
                            {"collected", E.game.collectedIds}, {"messages", msgs}};
+                 if (E.game.animator().character()) r.data["character"] = E.game.animator().info();
+                 if (!unmet.empty()) {
+                     r.error = true;
+                     r.data["error"] = std::format("{} expectation(s) not met", unmet.size());
+                     r.data["unmet"] = unmet;
+                 }
                  E.stopPlay();
                  return r;
              }});

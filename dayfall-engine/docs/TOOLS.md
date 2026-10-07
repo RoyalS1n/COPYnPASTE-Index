@@ -335,13 +335,19 @@ Add gameplay entities. type: collectible (glowing pickup: color [r,g,b], size_m,
 
 *character*
 
-Character settings (a character batch): character (mannequin or a rigged mesh), camera third_person|first_person, walk_speed, run_speed (m/s), jump_height_m, height_m, radius_m, max_slope_deg, step_height_m, camera_distance_m; start: {position [x,y(,z)], yaw_deg} moves the player start.
+Character settings (a character batch): character ("mannequin" or a rigged mesh, catalog category characters), camera third_person|first_person, walk_speed, run_speed (m/s), jump_height_m, height_m, radius_m, max_slope_deg, step_height_m, camera_distance_m. Rigged characters: animations {idle, walk, run, jump, fall, land: clip name or {clip, speed_mps}} (unmapped states take the clip whose name contains the state), animation_files [GLBs with more clips for the same skeleton, map-relative, e.g. from asset_import], character_scale, character_yaw_offset_deg, root_motion keep|strip, animation_blend_s. start: {position [x,y(,z)], yaw_deg} moves the player start. The result lists the character's clips and the clip each state plays.
 
 | argument | type | notes |
 |---|---|---|
+| animation_blend_s | number | crossfade seconds (default 0.2) |
+| animation_files | array | GLB files with more clips (relative to the map) |
+| animations | object | state -> clip name or {clip, speed_mps} |
 | camera | string |  |
-| character | string |  |
+| character | string | mannequin or a rigged mesh name |
+| character_scale | number | model scale (default 1) |
+| character_yaw_offset_deg | number | turns the model (default 0) |
 | jump_height_m | number |  |
+| root_motion | string | keep (default) or strip: remove the root bone's horizontal travel |
 | run_speed | number |  |
 | start | object | {position, yaw_deg} |
 | walk_speed | number |  |
@@ -389,7 +395,7 @@ Create or change a material. definition: {model: lit|courses|foliage|grass|terra
 
 *assets*
 
-Import a glTF / GLB model into the map's asset folder and register it as a mesh name. file (absolute or relative path), name, category, description, front (-y default: Blender front), import_scale, import_yaw_deg, ground_origin (move the origin to the bottom centre), lods [{ratio, distance_m}], lod0_distance_m, collision.
+Import a glTF / GLB model into the map's asset folder and register it as a mesh name. file (absolute or relative path), name, category, description, front (-y default: Blender front), import_scale, import_yaw_deg, ground_origin (move the origin to the bottom centre), lods [{ratio, distance_m}], lod0_distance_m, collision. A rigged model (a skin) becomes category characters and the result lists its clips (player_set character uses it); a GLB with animations but no mesh is only copied: pass its path to player_set animation_files.
 
 | argument | type | notes |
 |---|---|---|
@@ -455,10 +461,11 @@ Walk the default mannequin along a route with real physics (as fast as possible)
 
 *read*
 
-Play the level with scripted input through the real player controller and camera, as fast as possible: test jumps, ledges, stairs and pickups. start: {position [x,y(,z)], yaw_deg} (default: the player start); inputs: [{seconds, move [x right, y forward], run, jump (pressed at the step start), turn_deg (spread over the step)}]; captures: end (default) | each | none (player-camera images).
+Play the level with scripted input through the real player controller and camera, as fast as possible: test jumps, ledges, stairs and pickups. start: {position [x,y(,z)], yaw_deg} (default: the player start); inputs: [{seconds, move [x right, y forward], run, jump (pressed at the step start), turn_deg (spread over the step), expect_animation (idle|walk|run|jump|fall|land: the call fails if a rigged character is in another state at the step end)}]; captures: end (default) | each | none; camera: player (default) | side | front (4 m from the character, to check its animation).
 
 | argument | type | notes |
 |---|---|---|
+| camera | string | player/side/front |
 | captures | string | end/each/none |
 | inputs (required) | array | input steps in order |
 | start | object | {position, yaw_deg} |

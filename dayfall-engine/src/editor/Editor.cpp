@@ -85,7 +85,9 @@ bool Editor::rebuildIfNeeded() {
         engine->renderer.setTerrainMaterial(scene.terrainMaterial);
     terrainUploaded_ = &world.terrain;
     physics.buildStatic(scene, world.terrain);
-    game.rebind(builder);
+    PlayerConfig pc;
+    try { pc = PlayerConfig::parse(world.doc.value("player", json::object())); } catch (const std::exception& e) { logWarn("player: {}", e.what()); }
+    game.rebind(builder, pc);
     if (wasPlaying) {   // keep playing from the same spot
         for (auto& id : game.collectedIds)
             for (auto& e : entities)

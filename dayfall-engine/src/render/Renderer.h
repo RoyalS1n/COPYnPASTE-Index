@@ -44,7 +44,8 @@ public:
     void resize(uint32_t w, uint32_t h);
     // Records a whole frame into `out` (same size as the render settings).
     void record(VkCommandBuffer cmd, uint32_t frame, const Camera& cam, float time, const OutputTarget& out);
-    // Instances in [scene.dynamicFirst, end) are re-uploaded by the next record() (player, pickups).
+    // Instances in [scene.dynamicFirst, end) are re-uploaded by the next record() (player, pickups),
+    // and the vertices in scene.dynamicVertexFirst/Count (skinned characters) through a staging copy.
     void updateDynamicInstances(const Scene& scene);
     bool readStats(uint32_t frame, FrameStats& st);
     // re-uploads point-light colours / positions (same light count as setScene)
@@ -100,6 +101,9 @@ private:
     std::vector<std::pair<VkFormat, VkPipeline>> post_;
     std::vector<GpuInstance> dynamic_;
     uint32_t dynamicFirst_ = 0;
+    std::vector<GpuVertex> dynamicVerts_;
+    uint32_t dynamicVertFirst_ = 0, numVertices_ = 0;
+    std::array<Buffer, kFrames> vertexStaging_;
     VkQueryPool queries_ = VK_NULL_HANDLE;
     // terrain
     static constexpr uint32_t kMaxPatches = 6144;

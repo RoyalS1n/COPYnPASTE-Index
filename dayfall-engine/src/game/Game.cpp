@@ -19,13 +19,21 @@ PlayerConfig PlayerConfig::parse(const json& j) {
     c.maxSlopeDeg = j.value("max_slope_deg", c.maxSlopeDeg);
     c.stepHeight = j.value("step_height_m", c.stepHeight);
     c.cameraDistance = j.value("camera_distance_m", c.cameraDistance);
+    if (j.contains("animations") && j["animations"].is_object()) c.animations = j["animations"];
+    for (auto& f : j.value("animation_files", json::array())) if (f.is_string()) c.animationFiles.push_back(f.get<std::string>());
+    c.characterScale = j.value("character_scale", c.characterScale);
+    c.characterYawOffsetDeg = j.value("character_yaw_offset_deg", c.characterYawOffsetDeg);
+    c.rootMotion = j.value("root_motion", c.rootMotion);
+    c.animationBlend = j.value("animation_blend_s", c.animationBlend);
     return c;
 }
 
 json PlayerConfig::toJson() const {
     return {{"character", character}, {"camera", camera}, {"walk_speed", walkSpeed}, {"run_speed", runSpeed},
             {"jump_height_m", jumpHeight}, {"height_m", height}, {"radius_m", radius}, {"max_slope_deg", maxSlopeDeg},
-            {"step_height_m", stepHeight}, {"camera_distance_m", cameraDistance}};
+            {"step_height_m", stepHeight}, {"camera_distance_m", cameraDistance}, {"animations", animations},
+            {"animation_files", animationFiles}, {"character_scale", characterScale}, {"character_yaw_offset_deg", characterYawOffsetDeg},
+            {"root_motion", rootMotion}, {"animation_blend_s", animationBlend}};
 }
 
 void Game::begin(const Scene& scene, std::vector<EntityState>& entities, Physics& physics, const PlayerConfig& cfg,
@@ -38,6 +46,7 @@ void Game::begin(const Scene& scene, std::vector<EntityState>& entities, Physics
     facing = viewYaw = glm::radians(scene.playerStart.yawDeg - 90.0f);   // yaw_deg 90 = facing +Y
     viewPitch = -0.12f;
     physics.createCharacter(cs, feet);
+    anim_.reset();
     active_ = true;
     time = 0;
     collected = 0;
@@ -61,8 +70,17 @@ void Game::teleport(Physics& physics, vec3 f, float yawDeg) {
     physics.teleportCharacter(f);
 }
 
+void Game::rebind(const SceneBuilder& builder, const PlayerConfig& cfg) {
+    partsFirst_ = builder.playerFirst;
+    partsCount_ = builder.playerCount;
+    config = cfg;
+    anim_.bind(builder.character, cfg);
+}
+
 void Game::showIdle(Scene& scene, const SceneBuilder& builder, vec3 at, float yaw, bool visible) {
-    rebind(builder);
+    partsFirst_ = builder.playerFirst;
+    partsCount_ = builder.playerCount;
+    if (visible) anim_.reset();
     vec3 keepFeet = feet;
     float keepFacing = facing;
     feet = at;
@@ -91,6 +109,17 @@ void Game::animateEntities(float t, Scene& scene, const std::vector<EntityState>
 
 void Game::poseCharacter(Scene& scene, bool visible) {
     if (partsCount_ == 0 || partsFirst_ + partsCount_ > scene.instances.size()) return;
+    if (const CharacterAsset* c = anim_.character()) {   // rigged: one instance whose vertices are skinned on the CPU
+        GpuInstance& inst = scene.instances[partsFirst_];
+        quat q = glm::angleAxis(facing + glm::radians(config.characterYawOffsetDeg), vec3(0, 0, 1));
+        inst.posScale = vec4(feet, config.characterScale);
+        inst.rot = vec4(q.x, q.y, q.z, q.w);
+        inst.cullDistance = visible ? 2000.0f : -1.0f;
+        const Mesh& m = scene.meshes[inst.mesh];
+        if (visible && m.vertexCount == c->mesh.vertices.size() && m.vertexStart + m.vertexCount <= scene.vertices.size())
+            anim_.skin(&scene.vertices[m.vertexStart]);
+        return;
+    }
     std::vector<vec3> pos;
     std::vector<quat> rot;
     poseMannequin(pose_, feet, facing, config.height / 1.8f, pos, rot);
@@ -116,6 +145,7 @@ void Game::update(float dt, const PlayerInput& in, Physics& physics, Scene& scen
     float speed = in.run ? config.runSpeed : config.walkSpeed;
     vec2 wish = wishDir * speed;
     float jump = in.jump ? std::sqrt(2.0f * 9.81f * config.jumpHeight) : 0.0f;
+    bool wasGround = onGround;
     CharacterState st = physics.stepCharacter(dt, wish, jump);
     feet = st.position;
     velocity = st.velocity;
@@ -127,8 +157,9 @@ void Game::update(float dt, const PlayerInput& in, Physics& physics, Scene& scen
         float d = std::remainder(target - facing, 6.2831853f);
         facing += d * std::min(1.0f, dt * 10.0f);
     }
-    // procedural animation
+    // procedural animation (mannequin) or the clip state machine (rigged character)
     float hs = glm::length(vec2(velocity));
+    anim_.update(dt, hs, onGround, velocity.z, in.jump && wasGround && velocity.z > 0.5f);
     pose_.stride = std::clamp(hs / config.runSpeed, 0.0f, 1.0f);
     pose_.phase += dt * (hs / std::max(0.9f * config.height / 1.8f, 0.3f)) * 1.6f;
     pose_.airborne = glm::mix(pose_.airborne, onGround ? 0.0f : 1.0f, std::min(1.0f, dt * 8.0f));
