@@ -161,7 +161,7 @@ Open another map directory (saves nothing; call save first if needed).
 
 *terrain*
 
-Replace the terrain with a procedural base. preset: flat|hills|valley|mountains|meadow|island; size_m (default 512), spacing_m (default 1), seed. valley: valley_width_m, valley_slope_m, mountain_height_m, backdrop_height_m, meander_amp_m, axis_deg (valley runs along +Y rotated by axis_deg), closed_end. hills/mountains: height_m, feature_m. meadow: radius_m, rim_height_m. island: radius_m, height_m, water_level_m. Also snowline_m, micro_relief.
+Replace the terrain with a procedural base. preset: flat|hills|valley|mountains|meadow|island; size_m (default 512), spacing_m (default 1), seed. valley: valley_width_m, valley_slope_m, mountain_height_m, backdrop_height_m, meander_amp_m, axis_deg (valley runs along +Y rotated by axis_deg), closed_end. hills/mountains: height_m, feature_m. meadow: radius_m, rim_height_m. island: radius_m, height_m, water_level_m. Also snowline_m, micro_relief, erosion (droplets per m2, e.g. 0.8, or terrain_erode arguments: hydraulic erosion after the preset).
 
 | argument | type | notes |
 |---|---|---|
@@ -169,6 +169,24 @@ Replace the terrain with a procedural base. preset: flat|hills|valley|mountains|
 | seed | integer | random seed |
 | size_m | number | side length |
 | spacing_m | number | sample spacing |
+
+## terrain_erode
+
+*terrain*
+
+Erode the base terrain. mode hydraulic (default): rain droplets run downhill, cutting gullies on slopes and laying sediment fans in valleys; droplets_per_m2 (default 0.6: more = deeper channels), seed, lifetime (steps per droplet, 48). mode thermal: slopes steeper than talus_deg (40) slump, passes (20). area (default: the whole terrain; its falloff fades the change), strength 0..1, paint (default true: deposits as dirt, deep cuts as rock). Big areas take a few seconds; the result reports the volume moved and the deepest cut and fill.
+
+| argument | type | notes |
+|---|---|---|
+| area | any | Area: {"circle": {"center": [x,y], "radius": r}} / {"rect": {"center": [x,y], "size": [w,h], "yaw_deg": a}} / {"polygon": [[x,y],...]} / {"line": [[x,y],...], "width": w} / {"union": [area, ...]} / "all"; optional "falloff": metres of soft edge. |
+| droplets_per_m2 | number |  |
+| lifetime | integer |  |
+| mode | string | hydraulic/thermal |
+| paint | boolean |  |
+| passes | integer |  |
+| seed | integer |  |
+| strength | number | 0..1 |
+| talus_deg | number |  |
 
 ## terrain_import
 
@@ -189,7 +207,7 @@ Replace the terrain with a heightmap image (porting a level from Unreal, World M
 
 *terrain*
 
-Brush edits of the base terrain. op: raise|lower (amount_m) | flatten (height_m, default: average in the area) | set (height_m) | smooth (iterations, kernel_m) | noise (amplitude_m, scale_m) | ramp (from [x,y,z], to [x,y,z]: straight grade, e.g. a road up a hill). area is required; strength 0..1. Several brush ops at once: ops: [{op, area, ...}].
+Brush edits of the base terrain. op: raise|lower (amount_m) | flatten (height_m, default: average in the area) | set (height_m) | smooth (iterations, kernel_m) | noise (amplitude_m, scale_m) | ramp (from [x,y,z], to [x,y,z]: straight grade, e.g. a road up a hill) | terrace (step_m, sharpness 0..1: flats and risers, rice terraces, mesas) | redistribute (exponent: > 1 wide valley floors and sharp peaks, < 1 plateaus). area is required; strength 0..1. Several brush ops at once: ops: [{op, area, ...}].
 
 | argument | type | notes |
 |---|---|---|
@@ -590,6 +608,21 @@ What changed: since batch (default while a batch is open: since batch_begin) or 
 | argument | type | notes |
 |---|---|---|
 | since | string | batch/save |
+
+## rivers_generate
+
+*terrain*
+
+Find where rivers would really run and add them as river bodies: the pits are filled, rain is passed downhill and the channels with the biggest catchments are traced from their sources to the sea, the map edge or the river they join. area (default: the whole terrain), max_rivers (3), min_catchment_m2 (default: the wettest 0.5% of the land), min_length_m (80), width_scale (1: width grows with the catchment), id_prefix (river). The rivers are ordinary water bodies: edit or delete them with water_set / delete. Run terrain_erode first for natural valleys.
+
+| argument | type | notes |
+|---|---|---|
+| area | any | where to look (default: everywhere) (an area object, "all" or a named area) |
+| id_prefix | string |  |
+| max_rivers | integer |  |
+| min_catchment_m2 | number |  |
+| min_length_m | number |  |
+| width_scale | number |  |
 
 ## water_set
 

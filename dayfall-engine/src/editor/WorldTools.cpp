@@ -2,6 +2,7 @@
 // objects, unreachable entities), a search for free building sites, named areas, duplication and a diff of what a
 // batch changed. Shared spatial helpers (boxes, relative placement) are declared in WorldTools.h.
 #include "editor/WorldTools.h"
+#include "world/Hydrology.h"
 #include "core/Error.h"
 #include "world/Area.h"
 #include <algorithm>
@@ -966,6 +967,65 @@ void Editor::registerWorldTools() {
              }});
 
     // ------------------------------------------------------------------ lakes and rivers
+    addTool({"rivers_generate",
+             "Find where rivers would really run and add them as river bodies: the pits are filled, rain is passed downhill and "
+             "the channels with the biggest catchments are traced from their sources to the sea, the map edge or the river they "
+             "join. area (default: the whole terrain), max_rivers (3), min_catchment_m2 (default: the wettest 0.5% of the "
+             "land), min_length_m (80), width_scale (1: width grows with the catchment), id_prefix (river). The rivers are "
+             "ordinary water bodies: edit or delete them with water_set / delete. Run terrain_erode first for natural valleys.",
+             ToolCategory::Terrain,
+             object({{"area", areaSchema("where to look (default: everywhere)")}, {"max_rivers", integer("")}, {"min_catchment_m2", num("")}, {"min_length_m", num("")},
+                     {"width_scale", num("")}, {"id_prefix", str("")}}),
+             [this](const json& a) {
+                 if (world.terrain.empty()) throw Error("the map has no terrain");
+                 Area area = a.contains("area") ? Area::parse(Area::expandNamed(a["area"], world.doc.value("areas", json::object()))) : Area();
+                 std::vector<TracedRiver> rivers;
+                 json stats = traceRivers(world.terrain, area, a, rivers);
+                 if (rivers.empty())
+                     throw Error(std::format("no channel long enough (catchment threshold {} m2): lower min_catchment_m2 or min_length_m",
+                                             stats.value("threshold_m2", 0.0)));
+                 std::string prefix = a.value("id_prefix", "river");
+                 if (prefix.empty()) throw Error("id_prefix must not be empty");
+                 world.beginEdit("rivers_generate", false);
+                 json made = json::array();
+                 std::vector<std::string> ids;
+                 try {
+                     for (size_t k = 0; k < rivers.size(); ++k) {
+                         std::string id = prefix + "_" + std::to_string(k + 1);
+                         std::string sec;
+                         json* existing = world.find(id, &sec);
+                         if (existing && sec != "water") throw Error("id '" + id + "' belongs to " + sec + "; pick another id_prefix");
+                         json pts = json::array();
+                         for (vec2 q : rivers[k].points) pts.push_back({rnd(q.x), rnd(q.y)});
+                         json body = {{"id", id}, {"type", "river"}, {"points", pts}, {"width_m", rnd(rivers[k].widthM)},
+                                      {"depth_m", rnd(rivers[k].depthM)}};
+                         if (existing) *existing = body;
+                         else world.list("water").push_back(body);
+                         ids.push_back(id);
+                     }
+                 } catch (...) { world.cancelEdit(); throw; }
+                 world.endEdit();
+                 rebuildIfNeeded();
+                 for (size_t k = 0; k < rivers.size(); ++k) {
+                     const TracedRiver& r = rivers[k];
+                     json m = {{"id", ids[k]}, {"length_m", std::round(r.lengthM)}, {"catchment_km2", rnd(r.catchmentM2 / 1e6f, 1000)},
+                               {"width_m", rnd(r.widthM)}, {"depth_m", rnd(r.depthM)}, {"source", {rnd(r.points.front().x), rnd(r.points.front().y)}},
+                               {"mouth", {rnd(r.points.back().x), rnd(r.points.back().y)}}};
+                     m["ends"] = r.ends == "joins" && r.joinsIndex >= 0 ? json("joins " + ids[r.joinsIndex]) : json(r.ends);
+                     for (auto& b : builder.waterBodies())
+                         if (b.id == ids[k]) m["flow_m_s"] = rnd(b.flowSpeed, 100);
+                     made.push_back(m);
+                 }
+                 ToolResult r;
+                 r.data = {{"rivers", made}, {"threshold_m2", stats["threshold_m2"]}, {"cell_m", stats["cell_m"]}};
+                 json warns = json::array();
+                 for (auto& w : lastBuild.warnings)
+                     for (auto& id : ids)
+                         if (w.find("'" + id + "'") != std::string::npos) warns.push_back(w);
+                 if (!warns.empty()) r.data["warnings"] = warns;
+                 return r;
+             }});
+
     addTool({"water_set",
              "Create or replace a lake or a river (section water; delete removes it by id). Lake: area (an area object or a "
              "named area), level_m (a height, or \"auto\": just below the lowest point of the area's rim, so the water stays "

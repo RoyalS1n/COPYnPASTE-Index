@@ -5,6 +5,7 @@
 #include "scene/MeshAsset.h"
 #include "world/Area.h"
 #include <filesystem>
+#include <functional>
 #include <nlohmann/json.hpp>
 #include <vector>
 
@@ -46,6 +47,13 @@ public:
     nlohmann::json sculpt(const nlohmann::json& params);
     // paint a layer: {"layer": "dirt|rock|snow|wet|dry|grass", "area": ..., "strength": 0..1, "mode": "add|set|erase"}
     nlohmann::json paintLayer(const nlohmann::json& params);
+    // Erosion of the base heights: {"mode": "hydraulic|thermal", "area", "droplets_per_m2", "seed", "strength", "paint", ...}.
+    // Hydraulic: rain droplets run downhill, picking up sediment where they speed up and dropping it where they slow,
+    // carving gullies and filling valleys with fans (Beyer 2015). Thermal: slopes steeper than the talus angle slump.
+    // progress(done 0..1) returns false to cancel (nothing changes then).
+    nlohmann::json erode(const nlohmann::json& params, const std::function<bool(double)>& progress = {});
+    // reports long generate / erode steps (the editor's MCP progress); false cancels
+    std::function<bool(double)> progress_;
     // final heights = base + paths (the map's "paths" array)
     void applyPaths(const nlohmann::json& paths);
 

@@ -50,6 +50,11 @@ Never change terrain, lighting and character in the same batch; the editor refus
 - Paths flatten and carve the ground under them; moving or deleting a path restores the ground.
 - Water: `water_set` makes lakes (`area`, `level_m: "auto"`, `carve_m` for depth) and rivers (`points` upstream
   first, `width_m`, `depth_m`); they carve the ground like paths. Walk tests report walking into them.
+- Natural land: `terrain_generate` with `erosion: 0.6`, or `terrain_erode {area}`, cuts gullies and sediment fans;
+  `rivers_generate` then traces rivers down the valleys. Do these in a terrain batch, before paths and buildings.
+- Trees: `{"type": "tree", "species": "oak|birch|pine|bush|dead", "seed": n}` is a procedural tree mesh; give a
+  scatter rule a few seeds as variants. Scatter `avoid_rules` keeps rocks clear of a forest, `companions` add
+  stones and ferns at tree feet.
 - Building sites: `find_space {size: [w, d], near or area, near_path}` returns level, free spots with the yaw that
   faces the path; level a site with the `terrain_sculpt` op it suggests.
 - Relative placement: `object_add` with `place: {on: id}` (on its top), `{next_to: id, side: east, gap_m}` or

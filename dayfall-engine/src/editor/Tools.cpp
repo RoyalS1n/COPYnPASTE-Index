@@ -533,13 +533,17 @@ void Editor::registerTools() {
              "Replace the terrain with a procedural base. preset: flat|hills|valley|mountains|meadow|island; size_m (default 512), "
              "spacing_m (default 1), seed. valley: valley_width_m, valley_slope_m, mountain_height_m, backdrop_height_m, "
              "meander_amp_m, axis_deg (valley runs along +Y rotated by axis_deg), closed_end. hills/mountains: height_m, feature_m. "
-             "meadow: radius_m, rim_height_m. island: radius_m, height_m, water_level_m. Also snowline_m, micro_relief.",
+             "meadow: radius_m, rim_height_m. island: radius_m, height_m, water_level_m. Also snowline_m, micro_relief, erosion "
+             "(droplets per m2, e.g. 0.8, or terrain_erode arguments: hydraulic erosion after the preset).",
              ToolCategory::Terrain, object({{"preset", str("terrain preset")}, {"size_m", num("side length")}, {"spacing_m", num("sample spacing")},
                                             {"seed", integer("random seed")}}, {"preset"}),
              [&E](const json& a) {
                  E.world.beginEdit("terrain_generate " + a.value("preset", ""), true);
                  try {
+                     E.world.terrain.progress_ = [&E](double done) { return E.reportProgress(done, 1.0, "eroding"); };
+                     struct Reset { Terrain& t; ~Reset() { t.progress_ = nullptr; } } reset{E.world.terrain};
                      E.world.terrain.generate(a);
+                     if (E.cancelRequested) throw Error("cancelled");
                      E.world.terrainToDoc();
                      if (a.contains("water_level_m") && a.value("preset", "") == "island") {
                          E.world.doc["environment"]["water"] = {{"enabled", true}, {"level_m", a["water_level_m"]}};
@@ -548,6 +552,30 @@ void Editor::registerTools() {
                  E.world.endEdit();
                  ToolResult r;
                  r.data = {{"terrain", E.world.terrain.summary()}};
+                 return r;
+             }});
+
+    addTool({"terrain_erode",
+             "Erode the base terrain. mode hydraulic (default): rain droplets run downhill, cutting gullies on slopes and laying "
+             "sediment fans in valleys; droplets_per_m2 (default 0.6: more = deeper channels), seed, lifetime (steps per droplet, "
+             "48). mode thermal: slopes steeper than talus_deg (40) slump, passes (20). area (default: the whole terrain; its "
+             "falloff fades the change), strength 0..1, paint (default true: deposits as dirt, deep cuts as rock). Big areas "
+             "take a few seconds; the result reports the volume moved and the deepest cut and fill.",
+             ToolCategory::Terrain,
+             object({{"mode", str("hydraulic|thermal")}, {"area", areaSchema()}, {"droplets_per_m2", num("")}, {"seed", integer("")},
+                     {"lifetime", integer("")}, {"talus_deg", num("")}, {"passes", integer("")}, {"strength", num("0..1")},
+                     {"paint", boolean("")}}),
+             [&E, requireTerrain](const json& a) {
+                 requireTerrain();
+                 E.world.beginEdit("terrain_erode", true);
+                 json res;
+                 try {
+                     res = E.world.terrain.erode(a, [&E](double done) { return E.reportProgress(done, 1.0, "eroding"); });
+                     if (res.value("cancelled", false)) throw Error("cancelled");
+                 } catch (...) { E.world.cancelEdit(); throw; }
+                 E.world.endEdit();
+                 ToolResult r;
+                 r.data = res;
                  return r;
              }});
 
@@ -574,7 +602,9 @@ void Editor::registerTools() {
     addTool({"terrain_sculpt",
              "Brush edits of the base terrain. op: raise|lower (amount_m) | flatten (height_m, default: average in the area) | set "
              "(height_m) | smooth (iterations, kernel_m) | noise (amplitude_m, scale_m) | ramp (from [x,y,z], to [x,y,z]: straight "
-             "grade, e.g. a road up a hill). area is required; strength 0..1. Several brush ops at once: ops: [{op, area, ...}].",
+             "grade, e.g. a road up a hill) | terrace (step_m, sharpness 0..1: flats and risers, rice terraces, mesas) | "
+             "redistribute (exponent: > 1 wide valley floors and sharp peaks, < 1 plateaus). area is required; strength 0..1. "
+             "Several brush ops at once: ops: [{op, area, ...}].",
              ToolCategory::Terrain, object({{"op", str("operation")}, {"area", areaSchema()}, {"strength", num("0..1, default 1")},
                                             {"ops", arr(anyObj("a brush op"), "several ops applied in order")}}),
              [&E, requireTerrain](const json& a) {

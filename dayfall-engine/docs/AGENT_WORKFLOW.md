@@ -107,6 +107,11 @@ Placing things precisely, without guessing coordinates:
 - Water: `water_set {"id": "pond", "area": "pond_area", "carve_m": 1.5}` digs and fills a lake (its level finds the
   rim by itself); `water_set {"id": "river", "points": [...upstream first], "width_m": 5}` carves a river that never
   flows uphill. Like paths, they are derived: deleting one restores the ground.
+- Natural land: `terrain_generate {"preset": "mountains", "erosion": 0.6}` or `terrain_erode` on part of the map
+  cuts gullies and lays sediment fans; `rivers_generate` then traces rivers down the valleys (edit them with
+  `water_set` like any river). `terrain_sculpt` `terrace` and `redistribute` make terraces, mesas and wide valleys.
+- Trees: a `{"type": "tree", "species": "oak|birch|pine|bush|dead", "seed": n}` mesh is a procedural tree; a few
+  seeds as scatter variants make a varied forest, and `companions` put stones and ferns at their feet.
 - Prefabs: dress one farmstead (house, fence, well, lamp), `prefab_save {"name": "farmstead", "tag": "farm"}`, then
   `prefab_place {"name": "farmstead", "position": [...], "yaw_deg": 40}` at each site `find_space` returns (its
   `size` is the prefab's `size_m`). Each copy is tagged with its instance id, so it moves, turns and deletes as one.

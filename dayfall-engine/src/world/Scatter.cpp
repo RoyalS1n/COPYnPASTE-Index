@@ -39,6 +39,36 @@ json normalizeScatterRule(const json& in) {
     range(r, "slope_deg", {0.0f, 35.0f});
     range(r, "height_m", {-1e9f, 1e9f});
     if (!r.contains("seed")) r["seed"] = 1;
+    if (r.contains("footprint_m") && !(r["footprint_m"].is_number() && r["footprint_m"].get<float>() >= 0.0f))
+        throw Error("scatter: footprint_m must be a number >= 0");
+    if (r.contains("avoid_rules")) {
+        if (!r["avoid_rules"].is_array()) throw Error("scatter: avoid_rules must be an array of scatter rule ids");
+        for (auto& v : r["avoid_rules"]) if (!v.is_string()) throw Error("scatter: avoid_rules must be an array of scatter rule ids");
+    }
+    if (r.contains("companions")) {
+        if (!r["companions"].is_array()) throw Error("scatter: companions must be an array");
+        for (auto& c : r["companions"]) {
+            if (!c.is_object()) throw Error("scatter: each companion must be an object");
+            if (!c.contains("meshes")) {
+                if (!c.contains("mesh")) throw Error("scatter: each companion needs \"mesh\" or \"meshes\"");
+                c["meshes"] = json::array({{{"mesh", c["mesh"]}, {"weight", 1.0}}});
+                c.erase("mesh");
+            }
+            if (!c["meshes"].is_array() || c["meshes"].empty()) throw Error("scatter: companion meshes must be a non-empty array");
+            for (auto& m : c["meshes"]) {
+                if (!m.is_object() || !m.contains("mesh")) throw Error("scatter: each companion meshes entry needs \"mesh\"");
+                if (!m.contains("weight")) m["weight"] = 1.0;
+            }
+            for (auto [k, def] : {std::pair<const char*, vec2>{"count", {1.0f, 3.0f}}, {"distance_m", {0.6f, 2.0f}}, {"scale", {0.7f, 1.2f}}}) {
+                vec2 v = range(c, k, def);
+                if (v.x < 0 || v.y < v.x) throw Error(std::format("scatter: companion {} must be [min, max] with 0 <= min <= max", k));
+                c[k] = {v.x, v.y};
+            }
+            if (c["count"][1].get<float>() > 50.0f) throw Error("scatter: companion count is at most 50");
+            float chance = c.value("chance", 1.0f);
+            if (!(chance >= 0.0f && chance <= 1.0f)) throw Error("scatter: companion chance must be between 0 and 1");
+        }
+    }
     return r;
 }
 

@@ -6,9 +6,13 @@
 #include "scene/GltfLoader.h"
 #include "scene/Materials.h"
 #include "scene/Primitives.h"
+#include "scene/TreeGen.h"
 #include "world/Area.h"
 #include "world/EnvironmentDoc.h"
 #include <algorithm>
+#include <bit>
+#include <unordered_map>
+#include <set>
 #include <chrono>
 #include <cstring>
 #include <format>
@@ -191,6 +195,11 @@ CollisionDesc SceneBuilder::defaultCollision(const World& w, const json& ref) co
         std::string t = ref.value("type", "");
         if (t == "box") return {CollisionKind::Box};
         if (t == "gem") return {CollisionKind::None};
+        if (t == "tree") {   // the trunk, up to the crown; bushes are walked through
+            TreeShape s = treeShape(ref);
+            if (ref.value("species", "oak") == "bush") return {CollisionKind::None};
+            return {CollisionKind::Cylinder, s.trunkRadius * 1.1f, std::max(s.crownBase, 1.8f)};
+        }
         return mesh;
     }
     if (!ref.is_string()) return mesh;
@@ -547,6 +556,11 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
     // evaluated without footprints and cached, then filtered: moving an object does not re-run the rules
     ScatterContext ctx{T.empty() ? nullptr : &T, s.env.waterLevel, {}};
     FootprintIndex fpIndex(footprints);
+    // rules that later rules keep clear of (avoid_rules): their instances become keep-out circles of footprint_m
+    std::set<std::string> avoided;
+    for (const json& raw : doc.value("scatter", json::array()))
+        for (auto& v : raw.value("avoid_rules", json::array())) if (v.is_string()) avoided.insert(v.get<std::string>());
+    std::unordered_map<std::string, std::vector<Footprint>> ruleFootprints;
     for (const json& raw : doc.value("scatter", json::array())) {
         std::string id = raw.value("id", "?");
         if (raw.value("hidden", false)) continue;
@@ -570,19 +584,98 @@ void SceneBuilder::build(World& w, Scene& s, std::vector<EntityState>& entities,
             CollisionDesc col = parseCollision(rule.value("collision", json("none")), {CollisionKind::None});
             bool shadow = rule.value("shadow", true);
             float avoid = rule.value("avoid_objects_m", 1.0f);
+            // keep clear of the instances of earlier rules named in avoid_rules
+            std::vector<Footprint> others;
+            for (auto& v : rule.value("avoid_rules", json::array())) {
+                auto it = ruleFootprints.find(v.get<std::string>());
+                if (it == ruleFootprints.end()) warn(std::format("scatter '{}': avoid_rules names '{}', which is not an earlier scatter rule", id, v.get<std::string>()));
+                else others.insert(others.end(), it->second.begin(), it->second.end());
+            }
+            FootprintIndex otherIndex(others, 8.0f);
+            float avoidRules = rule.value("avoid_rules_m", 0.3f);
+            std::vector<char> kept(cache.points.size(), 0);
+            for (size_t k = 0; k < cache.points.size(); ++k) {
+                vec2 q(cache.points[k].position);
+                kept[k] = !fpIndex.blocked(q, avoid) && !otherIndex.blocked(q, avoidRules);
+            }
             // one instance set per variant so collision and picking stay per mesh
             for (uint32_t vi = 0; vi < ids.size(); ++vi) {
                 InstanceSet set{id, ids[vi], (uint32_t)s.instances.size(), 0, col};
                 float cull = rule.value("cull_distance_m", meshCull(variants[vi]["mesh"], autoCull(*assets[vi], 1.0f)));
-                for (const ScatterPoint& p : cache.points) {
-                    if (p.variant != vi || fpIndex.blocked(vec2(p.position), avoid)) continue;
+                for (size_t k = 0; k < cache.points.size(); ++k) {
+                    const ScatterPoint& p = cache.points[k];
+                    if (p.variant != vi || !kept[k]) continue;
                     s.addInstance(ids[vi], p.position, p.rotation, p.scale, shadow, cull);
                     ++set.count;
                 }
                 if (set.count) s.sets.push_back(set);
             }
+            if (avoided.count(id)) {
+                float fp = rule.value("footprint_m", 0.5f);
+                auto& out = ruleFootprints[id];
+                for (size_t k = 0; k < cache.points.size(); ++k)
+                    if (kept[k]) out.push_back({vec2(cache.points[k].position), fp * cache.points[k].scale});
+            }
+            // companions: smaller things around each instance (stones and ferns at tree feet), placed from the
+            // instance's position alone so they stay put when other rules change
+            for (const json& c : rule.value("companions", json::array())) {
+                const json& cv = c["meshes"];
+                std::vector<uint32_t> cids;
+                std::vector<float> cdf;
+                float wsum = 0;
+                for (auto& v : cv) {
+                    auto a = resolveMesh(w, v["mesh"]);
+                    keepAlive.push_back(a);
+                    cids.push_back(sceneMesh(a));
+                    wsum += std::max(v.value("weight", 1.0f), 0.0f);
+                    cdf.push_back(wsum);
+                }
+                vec2 count = vec2(c["count"][0].get<float>(), c["count"][1].get<float>());
+                vec2 dist = vec2(c["distance_m"][0].get<float>(), c["distance_m"][1].get<float>());
+                vec2 sc = vec2(c["scale"][0].get<float>(), c["scale"][1].get<float>());
+                float chance = c.value("chance", 1.0f), sink = c.value("sink_m", 0.05f);
+                std::vector<std::vector<std::pair<vec3, std::pair<quat, float>>>> byVariant(cids.size());
+                uint64_t salt = std::hash<std::string>{}(c.dump()) ^ (uint64_t)rule.value("seed", 1);
+                for (size_t k = 0; k < cache.points.size(); ++k) {
+                    if (!kept[k]) continue;
+                    const ScatterPoint& p = cache.points[k];
+                    uint64_t hsh = salt ^ ((uint64_t)std::bit_cast<uint32_t>(p.position.x) * 0x9E3779B97F4A7C15ull) ^
+                                   ((uint64_t)std::bit_cast<uint32_t>(p.position.y) * 0xC2B2AE3D27D4EB4Full);
+                    auto rnd01 = [&hsh]() {
+                        hsh += 0x9E3779B97F4A7C15ull;
+                        uint64_t z = hsh;
+                        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+                        z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+                        return (float)(((z ^ (z >> 31)) >> 40) * (1.0 / 16777216.0));
+                    };
+                    if (rnd01() >= chance) continue;
+                    int nc = (int)std::floor(glm::mix(count.x, count.y + 0.999f, rnd01()));
+                    for (int m = 0; m < nc; ++m) {
+                        float ang = rnd01() * 6.2831853f, r = glm::mix(dist.x, dist.y, rnd01()) * p.scale;
+                        vec2 q = vec2(p.position) + vec2(std::cos(ang), std::sin(ang)) * r;
+                        if (!T.empty() && (!T.inside(q) || T.waterSurfaceAt(q.x, q.y) != Terrain::kNoWater)) continue;
+                        if (fpIndex.blocked(q, 0.2f)) continue;
+                        float pick = rnd01() * wsum;
+                        uint32_t vi = 0;
+                        while (vi + 1 < cdf.size() && pick > cdf[vi]) ++vi;
+                        float z = T.empty() ? p.position.z : T.heightAt(q.x, q.y);
+                        quat rot = glm::angleAxis(rnd01() * 6.2831853f, vec3(0, 0, 1));
+                        byVariant[vi].push_back({vec3(q, z - sink), {rot, glm::mix(sc.x, sc.y, rnd01())}});
+                    }
+                }
+                for (uint32_t vi = 0; vi < cids.size(); ++vi) {
+                    if (byVariant[vi].empty()) continue;
+                    InstanceSet set{id, cids[vi], (uint32_t)s.instances.size(), 0, {CollisionKind::None}};
+                    float cull = meshCull(cv[vi]["mesh"], 120.0f);
+                    for (auto& [pos, rs] : byVariant[vi]) {
+                        s.addInstance(cids[vi], pos, rs.first, rs.second, shadow, cull);
+                        ++set.count;
+                    }
+                    s.sets.push_back(set);
+                }
+            }
             if (cache.points.empty()) warn(std::format("scatter '{}' placed nothing (check area, slope_deg, height_m, density)", id));
-        } catch (const Error& e) {
+        } catch (const std::exception& e) {   // a bad rule is a warning, never a failed build
             warn(std::format("scatter '{}': {}", id, e.what()));
         }
     }

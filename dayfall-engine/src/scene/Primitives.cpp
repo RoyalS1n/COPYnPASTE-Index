@@ -1,4 +1,5 @@
 #include "scene/Primitives.h"
+#include "scene/TreeGen.h"
 #include "core/Error.h"
 #include <nlohmann/json.hpp>
 #include <cmath>
@@ -249,6 +250,8 @@ bool makePrimitive(const json& spec, MeshAsset& out) {
         float s = num(spec, "size", 0.6f);
         positive(s, "size");
         out = makeGem(s, mat);
+    } else if (type == "tree") {
+        out = makeTree(spec);
     } else {
         return false;
     }
@@ -267,6 +270,9 @@ json primitiveCatalog() {
         {{"type", "ramp"}, {"params", "size [x,y,z]: rises along +Y to height z, material"}, {"origin", "bottom centre"}},
         {{"type", "stairs"}, {"params", "size [x,y,z], steps (default z/0.18), material; climbs along +Y"}, {"origin", "bottom centre"}},
         {{"type", "gem"}, {"params", "size, material"}, {"origin", "centre"}},
+        {{"type", "tree"}, {"params", "species oak|birch|pine|bush|dead, height, crown_radius, trunk_radius, seed (a different tree "
+                                      "each), leaves, detail (0.3..2), bark_material, leaf_material"},
+         {"origin", "base of the trunk"}, {"species", treeCatalog()}},
     });
 }
 }  // namespace df

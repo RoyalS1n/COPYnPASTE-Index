@@ -124,6 +124,20 @@ heightmap with the `terrain_import` tool rather than by hand.
 Rock appears on slopes steeper than `rock_slope_deg`, snow above `snowline_m`, wet ground near the water level;
 painted layers add to these. `horizon` is the distant land around the map.
 
+Shaping tools (they change the stored heights, so nothing extra is kept in map.json):
+
+- `terrain_erode` runs hydraulic erosion: rain droplets run downhill, cutting gullies where they speed up and laying
+  sediment fans where they slow (the droplet method of Beyer 2015, "Implementation of a method for hydraulic
+  erosion"; heights are scaled so the result looks alike at any relief). It paints deposits as dirt and deep cuts
+  as rock. `droplets_per_m2` (0.6) sets how far it goes; `mode: "thermal"` slumps slopes steeper than `talus_deg`.
+  `terrain_generate` takes `"erosion": 0.6` to erode a preset straight away.
+- `terrain_sculpt` ops `terrace` (`step_m`, `sharpness`) and `redistribute` (`exponent`: above 1 widens valley
+  floors and sharpens peaks, below 1 makes plateaus).
+- `rivers_generate` finds where water would run: Priority-Flood (Barnes et al. 2014) fills the pits, rain passes
+  downhill, and the channels with the biggest catchments are traced from their sources to the sea, the edge or the
+  river they join. They become ordinary rivers in `water` (ids `river_1`...; run it again to redo them), with a
+  width that grows with the catchment. Erode first: rivers follow the valleys erosion cuts.
+
 ## paths
 
 ```json
@@ -158,6 +172,13 @@ comes back.
 
 Primitives: `box` (size), `plane` (size, subdivisions), `cylinder`, `cone`, `sphere`, `capsule` (radius,
 height), `ramp`, `stairs` (size, steps), `gem` (size); all take `material`. Their origin is the bottom centre.
+
+Procedural trees are a mesh type too: `{"type": "tree", "species": "oak", "seed": 3}`. Species `oak`, `birch`,
+`pine`, `bush` and `dead`; `height`, `crown_radius`, `trunk_radius` (species defaults otherwise), `seed` (each seed
+is a different tree), `leaves` (false: bare), `detail` (0.3 to 2), `bark_material`, `leaf_material`. Broadleaf
+crowns grow by space colonisation (Runions, Lane & Prusinkiewicz 2007) with pipe-model branch thickness; pines
+grow whorls of drooping branches. They get LODs like the library trees and a trunk collision cylinder (bushes
+none). A few seeds per species as scatter variants make a varied forest.
 
 ## areas
 
@@ -244,6 +265,20 @@ ship prefabs too (a `prefabs` section in `library.json`); a map prefab of the sa
 Other keys: `tilt_deg`, `align_to_slope`, `avoid_water`, `max_rock`, `max_path`, `sink_m`, `clump_scale_m`,
 `yaw_deg` (fixed yaw), `shadow`, `cull_distance_m`, `max_instances`, `avoid_ruts` (keep out of the wheel ruts of
 `lane` paths but allow the strip between them). Results are deterministic for a given rule and terrain.
+
+Rules can keep clear of each other and bring company:
+
+```json
+{"id": "boulders", "mesh": "rock_b", "area": "forest_north", "density_per_100m2": 0.8,
+ "avoid_rules": ["forest_west"], "avoid_rules_m": 0.5}
+{"id": "forest_west", "meshes": [...], "footprint_m": 2.5,
+ "companions": [{"meshes": [{"mesh": "pebble_a"}, {"mesh": "fern_a"}], "count": [1, 3], "distance_m": [0.8, 2.2],
+                 "scale": [0.6, 1.1], "chance": 0.8}]}
+```
+
+`avoid_rules` drops points within `footprint_m` (of each instance of the named, earlier rules; 0.5 by default,
+times the instance's scale) plus `avoid_rules_m`. `companions` place smaller meshes around every instance of the
+rule (stones and ferns at tree feet), on the ground and out of water; they belong to the rule.
 
 Areas (used by scatter, sculpting, painting and deletion):
 `{"circle": {"center": [x, y], "radius": r}}`, `{"rect": {"center": [x, y], "size": [w, h], "yaw_deg": a}}`,

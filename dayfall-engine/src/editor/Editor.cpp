@@ -35,6 +35,7 @@ std::string toolTitle(const std::string& name) {
         {"batch_end", "End the batch"},            {"undo", "Undo"},                          {"redo", "Redo"},
         {"save", "Save the map"},                  {"map_new", "New map"},                    {"map_open", "Open a map"},
         {"terrain_generate", "Generate terrain"},  {"terrain_import", "Import a heightmap"},   {"terrain_sculpt", "Sculpt terrain"},
+        {"terrain_erode", "Erode terrain"}, {"rivers_generate", "Generate rivers"},
         {"terrain_paint", "Paint terrain"},        {"terrain_settings", "Terrain settings"},  {"path_set", "Add or change a path"},
         {"object_add", "Place objects"},           {"object_update", "Change objects"},       {"delete", "Delete items"},
         {"place_along_path", "Place along a path"}, {"scatter_set", "Scatter rule"},          {"entity_add", "Add gameplay entities"},

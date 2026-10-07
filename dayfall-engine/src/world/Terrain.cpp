@@ -206,6 +206,13 @@ void Terrain::generate(const json& p) {
     }
     if (p.contains("snowline_m")) snowline = num(p, "snowline_m", snowline);
     if (p.contains("water_level_m")) waterLevel = num(p, "water_level_m", waterLevel);
+    if (p.contains("erosion")) {   // hydraulic erosion after the preset: droplets per m2, or terrain_erode arguments
+        json e = p["erosion"].is_number() ? json{{"droplets_per_m2", p["erosion"]}} : p["erosion"];
+        if (!e.is_object()) throw Error("erosion must be a number (droplets per m2) or an object of terrain_erode arguments");
+        e.erase("area");
+        height = base;
+        erode(e, progress_);
+    }
     height = base;
     std::fill(pathMask.begin(), pathMask.end(), 0.0f);
     std::fill(laneMask.begin(), laneMask.end(), 0.0f);
@@ -286,8 +293,31 @@ json Terrain::sculpt(const json& p) {
             float t = std::clamp(glm::dot(w - vec2(a), ab) / len2, 0.0f, 1.0f);
             return glm::mix(h, glm::mix(a.z, b.z, t), wt);
         });
+    } else if (op == "terrace") {
+        // flats and risers every step_m; sharpness 0 keeps the slope, 1 makes cliffs between the flats
+        float step = num(p, "step_m", 4.0f), sharp = std::clamp(num(p, "sharpness", 0.7f), 0.0f, 1.0f);
+        if (!(step >= 0.2f && step <= 500.0f)) throw Error("terrace step_m must be between 0.2 and 500");
+        float w = 0.5f * (1.0f - sharp) + 0.03f;
+        apply([&](float h, vec2, float wt, int, int) {
+            float k = std::floor(h / step), f = h / step - k;
+            return glm::mix(h, (k + smoothstep(0.5f - w, 0.5f + w, f)) * step, wt);
+        });
+    } else if (op == "redistribute") {
+        // heights relative to the area's lowest and highest: exponent > 1 widens valley floors and sharpens peaks
+        // (glaciated), < 1 lifts the lowlands into plateaus
+        float e = num(p, "exponent", 1.5f);
+        if (!(e >= 0.2f && e <= 5.0f)) throw Error("redistribute exponent must be between 0.2 and 5");
+        float lo = 1e30f, hi = -1e30f;
+        for (int j = j0; j <= j1; ++j)
+            for (int i = i0; i <= i1; ++i)
+                if (area.contains(pos(i, j))) { lo = std::min(lo, at(base, i, j)); hi = std::max(hi, at(base, i, j)); }
+        if (!(hi - lo > 0.01f)) throw Error("redistribute: the area is flat");
+        apply([&](float h, vec2, float wt, int, int) {
+            float r = std::clamp((h - lo) / (hi - lo), 0.0f, 1.0f);
+            return glm::mix(h, lo + (hi - lo) * std::pow(r, e), wt);
+        });
     } else {
-        throw Error("unknown sculpt op '" + op + "' (raise, lower, flatten, set, smooth, noise, ramp)");
+        throw Error("unknown sculpt op '" + op + "' (raise, lower, flatten, set, smooth, noise, ramp, terrace, redistribute)");
     }
     touch();
     return {{"op", op}, {"samples_changed", changed}, {"min_change_m", changed ? minD : 0.0f}, {"max_change_m", changed ? maxD : 0.0f}};
@@ -322,6 +352,237 @@ json Terrain::paintLayer(const json& p) {
         }
     touch();
     return {{"layer", layer}, {"mode", mode}, {"samples_changed", changed}};
+}
+
+json Terrain::erode(const json& p, const std::function<bool(double)>& progress) {
+    if (empty()) throw Error("the map has no terrain; create one with terrain_generate first");
+    std::string mode = p.value("mode", "hydraulic");
+    if (mode != "hydraulic" && mode != "thermal") throw Error("erode mode must be hydraulic or thermal");
+    for (const char* k : {"droplets_per_m2", "strength", "seed", "passes", "talus_deg", "max_droplets", "lifetime"})
+        if (p.contains(k) && !p[k].is_number()) throw Error(std::format("erode {} must be a number", k));
+    Area area = p.contains("area") ? Area::parse(p["area"]) : Area();
+    float strength = std::clamp(num(p, "strength", 1.0f), 0.0f, 1.0f);
+    bool paintIt = p.value("paint", true);
+    vec2 lo, hi;
+    area.bounds(lo, hi);
+    int i0 = std::max(0, (int)std::floor((lo.x - origin.x) / spacing)), i1 = std::min((int)n - 1, (int)std::ceil((hi.x - origin.x) / spacing));
+    int j0 = std::max(0, (int)std::floor((lo.y - origin.y) / spacing)), j1 = std::min((int)n - 1, (int)std::ceil((hi.y - origin.y) / spacing));
+    if (i0 > i1 || j0 > j1) throw Error("the area does not overlap the terrain");
+    std::vector<float> before = base;
+    std::vector<float> eroded(base.size(), 0.0f), deposited(base.size(), 0.0f);
+    json out = {{"mode", mode}};
+
+    if (mode == "thermal") {
+        int passes = std::clamp((int)num(p, "passes", 20.0f), 1, 500);
+        float talus = std::tan(glm::radians(std::clamp(num(p, "talus_deg", 40.0f), 5.0f, 80.0f)));
+        thermalErosion(passes, talus, 0.25f);
+        out["passes"] = passes;
+    } else {
+        // droplets run on a working copy of the region (plus a margin they can run into), in cell units; big regions
+        // are simulated on a coarser grid and the change is spread back smoothly
+        int margin = 48;
+        int x0 = std::max(0, i0 - margin), x1 = std::min((int)n - 1, i1 + margin);
+        int y0 = std::max(0, j0 - margin), y1 = std::min((int)n - 1, j1 + margin);
+        int f = 1;
+        while ((double)((x1 - x0) / f + 1) * ((y1 - y0) / f + 1) > 1.1e6) f *= 2;
+        int W = (x1 - x0) / f + 1, Hh = (y1 - y0) / f + 1;
+        if (W < 4 || Hh < 4) throw Error("the area is too small to erode (a few metres at least)");
+        float cell = spacing * f;
+        std::vector<float> h((size_t)W * Hh), h0;
+        for (int y = 0; y < Hh; ++y)
+            for (int x = 0; x < W; ++x) {
+                double sum = 0;
+                int c = 0;
+                for (int dy = 0; dy < f; ++dy)
+                    for (int dx = 0; dx < f; ++dx) {
+                        int gi = std::min(x0 + x * f + dx, (int)n - 1), gj = std::min(y0 + y * f + dy, (int)n - 1);
+                        sum += at(base, gi, gj); ++c;
+                    }
+                h[(size_t)y * W + x] = (float)(sum / c) / cell;
+            }
+        // Beyer's constants assume gentle slopes (heightmaps normalised to 0..1); steep terrain would be dug into pits.
+        // Scale heights so the mean slope the droplets see is moderate, and scale the change back afterwards: the
+        // pattern then looks alike at any relief, with cuts in proportion to it.
+        double gsum = 0;
+        for (int y = 0; y + 1 < Hh; ++y)
+            for (int x = 0; x + 1 < W; ++x) {
+                float a = h[(size_t)y * W + x];
+                gsum += std::hypot(h[(size_t)y * W + x + 1] - a, h[(size_t)(y + 1) * W + x] - a);
+            }
+        float zs = std::max(1.0f, (float)(gsum / ((double)(W - 1) * (Hh - 1))) / 0.06f);
+        for (auto& v : h) v /= zs;
+        h0 = h;
+        // erosion brush: cells within the radius, weighted by closeness
+        const int radius = 3;
+        std::vector<std::pair<ivec2, float>> brush;
+        float wsum = 0;
+        for (int dy = -radius; dy <= radius; ++dy)
+            for (int dx = -radius; dx <= radius; ++dx) {
+                float d = std::sqrt((float)(dx * dx + dy * dy));
+                if (d < radius) { brush.push_back({ivec2(dx, dy), radius - d}); wsum += radius - d; }
+            }
+        for (auto& b : brush) b.second /= wsum;
+        // Beyer's parameters (heights and steps in cell units)
+        const float inertia = 0.05f, capacityK = 4.0f, minCapacity = 0.01f, erodeK = 0.3f, depositK = 0.3f, gravity = 4.0f, evaporate = 0.01f;
+        int lifetime = std::clamp((int)num(p, "lifetime", 48.0f), 8, 256);
+        float seaLevel = waterLevel / cell / zs;
+        double areaM2 = std::min((double)(i1 - i0 + 1) * (j1 - j0 + 1) * spacing * spacing, (double)area.areaM2());
+        float density = num(p, "droplets_per_m2", 0.6f);
+        if (!(density > 0.0f && density <= 20.0f)) throw Error("droplets_per_m2 must be above 0 and at most 20");
+        size_t droplets = (size_t)std::max(1.0, areaM2 * density / ((double)f * f));
+        droplets = std::min(droplets, (size_t)std::clamp(num(p, "max_droplets", 3e6f), 1.0f, 2e7f));
+        auto H = [&](int x, int y) -> float& { return h[(size_t)y * W + x]; };
+        auto sample = [&](vec2 q, float& height, vec2& grad) {
+            int x = (int)q.x, y = (int)q.y;
+            float u = q.x - x, v = q.y - y;
+            float a = H(x, y), b = H(x + 1, y), c = H(x, y + 1), d = H(x + 1, y + 1);
+            grad = vec2((b - a) * (1 - v) + (d - c) * v, (c - a) * (1 - u) + (d - b) * u);
+            height = a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v;
+        };
+        Rng rng(seed * 7919u + (uint32_t)num(p, "seed", 0.0f) * 104729u + 17u);
+        vec2 spawnLo((float)(i0 - x0) / f, (float)(j0 - y0) / f), spawnHi((float)(i1 - x0) / f, (float)(j1 - y0) / f);
+        for (size_t k = 0; k < droplets; ++k) {
+            if (progress && (k & 0x3FFF) == 0 && !progress((double)k / droplets)) { base = before; return json{{"cancelled", true}}; }
+            vec2 q;
+            bool ok = false;
+            for (int t = 0; t < 6 && !ok; ++t) {
+                q = vec2(rng.uniform(spawnLo.x, spawnHi.x), rng.uniform(spawnLo.y, spawnHi.y));
+                ok = area.weight(origin + (vec2(x0, y0) + q * (float)f) * spacing) > 0.0f;
+            }
+            if (!ok) continue;
+            vec2 dir(0);
+            float speed = 1, water = 1, sediment = 0;
+            ivec2 node(0);
+            vec2 off(0);
+            auto depositAt = [&](float amount) {
+                float w[4] = {(1 - off.x) * (1 - off.y), off.x * (1 - off.y), (1 - off.x) * off.y, off.x * off.y};
+                H(node.x, node.y) += amount * w[0];
+                H(node.x + 1, node.y) += amount * w[1];
+                H(node.x, node.y + 1) += amount * w[2];
+                H(node.x + 1, node.y + 1) += amount * w[3];
+            };
+            for (int step = 0; step < lifetime; ++step) {
+                node = ivec2((int)q.x, (int)q.y);
+                off = q - vec2(node);
+                float hc;
+                vec2 g;
+                sample(q, hc, g);
+                dir = dir * inertia - g * (1 - inertia);
+                float len = glm::length(dir);
+                if (len < 1e-6f) break;   // a flat: the droplet stays and evaporates
+                dir /= len;
+                vec2 nq = q + dir;
+                if (nq.x < 0 || nq.y < 0 || nq.x >= W - 1 || nq.y >= Hh - 1) { sediment = 0; break; }   // off the edge: carried away
+                float hn;
+                vec2 gn;
+                sample(nq, hn, gn);
+                float dh = hn - hc;
+                if (hn < seaLevel) break;   // into the sea: everything settles at the shore
+                float capacity = std::max(-dh * speed * water * capacityK, minCapacity);
+                if (sediment > capacity || dh > 0) {
+                    // uphill: fill the pit behind it; slower water: drop what it cannot carry
+                    float amount = dh > 0 ? std::min(dh, sediment) : (sediment - capacity) * depositK;
+                    sediment -= amount;
+                    depositAt(amount);
+                } else {
+                    // no digging at the region's edge, where droplets leave with their load
+                    float edge = (float)std::min(std::min(node.x, node.y), std::min(W - 2 - node.x, Hh - 2 - node.y));
+                    float amount = std::min((capacity - sediment) * erodeK, -dh) * std::clamp(edge / 12.0f, 0.0f, 1.0f);
+                    for (auto& [o, wgt] : brush) {
+                        int bx = node.x + o.x, by = node.y + o.y;
+                        if (bx < 0 || by < 0 || bx >= W || by >= Hh) continue;
+                        H(bx, by) -= amount * wgt;
+                    }
+                    sediment += amount;
+                }
+                speed = std::sqrt(std::max(speed * speed - dh * gravity, 0.0f));   // faster downhill
+                water *= 1 - evaporate;
+                q = nq;
+            }
+            // what a droplet still carries settles where it stops (but not what it took off the edge), spread like
+            // erosion so dying droplets do not leave pockmarks
+            if (sediment > 0)
+                for (auto& [o, wgt] : brush) {
+                    int bx = node.x + o.x, by = node.y + o.y;
+                    if (bx >= 0 && by >= 0 && bx < W && by < Hh) H(bx, by) += sediment * wgt;
+                }
+        }
+        if (progress && !progress(1.0)) { base = before; return json{{"cancelled", true}}; }
+        // soften the change once (3 x 3): single droplets leave cell-sized pits and bumps that read as noise
+        {
+            std::vector<float> d((size_t)W * Hh);
+            for (size_t i = 0; i < d.size(); ++i) d[i] = h[i] - h0[i];
+            for (int y = 0; y < Hh; ++y)
+                for (int x = 0; x < W; ++x) {
+                    float sum = 0, wsum2 = 0;
+                    for (int dy = -1; dy <= 1; ++dy)
+                        for (int dx = -1; dx <= 1; ++dx) {
+                            int xx = x + dx, yy = y + dy;
+                            if (xx < 0 || yy < 0 || xx >= W || yy >= Hh) continue;
+                            float w = (dx == 0 && dy == 0) ? 4.0f : (dx == 0 || dy == 0) ? 2.0f : 1.0f;
+                            sum += d[(size_t)yy * W + xx] * w;
+                            wsum2 += w;
+                        }
+                    h[(size_t)y * W + x] = h0[(size_t)y * W + x] + sum / wsum2;
+                }
+        }
+        // the change, back on the full grid (bilinear when simulated coarser), in metres
+        for (int gj = y0; gj <= y1; ++gj)
+            for (int gi = x0; gi <= x1; ++gi) {
+                // droplets never step onto the outermost cells: they take their neighbours' change (no lip at the edge)
+                float fx = std::clamp((float)(gi - x0) / f, 1.0f, (float)W - 2.001f), fy = std::clamp((float)(gj - y0) / f, 1.0f, (float)Hh - 2.001f);
+                int x = (int)fx, y = (int)fy;
+                float u = fx - x, v = fy - y;
+                auto D = [&](int a, int b) { size_t i = (size_t)b * W + a; return h[i] - h0[i]; };
+                float d = (D(x, y) * (1 - u) + D(x + 1, y) * u) * (1 - v) + (D(x, y + 1) * (1 - u) + D(x + 1, y + 1) * u) * v;
+                at(base, gi, gj) += d * cell * zs;
+            }
+        out["droplets"] = droplets;
+        if (f > 1) out["simulated_at_m"] = cell;
+    }
+    // keep the change inside the area (fading over its falloff), scaled by strength; record what moved
+    size_t changed = 0;
+    double removed = 0, added = 0;
+    float maxCut = 0, maxFill = 0;
+    vec2 cutAt(0), fillAt(0);
+    for (uint32_t j = 0; j < n; ++j)
+        for (uint32_t i = 0; i < n; ++i) {
+            size_t idx = (size_t)j * n + i;
+            float d = base[idx] - before[idx];
+            if (d == 0.0f) continue;
+            float w = area.weight(pos(i, j)) * strength;
+            d *= w;
+            base[idx] = before[idx] + d;
+            if (std::abs(d) < 1e-4f) { base[idx] = before[idx]; continue; }
+            ++changed;
+            if (d < 0) {
+                removed -= d;
+                eroded[idx] = -d;
+                if (-d > maxCut) { maxCut = -d; cutAt = pos(i, j); }
+            } else {
+                added += d;
+                deposited[idx] = d;
+                if (d > maxFill) { maxFill = d; fillAt = pos(i, j); }
+            }
+        }
+    if (paintIt && mode == "hydraulic") {
+        // fresh sediment shows as dirt; the deepest-cut channels expose rock
+        float cutRef = std::max(0.5f, 0.35f * maxCut), fillRef = std::max(0.15f, 0.25f * maxFill);
+        for (size_t idx = 0; idx < base.size(); ++idx) {
+            uint8_t* px = &paint[idx * kPaintChannels];
+            if (deposited[idx] > 0) px[PaintDirt] = std::max<uint8_t>(px[PaintDirt], (uint8_t)(255.0f * smoothstep(0.03f, fillRef, deposited[idx]) * 0.85f));
+            if (eroded[idx] > 0) px[PaintRock] = std::max<uint8_t>(px[PaintRock], (uint8_t)(255.0f * smoothstep(0.25f * cutRef, cutRef, eroded[idx]) * 0.7f));
+        }
+    }
+    touch();
+    out["samples_changed"] = changed;
+    out["volume_moved_m3"] = std::round(removed * spacing * spacing);
+    out["volume_deposited_m3"] = std::round(added * spacing * spacing);
+    out["max_cut_m"] = std::round(maxCut * 100.0f) / 100.0f;
+    out["max_fill_m"] = std::round(maxFill * 100.0f) / 100.0f;
+    out["max_cut_at"] = {std::round(cutAt.x), std::round(cutAt.y)};
+    out["max_fill_at"] = {std::round(fillAt.x), std::round(fillAt.y)};
+    return out;
 }
 
 void Terrain::applyPaths(const json& paths) {
